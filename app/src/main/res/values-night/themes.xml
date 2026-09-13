@@ -3,7 +3,7 @@
     <!-- Full night theme. Style resources are NOT merged across config
          qualifiers, so every token must be redeclared here; the @color/*
          references resolve to the night (dark) variants automatically. -->
-    <style name="Theme.Zelda64Player" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Window -->
         <item name="android:windowBackground">@color/switch_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
@@ -27,11 +27,11 @@
         <item name="colorSurfaceVariant">@color/switch_panel</item>
 
         <!-- Bottom-sheet dialog (hack detail) -->
-        <item name="bottomSheetDialogTheme">@style/Theme.Zelda64Player.BottomSheet</item>
+        <item name="bottomSheetDialogTheme">@style/Theme.HylianBox.BottomSheet</item>
     </style>
 
     <!-- Splash theme (night). References the shared @drawable/splash_artwork. -->
-    <style name="Theme.Zelda64Player.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox.Splash" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_artwork</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
@@ -40,14 +40,14 @@
 
     <!-- Bottom-sheet: transparent container so the sheet's own rounded
          surfaceContainerHigh background (drawn by the fragment) shows. -->
-    <style name="Theme.Zelda64Player.BottomSheet" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox.BottomSheet" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowIsFloating">false</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/StoreBottomSheetAnimation</item>
-        <item name="bottomSheetStyle">@style/Widget.Zelda.BottomSheet</item>
+        <item name="bottomSheetStyle">@style/Widget.HylianBox.BottomSheet</item>
     </style>
 
-    <style name="Widget.Zelda.BottomSheet" parent="Widget.Material3.BottomSheet">
+    <style name="Widget.HylianBox.BottomSheet" parent="Widget.Material3.BottomSheet">
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="android:background">@android:color/transparent</item>
     </style>

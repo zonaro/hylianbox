@@ -1,5 +1,5 @@
 /*
- * Zelda 64 Player - JNI bridge to the rcheevos library (RetroAchievements).
+ * HylianBox - JNI bridge to the rcheevos library (RetroAchievements).
  *
  * Architecture notes:
  * - HTTP never happens in C. The server_call callback marshals each request to
@@ -428,7 +428,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_getVersion(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_getVersion(
     JNIEnv *env, jobject thiz)
 {
     (void)thiz;
@@ -436,7 +436,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_getVersion(
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_getUserAgentClause(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_getUserAgentClause(
     JNIEnv *env, jobject thiz)
 {
     (void)thiz;
@@ -456,7 +456,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_getUserAgent
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeCreateClient(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeCreateClient(
     JNIEnv *env, jobject thiz, jobject listener)
 {
     (void)thiz;
@@ -489,7 +489,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeCreate
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDestroyClient(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeDestroyClient(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -516,7 +516,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDestro
 }
 
 JNIEXPORT jboolean JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeHasClient(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeHasClient(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -528,7 +528,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeHasCli
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeSetHardcoreEnabled(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeSetHardcoreEnabled(
     JNIEnv *env, jobject thiz, jboolean enabled)
 {
     (void)env;
@@ -564,7 +564,7 @@ static void async_result_trampoline(int result, const char *error_message,
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBeginLoginWithPassword(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBeginLoginWithPassword(
     JNIEnv *env, jobject thiz, jstring username, jstring password, jint op_id)
 {
     (void)thiz;
@@ -584,7 +584,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBeginL
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBeginLoginWithToken(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBeginLoginWithToken(
     JNIEnv *env, jobject thiz, jstring username, jstring token, jint op_id)
 {
     (void)thiz;
@@ -604,7 +604,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBeginL
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeLogout(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeLogout(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -618,7 +618,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeLogout
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIdentifyAndLoadGame(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeIdentifyAndLoadGame(
     JNIEnv *env, jobject thiz, jstring file_path, jint op_id)
 {
     (void)thiz;
@@ -640,7 +640,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIdenti
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeUnloadGame(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeUnloadGame(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -655,7 +655,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeUnload
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeSetMemoryRegion(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeSetMemoryRegion(
     JNIEnv *env, jobject thiz, jobject byte_buffer)
 {
     (void)thiz;
@@ -667,7 +667,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeSetMem
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDoFrame(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeDoFrame(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -682,7 +682,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDoFram
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIdle(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeIdle(
     JNIEnv *env, jobject thiz)
 {
     (void)env;
@@ -693,7 +693,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIdle(
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeCompleteServerRequest(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeCompleteServerRequest(
     JNIEnv *env, jobject thiz, jint request_id, jint status_code,
     jbyteArray body, jstring error_message)
 {
@@ -754,7 +754,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeComple
  * ------------------------------------------------------------------------- */
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetUserInfoJson(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeGetUserInfoJson(
     JNIEnv *env, jobject thiz)
 {
     (void)thiz;
@@ -795,7 +795,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetUse
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetGameInfoJson(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeGetGameInfoJson(
     JNIEnv *env, jobject thiz)
 {
     (void)thiz;
@@ -840,7 +840,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetGam
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetAchievementListJson(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeGetAchievementListJson(
     JNIEnv *env, jobject thiz)
 {
     (void)thiz;
@@ -914,7 +914,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeGetAch
  * ------------------------------------------------------------------------- */
 
 JNIEXPORT jobjectArray JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildResolveHashRequest(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBuildResolveHashRequest(
     JNIEnv *env, jobject thiz, jstring game_hash)
 {
     (void)thiz;
@@ -936,7 +936,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildR
 }
 
 JNIEXPORT jlong JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProcessResolveHashResponse(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeProcessResolveHashResponse(
     JNIEnv *env, jobject thiz, jstring response_body)
 {
     (void)thiz;
@@ -960,7 +960,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProces
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeComputeRomHash(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeComputeRomHash(
     JNIEnv *env, jobject thiz, jstring file_path)
 {
     (void)thiz;
@@ -1004,7 +1004,7 @@ static jobjectArray build_request_array(JNIEnv *env, const rc_api_request_t *req
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildFetchGameDataRequest(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBuildFetchGameDataRequest(
     JNIEnv *env, jobject thiz, jstring username, jstring api_token, jlong game_id)
 {
     (void)thiz;
@@ -1063,7 +1063,7 @@ static void append_achievement_json(strbuf_t *sb, const rc_api_achievement_defin
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProcessFetchGameDataResponse(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeProcessFetchGameDataResponse(
     JNIEnv *env, jobject thiz, jstring response_body)
 {
     (void)thiz;
@@ -1130,7 +1130,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProces
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildFetchUserUnlocksRequest(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBuildFetchUserUnlocksRequest(
     JNIEnv *env, jobject thiz, jstring username, jstring api_token,
     jlong game_id, jboolean hardcore)
 {
@@ -1157,7 +1157,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildF
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProcessFetchUserUnlocksResponse(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeProcessFetchUserUnlocksResponse(
     JNIEnv *env, jobject thiz, jstring response_body)
 {
     (void)thiz;
@@ -1198,7 +1198,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeProces
 }
 
 JNIEXPORT jbyteArray JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeSerializeProgress(JNIEnv *env, jobject thiz)
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeSerializeProgress(JNIEnv *env, jobject thiz)
 {
     (void)thiz;
     pthread_mutex_lock(&g_client_mutex);
@@ -1219,7 +1219,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeSerial
 }
 
 JNIEXPORT jboolean JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDeserializeProgress(JNIEnv *env, jobject thiz, jbyteArray bytes)
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeDeserializeProgress(JNIEnv *env, jobject thiz, jbyteArray bytes)
 {
     (void)thiz;
     pthread_mutex_lock(&g_client_mutex);
@@ -1241,7 +1241,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeDeseri
 }
 
 JNIEXPORT void JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeResetProgress(JNIEnv *env, jobject thiz)
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeResetProgress(JNIEnv *env, jobject thiz)
 {
     (void)env; (void)thiz;
     pthread_mutex_lock(&g_client_mutex);
@@ -1250,7 +1250,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeResetP
 }
 
 JNIEXPORT jboolean JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIsHardcore(JNIEnv *env, jobject thiz)
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeIsHardcore(JNIEnv *env, jobject thiz)
 {
     (void)env; (void)thiz;
     pthread_mutex_lock(&g_client_mutex);
@@ -1260,7 +1260,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeIsHard
 }
 
 JNIEXPORT jboolean JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeCanPause(JNIEnv *env, jobject thiz)
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeCanPause(JNIEnv *env, jobject thiz)
 {
     (void)env; (void)thiz;
     pthread_mutex_lock(&g_client_mutex);
@@ -1270,7 +1270,7 @@ Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeCanPau
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_br_com_redclaw_zelda64player_retroachievements_jni_RcheevosJni_nativeBuildAwardRequest(
+Java_br_com_redclaw_hylianbox_retroachievements_jni_RcheevosJni_nativeBuildAwardRequest(
     JNIEnv *env, jobject thiz, jstring username, jstring token, jlong achievement_id, jboolean hardcore, jstring hash, jlong seconds)
 {
     (void)thiz;

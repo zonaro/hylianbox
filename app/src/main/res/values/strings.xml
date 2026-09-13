@@ -609,8 +609,8 @@
     <string name="grid_sort_alpha">Alfabético</string>
 
     <!-- ===== Splash screen wordmark (brand name, NOT translated) ===== -->
-    <string name="brand_zelda64" translatable="false">Zelda 64</string>
-    <string name="brand_player" translatable="false">PLAYER</string>
+    <string name="brand_hylianbox" translatable="false">Hylian</string>
+    <string name="brand_player" translatable="false">BOX</string>
 
     <!-- ===== Store: Import manual game or patch ===== -->
     <string name="store_import_bps">Importar jogo ou patch</string>

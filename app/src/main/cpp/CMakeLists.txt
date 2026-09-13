@@ -1,4 +1,4 @@
-# Zelda 64 Player - native build.
+# HylianBox - native build.
 #
 # Builds the rcheevos library (RetroAchievements runtime, MIT licensed, see
 # rcheevos/LICENSE) together with the app JNI bridge into libra_jni.so.
@@ -11,7 +11,7 @@
 # rc_client_raintegration.c (RetroAchievements toolkit, Windows-only).
 
 cmake_minimum_required(VERSION 3.22.1)
-project(zelda64player_native LANGUAGES C)
+project(hylianbox_native LANGUAGES C)
 
 set(RCHEEVOS_DIR rcheevos)
 

@@ -1,14 +1,14 @@
-# Zelda 64 Player — robots.txt
-# GitHub Pages site for the Zelda 64 Player Android app
+# HylianBox — robots.txt
+# GitHub Pages site for the HylianBox Android app
 
 User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://zonaro.github.io/zelda64player/sitemap.xml
+Sitemap: https://zonaro.github.io/hylianbox/sitemap.xml
 
 # Host
-Host: https://zonaro.github.io/zelda64player/
+Host: https://zonaro.github.io/hylianbox/
 
 # Crawl-delay (optional, be respectful)
 Crawl-delay: 10

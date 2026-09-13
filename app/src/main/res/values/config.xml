@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- A unique identifier for the app (no spaces or special characters allowed) -->
-    <string name="config_id">zelda64player</string>
+    <string name="config_id">hylianbox</string>
 
     <!-- The pretty name for the app -->
-    <string name="config_name">Zelda 64 Player</string>
+    <string name="config_name">HylianBox</string>
 
     <!-- LibRetro core to fetch for this ROM (excluding _libretro_android.so) -->
     <string name="config_core">mupen64plus_next_gles3</string>

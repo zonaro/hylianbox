@@ -1,4 +1,4 @@
-# Manual release workflow for Zelda 64 Player (Android)
+# Manual release workflow for HylianBox (Android)
 #
 # Trigger: ONLY manual (workflow_dispatch). No push/tag/PR triggers.
 #
@@ -67,13 +67,13 @@ jobs:
         run: |
           set -euo pipefail
           cp app/build/outputs/apk/debug/app-debug.apk \
-             "Zelda64Player-${{ inputs.version }}-debug.apk"
+             "HylianBox-${{ inputs.version }}-debug.apk"
 
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
-          APK: Zelda64Player-${{ inputs.version }}-debug.apk
+          APK: HylianBox-${{ inputs.version }}-debug.apk
         run: |
           set -euo pipefail
           if gh release view "$VERSION" >/dev/null 2>&1; then
@@ -87,7 +87,7 @@ jobs:
             fi
             # shellcheck disable=SC2086
             gh release create "$VERSION" "$APK" \
-              --title "Zelda 64 Player $VERSION" \
+              --title "HylianBox $VERSION" \
               --generate-notes \
               $prerelease_flag
           fi

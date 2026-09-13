@@ -1,4 +1,4 @@
-# Zelda 64 Player
+# HylianBox
 
 Native Android (Kotlin) player for fan-made Zelda 64 ROM hacks. Users provide their own legally-owned Ocarina of Time / Majora's Mask base ROMs; the app applies BPS (and legacy IPS) patches on-the-fly and plays them via the Libretro core mupen64plus-next GLES3. No ROMs are embedded or distributed.
 
@@ -39,8 +39,8 @@ The app **never** embeds, downloads, or distributes base ROMs. Users must legall
 **Requirements:** Android Studio (latest), JDK 17, Android SDK 34.
 
 ```bash
-git clone https://github.com/zonaro/zelda64player.git
-cd zelda64player
+git clone https://github.com/zonaro/hylianbox.git
+cd hylianbox
 ./gradlew assembleDebug
 ```
 

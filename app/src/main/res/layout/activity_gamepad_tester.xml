@@ -113,7 +113,7 @@
         android:textColor="@color/switch_text_secondary"
         android:textSize="@dimen/switch_hint_text" />
 
-    <br.com.redclaw.zelda64player.views.GamepadTesterView
+    <br.com.redclaw.hylianbox.views.GamepadTesterView
         android:id="@+id/tester_surface"
         android:layout_width="match_parent"
         android:layout_height="0dp"

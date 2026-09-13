@@ -1,4 +1,4 @@
-/* Zelda 64 Player — Dashboard App — Nintendo Switch HOME edition
+/* HylianBox — Dashboard App — Nintendo Switch HOME edition
    - Single unified Collection/Play grid (Switch cards, 13:9, focus border)
    - Each card has a "Jogar" button that opens the player overlay
    - Covers served via /covers/{hackId} (phone-proxied + cached)
@@ -433,7 +433,7 @@
         if (!game) return;
         // EmulatorJS names its persistent SRAM from EJS_gameName. A stable id per installed ROM
         // prevents vanilla and patched hacks from ever sharing a browser save.
-        const safeId = `zelda64_${encodeURIComponent(hackId)}`;
+        const safeId = `hylianbox_${encodeURIComponent(hackId)}`;
         activeEmulatorHackId = hackId;
         game.querySelectorAll('.ejs_canvas_parent, .ejs_game, canvas').forEach(node => node.remove());
 
@@ -495,7 +495,7 @@
 
     function stopEmulator() {
         const hackId = activeEmulatorHackId;
-        const gameName = hackId ? `zelda64_${encodeURIComponent(hackId)}` : null;
+        const gameName = hackId ? `hylianbox_${encodeURIComponent(hackId)}` : null;
         if (hackId && gameName) persistSram(hackId, gameName);
         activeEmulatorHackId = null;
         if (sramSyncTimer) { clearInterval(sramSyncTimer); sramSyncTimer = null; }

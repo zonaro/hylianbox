@@ -32,19 +32,19 @@ from urllib.request import Request, urlopen
 
 
 BASE_URL = "https://hylianmodding.com/"
-USER_AGENT = "Zelda64PlayerCatalogImporter/1.0 (+https://github.com/zonaro/zelda64player)"
+USER_AGENT = "HylianBoxCatalogImporter/1.0 (+https://github.com/zonaro/hylianbox)"
 DIRECT_PATCH_EXTENSIONS = (".bps", ".ips", ".xdelta", ".zip")
 CATALOG_VERSION = 3
 
 # Known developer sites for curated Main Store entries that have no Hylian Modding counterpart
-# or whose patch is mirrored on zonaro/zelda64player. This ensures catalog.json always has
+# or whose patch is mirrored on zonaro/hylianbox. This ensures catalog.json always has
 # useful developerLinks even for hand-curated records.
 CURATED_DEVELOPER_LINKS: dict[str, list[dict[str, str]]] = {
     "ocarina_of_time_dx": [{"label": "GitHub", "url": "https://github.com/N64DX/oot-dx"}],
     "ultimate_trial": [{"label": "GitHub", "url": "https://github.com/RichieUltimate/ultimate-trial"}],
     "majoras_mask_redux": [{"label": "Romhacking.net", "url": "https://www.romhacking.net/hacks/5122/"}],
     "sealed_palace": [{"label": "Romhacking.net", "url": "https://www.romhacking.net/hacks/7663/"}],
-    "dawn_and_dusk": [{"label": "GitHub", "url": "https://github.com/LuigiBlood/zelda64-dawn-dusk"}],
+    "dawn_and_dusk": [{"label": "GitHub", "url": "https://github.com/LuigiBlood/hylianbox-dawn-dusk"}],
     "the_missing_link": [{"label": "GitHub", "url": "https://github.com/zeldaret/oot"}],
 }
 
@@ -468,7 +468,7 @@ def infer_developer_links(entry: dict[str, Any]) -> list[dict[str, str]]:
         host = urlparse(url).netloc.lower()
         if "hylianmodding.com" in host:
             return
-        if "zonaro/zelda64player" in url:
+        if "zonaro/hylianbox" in url:
             return
         if is_youtube_url(url):
             return
@@ -491,7 +491,7 @@ def infer_developer_links(entry: dict[str, Any]) -> list[dict[str, str]]:
     patch = entry.get("patch")
     if isinstance(patch, dict) and isinstance(patch.get("url"), str):
         url = patch["url"]
-        if "github.com" in url and "zonaro/zelda64player" not in url:
+        if "github.com" in url and "zonaro/hylianbox" not in url:
             m = re.match(r'(https?://github\.com/[^/]+/[^/]+)', url)
             if m:
                 add(m.group(1))

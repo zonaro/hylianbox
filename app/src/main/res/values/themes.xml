@@ -4,7 +4,7 @@
          styling requirements are superseded by the custom Nintendo Switch UI
          (see AGENTS.md "Visual Standard"). We keep a plain DayNight parent so
          the Switch color tokens drive every screen. -->
-    <style name="Theme.Zelda64Player" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Window -->
         <item name="android:windowBackground">@color/switch_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
@@ -27,12 +27,12 @@
         <item name="colorSurfaceVariant">@color/switch_panel</item>
 
         <!-- Bottom-sheet dialog (hack detail) -->
-        <item name="bottomSheetDialogTheme">@style/Theme.Zelda64Player.BottomSheet</item>
+        <item name="bottomSheetDialogTheme">@style/Theme.HylianBox.BottomSheet</item>
     </style>
 
     <!-- Splash theme. References @drawable/splash_artwork; a temporary solid
          placeholder drawable ships until Dolfi delivers the real PNG. -->
-    <style name="Theme.Zelda64Player.Splash" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox.Splash" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_artwork</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
@@ -41,14 +41,14 @@
 
     <!-- Bottom-sheet: transparent container so the sheet's own rounded
          surfaceContainerHigh background (drawn by the fragment) shows. -->
-    <style name="Theme.Zelda64Player.BottomSheet" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.HylianBox.BottomSheet" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowIsFloating">false</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@style/StoreBottomSheetAnimation</item>
-        <item name="bottomSheetStyle">@style/Widget.Zelda.BottomSheet</item>
+        <item name="bottomSheetStyle">@style/Widget.HylianBox.BottomSheet</item>
     </style>
 
-    <style name="Widget.Zelda.BottomSheet" parent="Widget.Material3.BottomSheet">
+    <style name="Widget.HylianBox.BottomSheet" parent="Widget.Material3.BottomSheet">
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="android:background">@android:color/transparent</item>
     </style>
@@ -80,9 +80,9 @@
     <!-- Shared settings row containers (DRY for row_setting_*).
          An explicit parent is required: on this AAPT2 version parent="" does
          NOT suppress the implicit parent lookup that a dotted style name
-         triggers, so "Widget.Zelda.SettingRow" would otherwise look up the
-         non-existent base "Widget.Zelda" (and then "Widget") and fail linking. -->
-    <style name="Widget.Zelda.SettingRow" parent="android:Widget">
+         triggers, so "Widget.HylianBox.SettingRow" would otherwise look up the
+         non-existent base "Widget.HylianBox" (and then "Widget") and fail linking. -->
+    <style name="Widget.HylianBox.SettingRow" parent="android:Widget">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">vertical</item>
@@ -92,7 +92,7 @@
         <item name="android:paddingBottom">12dp</item>
     </style>
 
-    <style name="Widget.Zelda.SettingRow.Horizontal" parent="Widget.Zelda.SettingRow">
+    <style name="Widget.HylianBox.SettingRow.Horizontal" parent="Widget.HylianBox.SettingRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
@@ -104,7 +104,7 @@
     </style>
 
     <!-- Shared label for settings rows: surface-on color + expressive body. -->
-    <style name="Widget.Zelda.SettingLabel" parent="android:Widget">
+    <style name="Widget.HylianBox.SettingLabel" parent="android:Widget">
         <item name="android:textColor">?attr/colorOnSurface</item>
         <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
     </style>

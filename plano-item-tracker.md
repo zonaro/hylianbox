@@ -12,7 +12,7 @@ from any Randomizer functionality (which was removed from the project).
 - No core RAM is read — manual tracking only (race-legal)
 - Item icons: **extraídos on-device da ROM base OoT/MM importada pelo usuário** (DMA→Yaz0→RGBA16→PNG cache em `filesDir/tracker_assets/<crc32>` via `tracker/assets/`); fallback vetorial CC0 (`ic_tracker_fallback.xml`) quando sem ROM. Os 97 PNGs embarcados em `drawable-nodpi/` foram removidos (~812K economizados). Ver `plano-extracao-assets-tracker.md`.
 
-# Item Tracker Integration Plan — Zelda 64 Player
+# Item Tracker Integration Plan — HylianBox
 
 **Generated:** 2026-08-24
 **Author:** Lobby (orchestrator) + Bruce (implementation lead)
@@ -55,7 +55,7 @@ GameActivity (in-game menu = SwitchDialog)
 
 ### Package layout (new)
 ```
-br.com.redclaw.zelda64player.tracker/
+br.com.redclaw.hylianbox.tracker/
 ├── model/
 │   ├── TrackerGame.kt            # enum OOT / MM
 │   ├── TrackerItem.kt            # item id, name key, icon res, max count

@@ -1,10 +1,10 @@
-# Zelda 64 Player — LLM Context File
+# HylianBox — LLM Context File
 
 ## Project Overview
-**Zelda 64 Player** is a native Android (Kotlin) emulator frontend for fan-made Nintendo 64 Zelda ROM hacks (Ocarina of Time, Majora's Mask). Users provide their own legally-owned base ROMs; the app applies BPS/IPS patches on-the-fly and plays them via the Libretro core mupen64plus-next GLES3. No ROMs are embedded or distributed.
+**HylianBox** is a native Android (Kotlin) emulator frontend for fan-made Nintendo 64 Zelda ROM hacks (Ocarina of Time, Majora's Mask). Users provide their own legally-owned base ROMs; the app applies BPS/IPS patches on-the-fly and plays them via the Libretro core mupen64plus-next GLES3. No ROMs are embedded or distributed.
 
-**Website:** https://zonaro.github.io/zelda64player/
-**Repository:** https://github.com/zonaro/zelda64player
+**Website:** https://zonaro.github.io/hylianbox/
+**Repository:** https://github.com/zonaro/hylianbox
 **License:** GPL-3.0 (derivative of Ludere)
 
 ---
@@ -92,7 +92,7 @@
 ## Project Structure (Key Packages)
 
 ```
-br.com.redclaw.zelda64player
+br.com.redclaw.hylianbox
 ├── data/model/           # BaseRom, HackEntry, HackCatalog, PatchFile, Checksums
 ├── data/local/           # BaseRomRepository, PatchRepository, CatalogRepository, SaveBackupManager
 ├── patcher/              # PURE KOTLIN (no Android deps)
@@ -185,8 +185,8 @@ review the issue and curate approved entries into the catalog.
 ## Build Instructions
 
 ```bash
-git clone https://github.com/zonaro/zelda64player.git
-cd zelda64player
+git clone https://github.com/zonaro/hylianbox.git
+cd hylianbox
 ./gradlew assembleDebug
 ```
 

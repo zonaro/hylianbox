@@ -127,7 +127,7 @@
             android:alpha="0.3"
             android:background="@color/switch_text_secondary" />
 
-        <br.com.redclaw.zelda64player.tracker.ui.components.TrackerTimerView
+        <br.com.redclaw.hylianbox.tracker.ui.components.TrackerTimerView
             android:id="@+id/tracker_timer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -74,7 +74,7 @@ public:
     std::pair<int8_t *, size_t> serializeSRAM();
     jboolean unserializeSRAM(int8_t *data, size_t size);
 
-    // Zelda64Player addition: direct access to a core memory region (used by
+    // HylianBox addition: direct access to a core memory region (used by
     // the RetroAchievements runtime). The returned pointer aliases memory
     // owned by the loaded core and is only valid while a game is loaded.
     // Pointer and size are captured atomically under the core lock.

@@ -1,12 +1,12 @@
 # Hack Catalog Format
 
-This document describes the JSON catalog consumed by the **Zelda 64 Player**
+This document describes the JSON catalog consumed by the **HylianBox**
 Hack Store. The app has one built-in store, **Main Store**. Its catalog can
 contain curated records and public metadata imported from Hylian Modding; Hylian
 Modding is an attribution source, not a separately selectable store.
 
 The default catalog is
-`https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/catalog.json`.
+`https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/catalog.json`.
 It is cached on device with ETag/If-None-Match conditional requests. See
 `catalog/catalog.json` for the live catalog and `docs/catalog.example.json` for
 a small author-maintained example.

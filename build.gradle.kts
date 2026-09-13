@@ -1,4 +1,4 @@
-// Zelda 64 Player — root build file.
+// HylianBox — root build file.
 //
 // Toolchain: Gradle 8.11.1 + AGP 8.11.1 + Kotlin 1.9.22 (modern stack, Kotlin DSL).
 // AGP 8 requires the `namespace` declared in the android block of the app module

@@ -1,4 +1,4 @@
-# Build & Native — Zelda 64 Player
+# Build & Native — HylianBox
 
 ## 1. Requirements
 
@@ -11,8 +11,8 @@
 ## 2. Build Commands
 
 ```bash
-git clone https://github.com/zonaro/zelda64player.git
-cd zelda64player
+git clone https://github.com/zonaro/hylianbox.git
+cd hylianbox
 ./gradlew assembleDebug
 ```
 
@@ -60,7 +60,7 @@ app/
 ## 6. Release
 
 - `release.sh` script wraps release build + signing.
-- `zelda64player-release.keystore` + `keystore.properties` (gitignored) for signing.
+- `hylianbox-release.keystore` + `keystore.properties` (gitignored) for signing.
 - Generate your own keystore before first release (do NOT reuse Ludere's keystore).
 
 ## 7. .gitignore Notes

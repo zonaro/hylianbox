@@ -205,7 +205,7 @@ std::pair<int8_t*, size_t> LibretroDroid::serializeSRAM() {
     return std::pair(data, size);
 }
 
-// Zelda64Player addition: zero-copy access to a core memory region. The mutex
+// HylianBox addition: zero-copy access to a core memory region. The mutex
 // serializes with retro_run() so readers never observe a half-executed frame,
 // and pointer+size are captured together so they always describe one region.
 std::pair<void*, size_t> LibretroDroid::getMemoryRegion(unsigned id) {

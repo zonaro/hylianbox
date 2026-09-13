@@ -1,4 +1,4 @@
-package br.com.redclaw.zelda64player.retroachievements.jni;
+package br.com.redclaw.hylianbox.retroachievements.jni;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

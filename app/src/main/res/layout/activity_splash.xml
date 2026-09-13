@@ -2,7 +2,7 @@
 <!--
   Splash screen content. The Zelda-themed artwork lives in
   @drawable/splash_artwork and is set as the window background by
-  Theme.Zelda64Player.Splash, so this layout stays transparent and only
+  Theme.HylianBox.Splash, so this layout stays transparent and only
   overlays the crisp wordmark TextViews in the artwork's reserved safe zone
   (roughly the vertical center, between the golden crest above and the thin
   divider below). The box is centered so it tracks the artwork across aspect
@@ -26,7 +26,7 @@
             android:id="@+id/splash_wordmark_line1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/brand_zelda64"
+            android:text="@string/brand_hylianbox"
             android:textColor="@color/splash_text"
             android:textSize="34sp"
             android:textStyle="bold"

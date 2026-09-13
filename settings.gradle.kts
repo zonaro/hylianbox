@@ -15,6 +15,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Zelda64Player"
+rootProject.name = "HylianBox"
 include(":app")
 include(":libretrodroid")

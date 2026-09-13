@@ -26,5 +26,5 @@ with tempfile.TemporaryDirectory(prefix='zelda-ra-runtime-') as directory:
     subprocess.run(['javac', '-d', str(output),
                     str(root / 'scripts/tests/ra_runtime/RcheevosJni.java')], check=True)
     subprocess.run(['java', '-Dra.library=' + str(library), '-cp', str(output),
-                    'br.com.redclaw.zelda64player.retroachievements.jni.RcheevosJni',
+                    'br.com.redclaw.hylianbox.retroachievements.jni.RcheevosJni',
                     str(output / 'synthetic.z64')], check=True, timeout=20)

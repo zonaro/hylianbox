@@ -1,13 +1,13 @@
 # Capture & Gallery — Screenshots, Recording, Local Gallery
 
 ## Overview
-Zelda 64 Player lets users capture their gameplay: take screenshots (with or without the on-screen overlay), record gameplay video via MediaProjection, and browse/manage captures in a local Gallery. All captures are stored on-device (no cloud upload).
+HylianBox lets users capture their gameplay: take screenshots (with or without the on-screen overlay), record gameplay video via MediaProjection, and browse/manage captures in a local Gallery. All captures are stored on-device (no cloud upload).
 
 ## What It Does
 1. **Screenshots (2 modes):**
    - **With overlay:** captures the full `GLRetroView` including HUD/RadialGamePad/achievement overlays (standard `PixelCopy` of the SurfaceView).
    - **Without overlay:** captures only the emulated frame (core render) — hides overlays before `PixelCopy`, restores after. Useful for clean ROM-hack showcase shots.
-2. **Recording:** `MediaProjection` captures the screen to an MP4 (H.264) in `Movies/Zelda64Player/`. Started/stopped from the in-game menu.
+2. **Recording:** `MediaProjection` captures the screen to an MP4 (H.264) in `Movies/HylianBox/`. Started/stopped from the in-game menu.
 3. **Gallery:** A local grid (`SwitchGridScreen`-style) lists all captures (images + videos) with thumbnail, date, game; supports **view** (open in viewer/player), **share** (Intent share), **delete**.
 
 ## How to Use

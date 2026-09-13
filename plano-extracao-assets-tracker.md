@@ -1,4 +1,4 @@
-# Plano de Extração de Assets para o Item Tracker — Zelda 64 Player
+# Plano de Extração de Assets para o Item Tracker — HylianBox
 
 **Gerado:** 2026-09-09
 **Autor:** Lobby (orquestração) + Bruce (implementação)
@@ -70,7 +70,7 @@ ItemsTab → ItemIconView (Coil/BitmapFactory + placeholder vetorial)
 ### 2.2 Pacote novo (puro Kotlin, sem dependência Android onde possível)
 
 ```
-br.com.redclaw.zelda64player.tracker.assets/
+br.com.redclaw.hylianbox.tracker.assets/
 ├── RomAssetExtractor.kt          # fachada: extractAll(baseRom: File, game: TrackerGame): Result<ExtractReport>
 ├── dma/
 │   ├── DmaEntry.kt               # data class (vromStart/End, romStart/End, isCompressed)
@@ -147,7 +147,7 @@ O guia genérico lista offsets fixos, mas o projeto precisa **detectar versão**
 **Implementação adaptada:**
 
 ```kotlin
-package br.com.redclaw.zelda64player.tracker.assets.dma
+package br.com.redclaw.hylianbox.tracker.assets.dma
 
 data class DmaEntry(
     val index: Int,
@@ -194,7 +194,7 @@ class DmaTableParser(private val romChannel: FileChannel, private val tableOffse
 O código do guia está funcional, mas precisa de **bounds checks** e tratamento de `dist`/`copyLen` para evitar OOB em ROMs corrompidas (Regra 16).
 
 ```kotlin
-package br.com.redclaw.zelda64player.tracker.assets.compression
+package br.com.redclaw.hylianbox.tracker.assets.compression
 
 object Yaz0Decompressor {
     fun decompress(src: ByteArray): ByteArray {
@@ -246,7 +246,7 @@ object Yaz0Decompressor {
 O guia decodifica para `IntArray` ARGB_8888 — correto, mas no projeto o destino é `Bitmap` → PNG em disco.
 
 ```kotlin
-package br.com.redclaw.zelda64player.tracker.assets.graphics
+package br.com.redclaw.hylianbox.tracker.assets.graphics
 
 object TextureDecoder {
     fun decodeRGBA16(data: ByteArray, offset: Int, width: Int, height: Int): IntArray {
@@ -296,7 +296,7 @@ O guia lista 12 itens com offsets `0x0000, 0x0800...` dentro de `icon_item_stati
 **Exemplo de `OotIconMap.kt`:**
 
 ```kotlin
-package br.com.redclaw.zelda64player.tracker.assets.mapping
+package br.com.redclaw.hylianbox.tracker.assets.mapping
 
 data class IconMapping(
     val itemId: String,          // ex.: "kokiri_sword" (mesmo id do TrackerItem)
@@ -476,7 +476,7 @@ wallet*.png (3), zora_tunic.png
 ### 5.3 Critério de aceitação para remoção
 
 - [ ] `find app/src/main/res/drawable-nodpi -name "*.png" | wc -l` == 1 (`placeholder_cover.png` apenas) ou 0 se placeholder também vetorizado.
-- [ ] `grep -r "R.drawable\." app/src/main/java/br/com/redclaw/zelda64player/tracker/` não referencia nenhum PNG deletado.
+- [ ] `grep -r "R.drawable\." app/src/main/java/br/com/redclaw/hylianbox/tracker/` não referencia nenhum PNG deletado.
 - [ ] Tracker abre e mostra ícones corretos com OoT 1.0 USA e MM 1.0 USA importados.
 - [ ] Tracker abre e mostra fallbacks vetoriais sem nenhuma ROM importada (sem crash).
 - [ ] APK release diminui ~2–4 MB vs antes.
@@ -564,4 +564,4 @@ Comandos:
 
 ---
 
-*Este plano substitui o guia genérico `Untitled-1` para o contexto do Zelda 64 Player. A extração é 100% on-device, a partir da ROM do usuário, sem distribuição de assets proprietários.*
+*Este plano substitui o guia genérico `Untitled-1` para o contexto do HylianBox. A extração é 100% on-device, a partir da ROM do usuário, sem distribuição de assets proprietários.*

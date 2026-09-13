@@ -1,4 +1,4 @@
-# Features — Zelda 64 Player
+# Features — HylianBox
 
 Index of all major features. Each has a deep-dive doc in this folder.
 

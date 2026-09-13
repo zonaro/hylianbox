@@ -27,7 +27,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_seri
 JNIEXPORT jboolean JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_unserializeState(JNIEnv* env, jclass obj, jbyteArray data);
 JNIEXPORT jbyteArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_serializeSRAM(JNIEnv* env, jclass obj);
 JNIEXPORT jboolean JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_unserializeSRAM(JNIEnv* env, jclass obj, jbyteArray data);
-// Zelda64Player addition: direct ByteBuffer view of a core memory region.
+// HylianBox addition: direct ByteBuffer view of a core memory region.
 JNIEXPORT jobject JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemoryRegion(JNIEnv* env, jclass obj, jint id);
 JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_onSurfaceCreated(JNIEnv* env, jclass obj);
 JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_onSurfaceChanged(JNIEnv* env, jclass obj, jint width, jint height);

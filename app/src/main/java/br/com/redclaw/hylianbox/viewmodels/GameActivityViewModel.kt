@@ -1,0 +1,2103 @@
+package br.com.redclaw.hylianbox.viewmodels
+
+import android.app.Activity
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
+import br.com.redclaw.hylianbox.tracker.autotracker.AutoTrackerPoller
+import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
+import android.content.DialogInterface
+import android.content.pm.ActivityInfo
+import android.content.res.ColorStateList
+import android.os.Build
+import android.util.Log
+import android.view.*
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import br.com.redclaw.hylianbox.BuildConfig
+import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.data.local.MergedCatalogRepository
+import br.com.redclaw.hylianbox.gamepad.DoubleTapContainer
+import br.com.redclaw.hylianbox.gamepad.FloatingJoystick
+import br.com.redclaw.hylianbox.gamepad.GamePad
+import br.com.redclaw.hylianbox.gamepad.GamePadConfig
+import br.com.redclaw.hylianbox.gamepad.PadPlacement
+import br.com.redclaw.hylianbox.gamepad.RightTapZone
+import br.com.redclaw.hylianbox.gamepad.StickButton
+import br.com.redclaw.hylianbox.gamepad.TouchControlLayout
+import br.com.redclaw.hylianbox.input.ControllerInput
+import br.com.redclaw.hylianbox.input.InputMapper
+import br.com.redclaw.hylianbox.input.N64ControllerMapping
+import br.com.redclaw.hylianbox.ocarina.OcarinaGame
+import br.com.redclaw.hylianbox.ocarina.OcarinaMacroCallbacks
+import br.com.redclaw.hylianbox.ocarina.OcarinaMacroPlayer
+import br.com.redclaw.hylianbox.ocarina.OcarinaSong
+import br.com.redclaw.hylianbox.ocarina.OcarinaSongCatalog
+import br.com.redclaw.hylianbox.ocarina.ui.OcarinaHudView
+import br.com.redclaw.hylianbox.patcher.n64.RomHeader
+import br.com.redclaw.hylianbox.repositories.GameRomResolver
+import br.com.redclaw.hylianbox.repositories.Storage
+import br.com.redclaw.hylianbox.retroachievements.RaEmulatorStateBridge
+import br.com.redclaw.hylianbox.retroachievements.RaNotificationHelper
+import br.com.redclaw.hylianbox.retroachievements.api.RaHttpClient
+import br.com.redclaw.hylianbox.retroachievements.api.RaUserAgent
+import br.com.redclaw.hylianbox.retroachievements.auth.RaCredentialStore
+import br.com.redclaw.hylianbox.retroachievements.jni.RcheevosJni
+import br.com.redclaw.hylianbox.retroachievements.session.RaClientEvent
+import br.com.redclaw.hylianbox.retroachievements.session.RaGameSummary
+import br.com.redclaw.hylianbox.retroachievements.session.RaSessionManager
+import br.com.redclaw.hylianbox.retroachievements.session.RaSessionState
+import br.com.redclaw.hylianbox.retroachievements.ui.RaAchievementsDialogFragment
+import br.com.redclaw.hylianbox.retroachievements.ui.RaLeaderboardDialogFragment
+import br.com.redclaw.hylianbox.retroachievements.ui.RaOverlayView
+import br.com.redclaw.hylianbox.retroview.RetroView
+import br.com.redclaw.hylianbox.tracker.data.TrackerRepository
+import br.com.redclaw.hylianbox.tracker.model.TrackerGame
+import br.com.redclaw.hylianbox.tracker.model.VisibilityMode
+import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
+import br.com.redclaw.hylianbox.utils.CorePrefs
+import br.com.redclaw.hylianbox.utils.MenuActionItem
+import br.com.redclaw.hylianbox.utils.MenuEnabledEntry
+import br.com.redclaw.hylianbox.utils.MenuGridBuilder
+import br.com.redclaw.hylianbox.utils.MenuSection
+import br.com.redclaw.hylianbox.utils.MenuToggleEntry
+import br.com.redclaw.hylianbox.utils.RetroViewUtils
+import com.swordfish.libretrodroid.LibretroDroid
+import io.reactivex.disposables.CompositeDisposable
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class GameActivityViewModel(application: Application) : AndroidViewModel(application) {
+    companion object {
+        private const val TAG = "GameLaunch"
+
+        /** Request code for the POST_NOTIFICATIONS runtime permission ask. */
+        private const val RA_NOTIFICATION_PERMISSION_REQUEST = 51001
+
+        /** Request code for the optional microphone mix in gameplay recordings. */
+        private const val CAPTURE_MICROPHONE_PERMISSION_REQUEST = 51002
+
+        /** Delay between the two learning snapshots (user stores the ocarina). */
+        const val OCARINA_LEARN_SNAPSHOT_DELAY_MS = 10_000L
+    }
+
+    private val resources = application.resources
+    private val appContext = application.applicationContext
+
+    var retroView: RetroView? = null
+    private var retroViewUtils: RetroViewUtils? = null
+
+    // ---- RetroAchievements session ----
+    /**
+     * RA session for the running game; null until first start. Torn down before the native core
+     * dies (see stopRaSession, called from GameActivity.onDestroy ahead of super.onDestroy()).
+     */
+    private var raSession: RaSessionManager? = null
+    private var raEventCollector: Job? = null
+    private var raStateCollector: Job? = null
+
+    /** Guards the one-shot game-start RA toast across Activity recreations. */
+    private var raAnnounced = false
+    /** In-game RA overlay attached by GameActivity (null until attached). */
+    private var raOverlay: RaOverlayView? = null
+
+    /**
+     * True while a screen recording is active. Drives the in-game recording indicator and the
+     * record menu item's toggle state.
+     */
+    private val _isRecording = MutableLiveData(false)
+    val isRecording: LiveData<Boolean> = _isRecording
+
+    private var gamePads: List<GamePad> = emptyList()
+    private var floatingJoystick: FloatingJoystick? = null
+    private var isButtonStickEnabled: Boolean = true
+    private var stickButtons: List<StickButton> = emptyList()
+    private var rightTapZone: RightTapZone? = null
+
+    /** True while Z is held from a double-tap on the analog stick (see [onStickDoubleTap]). */
+    private var zHeldViaDoubleTap = false
+    private var autoZEnabled = true
+
+    private var menuDialog: AlertDialog? = null
+    /**
+     * Reference to the view built in [prepareMenu], kept so [showMenu] can measure its natural
+     * height before the dialog is shown and size the window to wrap (or scroll) it.
+     */
+    private var menuView: View? = null
+    private var sensitivityDialog: AlertDialog? = null
+    private var activityContext: Activity? = null
+
+    // ---- Auto-Ocarina feature ----
+    /** Detected Ocarina game for the running ROM, or null when unsupported. */
+    private var ocarinaGame: OcarinaGame? = null
+    /** Exact ROM game code (e.g. "CZLE"), used to resolve the song catalog. */
+    private var ocarinaExactGameCode: String? = null
+    /** hackId of the currently running hack (for custom-song lookup). */
+    private var currentHackId: String? = null
+    /** Active macro player, or null when idle. */
+    private var ocarinaPlayer: OcarinaMacroPlayer? = null
+    /** HUD view attached by GameActivity (null until attached). */
+    private var ocarinaHud: OcarinaHudView? = null
+    /** Song-list dialog shown from the in-game menu. */
+    private var ocarinaSongDialog: AlertDialog? = null
+    /** Songs currently displayed in the song-list dialog (for physical-key select). */
+    private var ocarinaCurrentSongs: List<OcarinaSong>? = null
+    /** Physical-controller key handler for the song-list dialog. */
+    private val menuKeyListenerOcarina =
+            View.OnKeyListener { _, keyCode, event -> handleOcarinaKey(keyCode, event) }
+
+    /** Live references to toggle item cells, rebuilt every [prepareMenu]. */
+    private val toggleEntries = mutableListOf<MenuToggleEntry>()
+
+    /** Live references to badge TextViews, rebuilt every [prepareMenu]. */
+    private val badgeViews = mutableListOf<TextView>()
+
+    /**
+     * Live references to non-toggle item cells, rebuilt every [prepareMenu]; used to grey out /
+     * re-enable items whose availability resolves after the menu is first built
+     * (RetroAchievements).
+     */
+    private val enabledEntries = mutableListOf<MenuEnabledEntry>()
+
+    /**
+     * Last-built menu sections, kept so physical-key actions can reuse the same item action lambdas
+     * as tapping a cell (DRY: one code path).
+     */
+    private var menuSections: List<MenuSection>? = null
+
+    /**
+     * Shared physical-controller key handler, attached to every menu dialog. Each instance is bound
+     * to its own dialog so back/close semantics know which layer is active.
+     *
+     * Uses [DialogInterface.OnKeyListener] (via [android.app.Dialog.setOnKeyListener]) instead of a
+     * [View.OnKeyListener] on the decor view: PhoneWindow invokes the dialog-level listener for
+     * every key routed to the dialog's window regardless of per-view focus state, which is the only
+     * reliable path on devices (e.g. Samsung OneUI) where, in touch mode, no child view inside the
+     * dialog holds focus and DecorView's View.OnKeyListener is not consistently dispatched.
+     */
+    private val menuKeyListenerMain =
+            DialogInterface.OnKeyListener { _, keyCode, event ->
+                handleMenuKey(menuDialog, keyCode, event)
+            }
+    private val menuKeyListenerSensitivity =
+            DialogInterface.OnKeyListener { _, keyCode, event ->
+                handleMenuKey(sensitivityDialog, keyCode, event)
+            }
+
+    private var compositeDisposable = CompositeDisposable()
+    private val controllerInput = ControllerInput()
+
+    /**
+     * Core readiness state, driven by RetroView events (see [setupRetroView]).
+     *
+     * [coreReady] becomes true once the first frame is rendered (the core finished loading the ROM
+     * and is running). [coreFailed] becomes true when the core reports a fatal error (LibretroDroid
+     * then aborts and skips destroy internally).
+     *
+     * These two flags guard the Activity teardown paths (exit / background-return recreate / pause)
+     * against the SIGSEGV race in LibretroDroid's retro_deinit(): finishing the Activity while the
+     * core is still loading tears down the native core concurrently with its initialization,
+     * corrupting internal state.
+     */
+    private val _coreReady = MutableLiveData(false)
+    val coreReady: LiveData<Boolean> = _coreReady
+
+    private val _coreFailed = MutableLiveData(false)
+    val coreFailed: LiveData<Boolean> = _coreFailed
+
+    /**
+     * Fires once when the first frame renders; observed by GameActivity to trigger secondary
+     * display projection.
+     */
+    private val _frameRenderedForDisplay = MutableLiveData<Boolean>()
+    val frameRenderedForDisplay: LiveData<Boolean> = _frameRenderedForDisplay
+
+    /**
+     * Set when a background-return recreate was deferred because the core was still loading;
+     * consumed once the first frame renders (see [handleBackgroundReturn] and the frame observer in
+     * [setupRetroView]).
+     */
+    private var pendingRecreate = false
+
+    private val autoZPrefsKey = N64ControllerMapping.AUTO_Z_PREFERENCE
+    private val n64StickSensitivityPrefsKey = "n64_stick_sensitivity"
+    private val buttonStickSensitivityPrefsKey = "button_stick_sensitivity"
+
+    init {
+        controllerInput.menuCallback = { showMenu() }
+    }
+
+    /**
+     * Create an instance of a menu dialog
+     *
+     * Always rebuilds: this is called on every onCreate(), including after the activity is
+     * recreated to recover from a lost GL context, and a dialog built with a stale (destroyed)
+     * Activity context would leak / fail to show.
+     *
+     * The dialog view is a scrollable grid grouped into category sections, each item a tappable
+     * icon+label cell wired to its own action lambda (see [buildMenuSections]). Toggle items (mute,
+     * fast-forward) reflect their current state when the menu is shown via [updateToggleStates].
+     * The grid is built with nested weighted [LinearLayout]s (see [buildMenuView]) so it measures
+     * correctly inside the dialog's ScrollView.
+     */
+    fun prepareMenu(context: Context) {
+        activityContext = context as Activity
+        toggleEntries.clear()
+        badgeViews.clear()
+        val view = buildMenuView(context)
+        menuView = view
+        menuDialog = AlertDialog.Builder(context).setView(view).create()
+    }
+
+    /**
+     * Builds the custom grid-menu view by delegating to the shared [MenuGridBuilder] (used by both
+     * this in-game menu and the Library per-game context menu), so the two stay visually and
+     * behaviourally in sync. Cell taps run the item action then dismiss this dialog.
+     */
+    private fun buildMenuView(context: Context): View {
+        val sections = buildMenuSections()
+        menuSections = sections
+        val built =
+                MenuGridBuilder.build(context, sections) { item ->
+                    item.action()
+                    menuDialog?.dismiss()
+                }
+        toggleEntries.clear()
+        toggleEntries.addAll(built.toggleEntries)
+        badgeViews.clear()
+        badgeViews.addAll(built.badgeViews)
+        enabledEntries.clear()
+        enabledEntries.addAll(built.enabledEntries)
+        return built.view
+    }
+
+    /**
+     * Returns the menu's category sections and their action items. Actions are lambdas bound to
+     * this ViewModel's state, so no click-handler switch is needed (DRY: one cell layout, one click
+     * path).
+     */
+    private fun buildMenuSections(): List<MenuSection> {
+        val fastForwardSpeed = resources.getInteger(R.integer.config_fast_forward_multiplier)
+        val game =
+                MenuSection(
+                        R.string.menu_category_game,
+                        listOf(
+                                MenuActionItem(
+                                        "reset",
+                                        R.string.menu_reset,
+                                        R.drawable.ic_refresh,
+                                        badgeRes = R.string.badge_x
+                                ) { retroView?.view?.reset() },
+                                MenuActionItem(
+                                        "save_state",
+                                        R.string.menu_save_state,
+                                        R.drawable.ic_save_state,
+                                        badgeRes = R.string.badge_select
+                                ) { retroView?.let { retroViewUtils?.saveState(it) } },
+                                MenuActionItem(
+                                        "load_state",
+                                        R.string.menu_load_state,
+                                        R.drawable.ic_load_state,
+                                        isEnabled = { !RcheevosJni.nativeIsHardcore() },
+                                        badgeRes = R.string.badge_start
+                                ) { retroView?.let { retroViewUtils?.loadState(it) } },
+                                MenuActionItem(
+                                        "exit",
+                                        R.string.menu_exit,
+                                        R.drawable.ic_exit,
+                                        badgeRes = R.string.badge_y
+                                ) { exitGame() }
+                        )
+                )
+        val audioVideo =
+                MenuSection(
+                        R.string.menu_category_audio_video,
+                        listOf(
+                                MenuActionItem(
+                                        "mute",
+                                        R.string.menu_mute,
+                                        R.drawable.ic_volume_up,
+                                        R.drawable.ic_volume_off,
+                                        isToggle = true,
+                                        isActive = { retroView?.view?.audioEnabled == false },
+                                        badgeRes = R.string.badge_l3
+                                ) {
+                                    retroView?.let { it.view.audioEnabled = !it.view.audioEnabled }
+                                },
+                                MenuActionItem(
+                                        "fast_forward",
+                                        R.string.menu_fast_forward,
+                                        R.drawable.ic_fast_forward,
+                                        isToggle = true,
+                                        isActive = {
+                                            retroView?.view?.frameSpeed == fastForwardSpeed
+                                        },
+                                        badgeRes = R.string.badge_r3
+                                ) { retroView?.let { retroViewUtils?.fastForward(it) } }
+                        )
+                )
+        val controls =
+                MenuSection(
+                        R.string.menu_category_controls,
+                        listOf(
+                                MenuActionItem(
+                                        "auto_z",
+                                        R.string.menu_auto_z,
+                                        R.drawable.ic_target,
+                                        isToggle = true,
+                                        isActive = { autoZEnabled },
+                                        badgeRes = R.string.badge_lt
+                                ) {
+                                    autoZEnabled = !autoZEnabled
+                                    controllerInput.autoZEnabled = autoZEnabled
+                                    appContext
+                                            .getSharedPreferences(
+                                                    N64ControllerMapping.PREFERENCES_NAME,
+                                                    Context.MODE_PRIVATE
+                                            )
+                                            .edit()
+                                            .putBoolean(autoZPrefsKey, autoZEnabled)
+                                            .apply()
+                                    if (!autoZEnabled && zHeldViaDoubleTap) {
+                                        zHeldViaDoubleTap = false
+                                        retroView?.view?.sendKeyEvent(
+                                                KeyEvent.ACTION_UP,
+                                                InputMapper.mapKeyCode(KeyEvent.KEYCODE_BUTTON_L2)
+                                        )
+                                    }
+                                },
+                                MenuActionItem(
+                                        "button_stick",
+                                        R.string.menu_button_stick,
+                                        R.drawable.ic_gamepad,
+                                        isToggle = true,
+                                        isActive = { isButtonStickEnabled },
+                                        badgeRes = R.string.badge_rt
+                                ) {
+                                    isButtonStickEnabled = !isButtonStickEnabled
+                                    CorePrefs.setButtonStickEnabled(
+                                            appContext,
+                                            isButtonStickEnabled
+                                    )
+                                    applyButtonStickEnabled(isButtonStickEnabled)
+                                },
+                                MenuActionItem(
+                                        "overlay_scale",
+                                        R.string.menu_overlay_scale,
+                                        R.drawable.ic_tune
+                                ) { showOverlayScaleDialog() },
+                                MenuActionItem(
+                                        "right_tap",
+                                        R.string.menu_right_tap,
+                                        R.drawable.ic_target
+                                ) { showRightTapDialog() },
+                                MenuActionItem(
+                                        "sensitivity",
+                                        R.string.menu_sensitivity,
+                                        R.drawable.ic_tune
+                                ) { showSensitivityDialog() }
+                        )
+                )
+        /* RetroAchievements: the section is ALWAYS present, but its buttons are
+        greyed / disabled until the RA session resolves for the running game
+        (the menu is built once, before the session starts, so availability is
+        evaluated live via updateItemEnabledStates). The achievements button
+        enables only when the game has core achievements; the leaderboards
+        button enables whenever the session is Running (leaderboards may exist
+        even for untracked games). Per project rules the leaderboards dialog is
+        reachable ONLY from this in-game menu, never overlaid on gameplay. */
+        val ra =
+                MenuSection(
+                        R.string.menu_category_ra,
+                        listOf(
+                                MenuActionItem(
+                                        "ra_achievements",
+                                        R.string.menu_achievements,
+                                        R.drawable.ic_trophy,
+                                        isEnabled = { isRaAchievementsAvailable() }
+                                ) { openRaAchievements() },
+                                MenuActionItem(
+                                        "ra_leaderboards",
+                                        R.string.menu_ra_leaderboards,
+                                        R.drawable.ic_trophy,
+                                        isEnabled = { isRaSessionRunning() }
+                                ) { showRaLeaderboards(currentRaGame()?.id ?: 0L) }
+                        )
+                )
+        /* Ferramentas: Auto-Ocarina + Rastreador de Itens na mesma categoria.
+        Ambos só fazem sentido para OoT / MM (jogos com Ocarina). A categoria
+        só aparece quando o jogo atual suporta Ocarina; o rastreador respeita
+        ainda a configuração de visibilidade do usuário. */
+        val toolsItems = mutableListOf<MenuActionItem>()
+        ocarinaGame?.let { runningGame ->
+            toolsItems.add(
+                    MenuActionItem(
+                            "auto_ocarina",
+                            R.string.menu_auto_ocarina,
+                            R.drawable.ic_oot,
+                            tintIcon = true
+                    ) { showOcarinaSongList() }
+            )
+            if (isTrackerVisible()) {
+                val trackerGame =
+                        when (runningGame) {
+                            OcarinaGame.OOT -> TrackerGame.OOT
+                            OcarinaGame.MM -> TrackerGame.MM
+                        }
+                toolsItems.add(
+                        MenuActionItem(
+                                "item_tracker",
+                                R.string.menu_item_tracker,
+                                R.drawable.ic_tracker
+                        ) { openItemTracker(trackerGame) }
+                )
+            }
+        }
+        val tools =
+                if (toolsItems.isNotEmpty()) {
+                    MenuSection(R.string.menu_category_tools, toolsItems)
+                } else null
+        /* Screen capture / recording controls. Both are taken directly from
+        the emulator GL framebuffer, excluding Android overlay Views. */
+        val capture =
+                MenuSection(
+                        R.string.menu_category_capture,
+                        listOf(
+                                MenuActionItem(
+                                        "screenshot",
+                                        R.string.menu_screenshot,
+                                        R.drawable.ic_screenshot,
+                                        badgeRes = R.string.badge_lb
+                                ) { captureScreenshotAction() },
+                                MenuActionItem(
+                                        "record",
+                                        R.string.menu_record_start,
+                                        R.drawable.ic_record,
+                                        R.drawable.ic_stop,
+                                        isToggle = true,
+                                        isActive = { _isRecording.value == true },
+                                        activeLabelRes = R.string.menu_record_stop,
+                                        badgeRes = R.string.badge_rb
+                                ) { toggleRecording() }
+                        )
+                )
+
+        /* Assemble the in-game menu in the requested display order:
+        Ferramentas -> Game -> RetroAchievements -> Controls -> Audio & Video ->
+        Capture. */
+        val sections = mutableListOf<MenuSection>()
+        tools?.let { sections.add(it) }
+        sections.add(game)
+        sections.add(ra)
+        sections.add(controls)
+        sections.add(audioVideo)
+        sections.add(capture)
+        return sections
+    }
+
+    /** Opens the manual item tracker dialog for the running OoT / MM game. */
+    private fun openItemTracker(game: TrackerGame) {
+        val activity = activityContext as? androidx.fragment.app.FragmentActivity ?: return
+        TrackerDialogFragment.newInstance(game, currentHackId)
+                .show(activity.supportFragmentManager, "item_tracker")
+    }
+
+    /** Whether the Item Tracker menu entry should be shown, per the user's visibility setting. */
+    private fun isTrackerVisible(): Boolean {
+        val ctx = activityContext ?: return true
+        return runCatching {
+                    TrackerRepository(ctx).loadSettings().visibility == VisibilityMode.ALWAYS
+                }
+                .getOrDefault(true)
+    }
+
+    /**
+     * Refreshes toggle items' icon + highlight to match live emulator state. Called from [showMenu]
+     * so the menu reflects mute / fast-forward status each time it opens.
+     */
+    private fun updateToggleStates() {
+        val context = activityContext ?: return
+        val activeForeground = ContextCompat.getColor(context, android.R.color.black)
+        val onSurfaceVariant = ContextCompat.getColor(context, R.color.color_on_surface_variant)
+        val onSurface = ContextCompat.getColor(context, R.color.color_on_surface)
+        for ((item, cell, icon, label) in toggleEntries) {
+            val active = item.isActive()
+            icon.setImageResource(if (active) item.activeIconRes else item.iconRes)
+            icon.imageTintList =
+                    ColorStateList.valueOf(if (active) activeForeground else onSurfaceVariant)
+            label.setTextColor(if (active) activeForeground else onSurface)
+            cell.background =
+                    ContextCompat.getDrawable(
+                            context,
+                            if (active) R.drawable.bg_menu_item_active else R.drawable.bg_menu_item
+                    )
+            val activeLabel = item.activeLabelRes
+            if (active && activeLabel != null) {
+                label.setText(activeLabel)
+            } else if (label.text != context.getString(item.labelRes)) {
+                label.setText(item.labelRes)
+            }
+        }
+    }
+
+    /**
+     * Refreshes the enabled / greyed state of non-toggle menu items (the RetroAchievements buttons)
+     * so they reflect RA session state at the moment the menu opens. The menu is built once, before
+     * the session resolves, so availability must be re-evaluated every open -- and live, while the
+     * menu is showing, as the session transitions LoadingGame -> Running.
+     *
+     * Disabled cells get alpha 0.38f (dimming the icon + label together, since View.setAlpha
+     * propagates to children) and [View.isEnabled] = false, which blocks both taps and D-pad focus
+     * navigation so the controller naturally skips them. Safe no-op when [activityContext] is null.
+     */
+    private fun updateItemEnabledStates() {
+        if (activityContext == null) return
+        for (entry in enabledEntries) {
+            val enabled = entry.item.isEnabled()
+            entry.cell.isEnabled = enabled
+            entry.cell.alpha = if (enabled) 1f else 0.38f
+        }
+    }
+
+    /**
+     * Physical-controller key handler shared by all three menu dialogs.
+     *
+     * Wired via [DialogInterface.OnKeyListener] on each dialog (see
+     * [android.app.Dialog.setOnKeyListener]), so it fires for every key routed to that dialog's
+     * window regardless of per-view focus state -- the only reliable path on devices (e.g. Samsung
+     * OneUI) where, in touch mode, no child view inside the dialog holds focus and a DecorView
+     * [View.OnKeyListener] is not consistently dispatched. When no menu is open, key events flow
+     * through GameActivity -> [processKeyEvent] -> the frozen ControllerInput instead, so there is
+     * no conflict with in-game L3/R3 functions.
+     *
+     * Policy: act on ACTION_DOWN, consume (return true) on both ACTION_DOWN and ACTION_UP for every
+     * mapped keycode so nothing leaks to the core while a menu is open. D-pad is left unmapped so
+     * the system keeps handling focus navigation between cells. Actions reuse the exact same
+     * lambdas as tapping a cell (see [runMenuAction]) -- no duplicated logic.
+     *
+     * @param dialog the dialog this listener is bound to (used to decide back / close semantics for
+     * the active layer).
+     */
+    private fun handleMenuKey(dialog: AlertDialog?, keyCode: Int, event: KeyEvent): Boolean {
+        if (BuildConfig.DEBUG) {
+            val which =
+                    when (dialog) {
+                        menuDialog -> "main"
+                        sensitivityDialog -> "sensitivity"
+                        else -> "unknown"
+                    }
+            Log.d(
+                    "MenuDebug",
+                    "handleMenuKey entry: dialog=$which, keyCode=$keyCode, " +
+                            "action=${event.action}, isShowing=${dialog?.isShowing}"
+            )
+        }
+        if (dialog?.isShowing != true) return false
+
+        /* Consume ACTION_UP (and any other action) for mapped keys to avoid
+        double-fires; only ACTION_DOWN performs the action. This also swallows
+        the ACTION_UP of the very physical press that opened a sub-dialog
+        (e.g. THUMBR opening the Button Stick dialog), so that UP can never
+        reach a dismiss path. */
+        when (event.action) {
+            KeyEvent.ACTION_UP -> return true
+            KeyEvent.ACTION_DOWN -> {
+                /* proceed */
+            }
+            else -> return true
+        }
+
+        val isSub = dialog == sensitivityDialog
+
+        when (keyCode) {
+            /* Close EVERYTHING and return to game -- works from any layer. */
+            KeyEvent.KEYCODE_BUTTON_MODE -> {
+                if (BuildConfig.DEBUG) Log.d("MenuDebug", "BUTTON_MODE: closeAllMenus()")
+                closeAllMenus()
+                return true
+            }
+            /* Back semantics: dismiss the active sub-dialog (revealing the main
+            menu) or, on the main menu, dismiss it (return to game). */
+            KeyEvent.KEYCODE_BUTTON_B -> {
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                            "MenuDebug",
+                            "BUTTON_B: dismissing ${if (isSub) "sub-dialog" else "main menu"}"
+                    )
+                }
+                if (isSub) dialog.dismiss() else menuDialog?.dismiss()
+                return true
+            }
+        }
+
+        /* While a sub-dialog is on top, the main-menu action keys must not reach
+        the (obscured) main menu items. Consume them as no-ops; let A /
+        DPAD_CENTER / ENTER and the D-pad fall through so the sub-dialog's own
+        list navigation/selection still works. */
+        if (isSub) {
+            return when (keyCode) {
+                KeyEvent.KEYCODE_BUTTON_SELECT,
+                KeyEvent.KEYCODE_BUTTON_START,
+                KeyEvent.KEYCODE_BUTTON_L1,
+                KeyEvent.KEYCODE_BUTTON_R1,
+                KeyEvent.KEYCODE_BUTTON_THUMBL,
+                KeyEvent.KEYCODE_BUTTON_X,
+                KeyEvent.KEYCODE_BUTTON_Y,
+                KeyEvent.KEYCODE_BUTTON_THUMBR -> true
+                else -> false
+            }
+        }
+
+        /* Main menu active: map physical buttons to the same item actions. */
+        when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_SELECT -> {
+                runMenuAction("save_state")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_START -> {
+                runMenuAction("load_state")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_L1 -> {
+                runMenuAction("mute")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_R1 -> {
+                runMenuAction("fast_forward")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_THUMBL -> {
+                runMenuAction("auto_z")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_THUMBR -> {
+                runMenuAction("button_stick")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_X -> {
+                runMenuAction("reset")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_Y -> {
+                runMenuAction("exit")
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                val tag = dialog.window?.currentFocus?.tag as? String
+                if (tag != null) {
+                    runMenuAction(tag)
+                    return true
+                }
+                return false
+            }
+            else -> return false
+        }
+    }
+
+    /**
+     * Run a menu item's action by id, reusing the exact lambda bound in [buildMenuSections] (the
+     * same path a cell tap takes). For toggles we refresh [updateToggleStates] so the change is
+     * reflected, then dismiss the menu -- mirroring a cell tap.
+     */
+    private fun runMenuAction(id: String) {
+        val sections = menuSections ?: return
+        for (section in sections) {
+            section.items.firstOrNull { it.id == id }?.let { item ->
+                if (!item.isEnabled()) return
+                item.action()
+                if (item.isToggle) updateToggleStates()
+                if (BuildConfig.DEBUG)
+                        Log.d("MenuDebug", "runMenuAction('$id'): dismissing main menu")
+                menuDialog?.dismiss()
+                return
+            }
+        }
+    }
+
+    /** Dismiss every menu layer and return to the game. */
+    private fun closeAllMenus() {
+        if (BuildConfig.DEBUG) Log.d("MenuDebug", "closeAllMenus(): dismissing all layers")
+        sensitivityDialog?.dismiss()
+        menuDialog?.dismiss()
+    }
+
+    // ---- Auto-Ocarina ----
+
+    /** Attach the HUD view created by GameActivity (called once per onCreate). */
+    fun attachOcarinaHud(hud: OcarinaHudView) {
+        ocarinaHud = hud
+    }
+
+    /**
+     * Detect the running game's Ocarina support from its ROM header and store the result. Called
+     * once during launch (after the patched ROM path is known) so the in-game menu can
+     * conditionally show the Auto-Ocarina item. Detection reads only header ranges (see
+     * [RomHeader.fromNormalizedZ64]), never the full ROM.
+     */
+    fun prepareOcarinaDetection(hackId: String) {
+        currentHackId = hackId
+        val romFile = GameRomResolver.resolveRomFile(appContext, hackId)
+        val header =
+                runCatching { if (romFile != null) RomHeader.fromNormalizedZ64(romFile) else null }
+                        .getOrNull()
+        ocarinaGame = header?.let { OcarinaSongCatalog.detectGame(it) }
+        ocarinaExactGameCode = header?.gameCode
+    }
+
+    private fun showOcarinaSongList() {
+        val context = activityContext ?: return
+        val game = ocarinaGame ?: return
+        val hackId = currentHackId ?: return
+        val songs = OcarinaSongCatalog.getSongs(game, getCustomOcarinaSongs(hackId))
+        ocarinaCurrentSongs = songs
+        val titles = songs.map { it.displayName(context) }.toTypedArray()
+        val builder =
+                AlertDialog.Builder(context)
+                        .setTitle(context.getString(R.string.menu_auto_ocarina))
+                        .setItems(titles) { dialog, which ->
+                            dialog.dismiss()
+                            playOcarinaSong(songs[which])
+                        }
+                        .setNegativeButton(R.string.dialog_cancel, null)
+        ocarinaSongDialog = builder.create()
+        ocarinaSongDialog?.show()
+        ocarinaSongDialog?.window?.setBackgroundDrawable(
+                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+        )
+        // Ensure the list can be navigated/selected with a physical controller.
+        ocarinaSongDialog?.listView?.apply {
+            requestFocus()
+            setSelection(0)
+        }
+        ocarinaSongDialog?.window?.decorView?.setOnKeyListener(menuKeyListenerOcarina)
+    }
+
+    /** Look up catalog-provided custom songs for [hackId] (tolerant, may be empty). */
+    private fun getCustomOcarinaSongs(hackId: String): List<OcarinaSong> {
+        return runCatching {
+                    MergedCatalogRepository(File(appContext.filesDir, "merged_catalog.json"))
+                                    .asMap()[hackId]
+                            ?.ocarinaSongs
+                            ?: emptyList()
+                }
+                .getOrDefault(emptyList())
+    }
+
+    /**
+     * Play [song]: show the HUD and start the macro player. Any prior playback is cancelled first
+     * by [OcarinaMacroPlayer.play].
+     */
+    private fun playOcarinaSong(song: OcarinaSong) {
+        if (RcheevosJni.nativeIsHardcore()) {
+            Toast.makeText(appContext, R.string.ra_hardcore_macro_blocked, Toast.LENGTH_LONG).show()
+            return
+        }
+        val rv = retroView?.view ?: return
+        ocarinaHud?.show(song)
+        ocarinaPlayer =
+                OcarinaMacroPlayer(rv, viewModelScope).apply {
+                    play(
+                            song,
+                            object : OcarinaMacroCallbacks {
+                                override fun onStarted(song: OcarinaSong) {
+                                    // HUD is already shown by playOcarinaSong before the initial
+                                    // delay, so nothing else is needed here.
+                                }
+                                override fun onNoteStart(index: Int) {
+                                    ocarinaHud?.setActiveNote(index)
+                                }
+                                override fun onNoteComplete(index: Int) {
+                                    ocarinaHud?.markComplete(index)
+                                }
+                                override fun onFinished() {
+                                    ocarinaHud?.hide()
+                                    ocarinaPlayer = null
+                                }
+                            }
+                    )
+                }
+    }
+
+    /**
+     * Cancel any running Auto-Ocarina playback, releasing the held button and hiding the HUD. Safe
+     * to call when idle.
+     */
+    fun cancelOcarina() {
+        ocarinaPlayer?.cancel()
+        ocarinaPlayer = null
+        ocarinaHud?.hide()
+    }
+
+    /**
+     * Physical-controller key handler for the song-list dialog. B closes; A/DPAD_CENTER/ENTER
+     * selects the focused list item (falling back to the first item when nothing is focused). All
+     * other keys fall through to the system for normal list navigation.
+     */
+    private fun handleOcarinaKey(keyCode: Int, event: KeyEvent): Boolean {
+        if (ocarinaSongDialog?.isShowing != true) return false
+        if (event.action != KeyEvent.ACTION_DOWN) return true
+        return when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_MODE -> {
+                ocarinaSongDialog?.dismiss()
+                true
+            }
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                val songs = ocarinaCurrentSongs ?: return true
+                val lv = ocarinaSongDialog?.listView
+                val pos = (lv?.selectedItemPosition ?: -1).let { if (it < 0) 0 else it }
+                if (pos in songs.indices) {
+                    ocarinaSongDialog?.dismiss()
+                    playOcarinaSong(songs[pos])
+                }
+                true
+            }
+            else -> false
+        }
+    }
+
+    /**
+     * Show/hide the physical-controller key badges live as controllers connect or disconnect,
+     * without rebuilding the menu. Badges appear only when a physical controller is present (i.e.
+     * [GamePad.shouldShowGamePads] is false). Safe to call when the menu is not showing.
+     */
+    fun refreshMenuBadges() {
+        val activity = activityContext ?: return
+        val show = !GamePad.shouldShowGamePads(activity)
+        for (badge in badgeViews) {
+            badge.visibility = if (show) View.VISIBLE else View.GONE
+        }
+    }
+
+    /**
+     * Preserve emulator state, then finish GameActivity so LibraryActivity (which launched it via
+     * startActivity) is revealed again. No System.exit.
+     *
+     * Guard: refuse to exit while the core is still loading. Finishing the Activity during ROM load
+     * triggers ON_DESTROY -> LibretroDroid.destroy() -> retro_deinit() concurrently with core
+     * initialization, which SIGSEGVs the mupen64plus_next core (the race documented in AGENTS.md).
+     * Once the core has failed (aborted) exiting is safe because LibretroDroid skips destroy
+     * internally.
+     */
+    private fun exitGame() {
+        val context = activityContext ?: return
+        if (coreReady.value != true && coreFailed.value != true) {
+            Toast.makeText(context, R.string.msg_game_still_loading, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (coreReady.value == true) {
+            retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
+        }
+        context.finish()
+    }
+
+    private fun applyButtonStickEnabled(enabled: Boolean) {
+        isButtonStickEnabled = enabled
+        stickButtons.forEach { it.stickEnabled = enabled }
+        controllerInput.isButtonStickEnabled = { isButtonStickEnabled }
+        // Physical right stick analog behavior follows toggle
+        controllerInput.buttonStickTargetKeyCode = {
+            if (enabled) KeyEvent.KEYCODE_BUTTON_R1 else null
+        }
+    }
+
+    private fun showOverlayScaleDialog() {
+        val context = activityContext ?: return
+        val options =
+                arrayOf(
+                        context.getString(R.string.overlay_scale_small),
+                        context.getString(R.string.overlay_scale_medium),
+                        context.getString(R.string.overlay_scale_large)
+                )
+        val current =
+                when (CorePrefs.getOverlayScale(context)) {
+                    CorePrefs.OVERLAY_SCALE_MEDIUM -> 1
+                    CorePrefs.OVERLAY_SCALE_LARGE -> 2
+                    else -> 0
+                }
+        AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.menu_overlay_scale))
+                .setSingleChoiceItems(options, current) { dialog, which ->
+                    val scale =
+                            when (which) {
+                                1 -> CorePrefs.OVERLAY_SCALE_MEDIUM
+                                2 -> CorePrefs.OVERLAY_SCALE_LARGE
+                                else -> CorePrefs.OVERLAY_SCALE_SMALL
+                            }
+                    CorePrefs.setOverlayScale(context, scale)
+                    dialog.dismiss()
+                    Toast.makeText(context, R.string.overlay_scale_restart_hint, Toast.LENGTH_LONG)
+                            .show()
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+    }
+
+    private fun showRightTapDialog() {
+        val context = activityContext ?: return
+        val options =
+                arrayOf(
+                        context.getString(R.string.right_tap_off),
+                        context.getString(R.string.right_tap_a),
+                        context.getString(R.string.right_tap_b),
+                        context.getString(R.string.right_tap_r)
+                )
+        val current =
+                when (CorePrefs.getRightTapAction(context)) {
+                    CorePrefs.RIGHT_TAP_A -> 1
+                    CorePrefs.RIGHT_TAP_B -> 2
+                    CorePrefs.RIGHT_TAP_R -> 3
+                    else -> 0
+                }
+        AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.menu_right_tap))
+                .setSingleChoiceItems(options, current) { dialog, which ->
+                    val action =
+                            when (which) {
+                                1 -> CorePrefs.RIGHT_TAP_A
+                                2 -> CorePrefs.RIGHT_TAP_B
+                                3 -> CorePrefs.RIGHT_TAP_R
+                                else -> CorePrefs.RIGHT_TAP_OFF
+                            }
+                    CorePrefs.setRightTapAction(context, action)
+                    rightTapZone?.targetKeyCode = CorePrefs.getRightTapKeyCode(context)
+                    rightTapZone?.visibility =
+                            if (action == CorePrefs.RIGHT_TAP_OFF) View.GONE else View.VISIBLE
+                    dialog.dismiss()
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+    }
+
+    private fun getSavedAutoZEnabled(): Boolean {
+        val prefs =
+                appContext.getSharedPreferences(
+                        N64ControllerMapping.PREFERENCES_NAME,
+                        Context.MODE_PRIVATE
+                )
+        return prefs.getBoolean(autoZPrefsKey, true)
+    }
+
+    private fun getSavedN64StickSensitivity(): Float {
+        val prefs =
+                appContext.getSharedPreferences(
+                        N64ControllerMapping.PREFERENCES_NAME,
+                        Context.MODE_PRIVATE
+                )
+        return prefs.getFloat(n64StickSensitivityPrefsKey, 1f)
+    }
+
+    private fun getSavedButtonStickSensitivity(): Float {
+        val prefs =
+                appContext.getSharedPreferences(
+                        N64ControllerMapping.PREFERENCES_NAME,
+                        Context.MODE_PRIVATE
+                )
+        return prefs.getFloat(buttonStickSensitivityPrefsKey, 0.5f)
+    }
+
+    /** A slider (0%-200%) per stick, persisted and applied live to the running controls. */
+    private fun showSensitivityDialog() {
+        val context = activityContext ?: return
+        val prefs =
+                appContext.getSharedPreferences(
+                        N64ControllerMapping.PREFERENCES_NAME,
+                        Context.MODE_PRIVATE
+                )
+        val density = context.resources.displayMetrics.density
+        val padding = (16 * density).toInt()
+
+        val container =
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(padding, padding, padding, padding)
+                }
+
+        fun addSlider(label: String, initialPercent: Int, onChange: (Float) -> Unit) {
+            val title =
+                    TextView(context).apply {
+                        text = "$label: $initialPercent%"
+                        setPadding(0, padding, 0, 0)
+                    }
+            val seekBar =
+                    SeekBar(context).apply {
+                        max = 200
+                        progress = initialPercent
+                    }
+            seekBar.setOnSeekBarChangeListener(
+                    object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(
+                                bar: SeekBar?,
+                                progress: Int,
+                                fromUser: Boolean
+                        ) {
+                            title.text = "$label: $progress%"
+                            if (fromUser) onChange(progress / 100f)
+                        }
+                        override fun onStartTrackingTouch(bar: SeekBar?) {}
+                        override fun onStopTrackingTouch(bar: SeekBar?) {}
+                    }
+            )
+            container.addView(title)
+            container.addView(seekBar)
+        }
+
+        addSlider(
+                context.getString(R.string.sensitivity_n64_stick),
+                (getSavedN64StickSensitivity() * 100).toInt()
+        ) {
+            floatingJoystick?.sensitivity = it
+            prefs.edit().putFloat(n64StickSensitivityPrefsKey, it).apply()
+        }
+        addSlider(
+                context.getString(R.string.sensitivity_button_stick),
+                (getSavedButtonStickSensitivity() * 100).toInt()
+        ) {
+            stickButtons.forEach { btn -> btn.sensitivity = it }
+            controllerInput.buttonStickSensitivity = it
+            prefs.edit().putFloat(buttonStickSensitivityPrefsKey, it).apply()
+        }
+
+        sensitivityDialog =
+                AlertDialog.Builder(context)
+                        .setTitle(context.getString(R.string.menu_sensitivity))
+                        .setView(container)
+                        .setPositiveButton(R.string.dialog_ok, null)
+                        .create()
+        sensitivityDialog?.show()
+        sensitivityDialog?.window?.setBackgroundDrawable(
+                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+        )
+        sensitivityDialog?.setOnKeyListener(menuKeyListenerSensitivity)
+    }
+
+    /**
+     * Double-tapping the analog stick toggles Z held on/off (released independently of the stick
+     * itself). Toggling the Auto-Z menu item off while it's held releases Z immediately.
+     */
+    private fun onStickDoubleTap() {
+        if (!autoZEnabled) return
+
+        zHeldViaDoubleTap = !zHeldViaDoubleTap
+        val action = if (zHeldViaDoubleTap) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP
+        retroView?.view?.sendKeyEvent(action, InputMapper.mapKeyCode(KeyEvent.KEYCODE_BUTTON_L2))
+    }
+
+    /** Tracks Z press to cancel a double-tap-held Z. START also cancels it. */
+    private fun trackCButtonPress(keyCode: Int) {
+        when (keyCode) {
+            KeyEvent.KEYCODE_BUTTON_L2 -> zHeldViaDoubleTap = false
+            KeyEvent.KEYCODE_BUTTON_START -> {
+                if (zHeldViaDoubleTap) {
+                    zHeldViaDoubleTap = false
+                    retroView?.view?.sendKeyEvent(
+                            KeyEvent.ACTION_UP,
+                            InputMapper.mapKeyCode(KeyEvent.KEYCODE_BUTTON_L2)
+                    )
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    /**
+     * Show the menu
+     *
+     * Sizes the dialog window so it wraps the content when it fits and scrolls internally (via the
+     * root ScrollView, which is match_parent) when it would exceed 90% of the screen height.
+     * Without this cap the AlertDialog sizes its window to the full content height, overflows the
+     * display, and clips the bottom section because the ScrollView (wrap_content) never becomes
+     * height-constrained and therefore never scrolls.
+     */
+    fun showMenu() {
+        /* Opening the menu again cancels any in-progress Auto-Ocarina playback. */
+        cancelOcarina()
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                    "MenuDebug",
+                    "showMenu() called; retroView=${retroView != null}, " +
+                            "frameRendered=${retroView?.frameRendered?.value}"
+            )
+        }
+        /* Gate 1: core must have rendered at least one frame. */
+        if (retroView?.frameRendered?.value != true) {
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                        "MenuDebug",
+                        "showMenu() gate FAILED: frameRendered != true " +
+                                "(retroView=${retroView != null}, " +
+                                "frameRendered=${retroView?.frameRendered?.value})"
+                )
+            }
+            return
+        }
+        retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
+        updateToggleStates()
+        updateItemEnabledStates()
+
+        val dialog =
+                menuDialog
+                        ?: run {
+                            if (BuildConfig.DEBUG)
+                                    Log.d("MenuDebug", "showMenu() gate FAILED: menuDialog == null")
+                            return
+                        }
+        val view =
+                menuView
+                        ?: run {
+                            if (BuildConfig.DEBUG)
+                                    Log.d("MenuDebug", "showMenu() gate FAILED: menuView == null")
+                            return
+                        }
+        val context =
+                activityContext
+                        ?: run {
+                            if (BuildConfig.DEBUG)
+                                    Log.d(
+                                            "MenuDebug",
+                                            "showMenu() gate FAILED: activityContext == null"
+                                    )
+                            return
+                        }
+        val metrics = context.resources.displayMetrics
+        val screenWidth = metrics.widthPixels
+        val screenHeight = metrics.heightPixels
+
+        val maxWidthPx = context.resources.getDimensionPixelSize(R.dimen.dialog_menu_max_width)
+        val dialogWidth = minOf((screenWidth * 0.92f).toInt(), maxWidthPx)
+
+        /* Measure the content at the dialog's actual width (AT_MOST) so wrapped
+        labels reflect the real height. A bare UNSPECIFIED width would let the
+        weight-based cells expand and under-report the height. */
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(dialogWidth, View.MeasureSpec.AT_MOST)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        view.measure(widthSpec, heightSpec)
+        val contentHeight = view.measuredHeight
+
+        val verticalInset =
+                context.resources.getDimensionPixelSize(R.dimen.dialog_menu_vertical_inset)
+        val maxHeight = (screenHeight * 0.90f).toInt()
+        val dialogHeight = minOf(contentHeight + verticalInset, maxHeight)
+
+        dialog.show()
+        dialog.window?.setLayout(dialogWidth, dialogHeight)
+        dialog.window?.setBackgroundDrawable(
+                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+        )
+        dialog.setOnKeyListener(menuKeyListenerMain)
+    }
+
+    /** Dismiss the menu */
+    fun dismissMenu() {
+        if (menuDialog?.isShowing == true) menuDialog?.dismiss()
+    }
+
+    /**
+     * Save the state of the emulator.
+     *
+     * Skips serialization while the core is still loading (!coreReady): there is no user-visible
+     * state to persist before the first frame, and calling preserveEmulatorState would block the
+     * main thread on runOnEmulationThread until the GL thread finishes loading (ANR risk during
+     * load). SRAM was loaded from file at start anyway, so nothing is lost.
+     */
+    fun preserveState() {
+        if (coreReady.value == true) retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
+    }
+
+    /**
+     * Handle the Activity returning to the foreground after its first launch (GameActivity.onStart,
+     * hasStarted == true).
+     *
+     * GL-context recovery path: a full Activity recreate rebuilds the RetroView from scratch -- the
+     * only supported way to recover a lost GL context for hardware-rendered cores
+     * (mupen64plus_next). This is ONLY safe once a frame has rendered (coreReady). If the core is
+     * still loading (!coreReady && !coreFailed) we defer the recreate via [pendingRecreate] and let
+     * it fire when the first frame arrives (see setupRetroView's frame observer) -- destroying a
+     * mid-load core via ON_DESTROY -> retro_deinit SIGSEGVs. If the core already failed
+     * (coreFailed) we never recreate: there is nothing to recover and LibretroDroid already skipped
+     * destroy internally.
+     */
+    fun handleBackgroundReturn(activity: ComponentActivity) {
+        if (coreReady.value == true) {
+            preserveState()
+            activity.recreate()
+        } else if (coreFailed.value != true) {
+            pendingRecreate = true
+        }
+    }
+
+    /** Hide the system bars */
+    @Suppress("DEPRECATION")
+    fun immersive(window: Window) {
+        /* Check if the config permits it */
+        if (!resources.getBoolean(R.bool.config_fullscreen)) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            with(window.insetsController!!) {
+                hide(WindowInsets.Type.systemBars())
+                systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            window.decorView.systemUiVisibility =
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_FULLSCREEN
+        }
+    }
+
+    // ---- RetroAchievements session ----
+
+    private var autoTracker: AutoTrackerPoller? = null
+    private var autoTrackerState: TrackerViewModel? = null
+    private var trackerGeneration = 0L
+    @Volatile private var autoTrackingEnabled = false
+    private val trackerPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == CorePrefs.PREF_TRACKER_AUTO_TRACKING) {
+            autoTrackingEnabled = CorePrefs.getTrackerAutoTracking(appContext)
+            autoTracker?.invalidate()
+        }
+    }
+
+    /** Captures the core-owned RAM alias once, outside the non-reentrant frame lock. */
+    private fun startFrameTracking(hackId: String) {
+        val game = when (ocarinaGame) {
+            OcarinaGame.OOT -> TrackerGame.OOT
+            OcarinaGame.MM -> TrackerGame.MM
+            else -> null
+        }
+        autoTrackingEnabled = CorePrefs.getTrackerAutoTracking(appContext)
+        appContext.getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+                .registerOnSharedPreferenceChangeListener(trackerPreferenceListener)
+        val generation = ++trackerGeneration
+        val memory = retroView?.view?.getMemoryRegion(LibretroDroid.MEMORY_SYSTEM_RAM)
+        if (game != null && memory != null) {
+            val tracker = TrackerViewModel(appContext, game, hackId)
+            autoTrackerState = tracker
+            autoTracker = AutoTrackerPoller(memory, game, { autoTrackingEnabled }, { snapshot ->
+                viewModelScope.launch {
+                    if (generation == trackerGeneration && autoTrackingEnabled) {
+                        tracker.applyAutoSnapshot(snapshot)
+                    }
+                }
+            })
+        }
+        val session = raSession
+        val poller = autoTracker
+        LibretroDroid.setFrameCallback(Runnable {
+            session?.onFrame()
+            poller?.onFrame()
+        })
+    }
+
+    /**
+     * Starts the RetroAchievements session once the first frame rendered and the core is running.
+     * No-op when the feature is disabled in settings or already active. The memory region is
+     * captured lazily by the session at game-load time (it is only valid while the core holds the
+     * ROM).
+     */
+    private fun startRaSessionIfNeeded(hackId: String) {
+        LibretroDroid.setStateCallback(RaEmulatorStateBridge(appContext))
+        if (!CorePrefs.getRetroAchievementsEnabled(appContext)) {
+            announceRaStatus(R.string.ra_toast_disabled)
+            return
+        }
+        if (raSession != null) return
+
+        val view = retroView?.view ?: return
+        val romFile =
+                GameRomResolver.resolveRomFile(appContext, hackId)
+                        ?: run {
+                            Log.w(TAG, "startRaSessionIfNeeded: no playable ROM for $hackId")
+                            return
+                        }
+        val app = getApplication<Application>()
+
+        val session =
+                RaSessionManager(
+                        context = app,
+                        http = RaHttpClient(RaUserAgent.build(app)),
+                        credentials = RaCredentialStore(app),
+                        metadataStore = HylianBoxApp.raInstallMetadataStore
+                )
+        raSession = session
+
+        /* Client events (unlocks, indicators, leaderboards) drive the overlay
+        and system notifications. */
+        raEventCollector =
+                viewModelScope.launch { session.events.collect { event -> handleRaEvent(event) } }
+
+        /* One-shot startup announcement: as soon as the session reaches a
+        terminal-enough state, toast whether achievements are tracked for
+        this game (with the user's progress when available). */
+        raStateCollector =
+                viewModelScope.launch {
+                    session.state.collect { state ->
+                        /* Live refresh: while the menu is open, flip the RA buttons'
+                        enabled state as the session resolves (LoadingGame -> Running)
+                        so a button greyed during load becomes enabled without forcing
+                        the user to reopen the menu. */
+                        if (menuDialog?.isShowing == true) updateItemEnabledStates()
+                        if (raAnnounced) return@collect
+                        when (state) {
+                            is RaSessionState.Running -> {
+                                val total = state.game.numCoreAchievements
+                                announceRaStatus(
+                                        if (total > 0) R.string.ra_toast_progress_mode
+                                        else R.string.ra_toast_untracked,
+                                        state.game.numUnlockedAchievements,
+                                        total,
+                                        appContext.getString(
+                                                if (RcheevosJni.nativeIsHardcore())
+                                                        R.string.ra_mode_hardcore
+                                                else R.string.ra_mode_casual
+                                        )
+                                )
+                            }
+                            is RaSessionState.NotLoggedIn ->
+                                    announceRaStatus(R.string.ra_toast_not_logged_in)
+                            is RaSessionState.Failed -> {
+                                val tracked =
+                                        runCatching {
+                                                    HylianBoxApp.raInstallMetadataStore.get(
+                                                                    hackId
+                                                            )
+                                                            ?.isResolved == true
+                                                }
+                                                .getOrDefault(false)
+                                announceRaStatus(
+                                        if (tracked) R.string.ra_toast_connect_failed
+                                        else R.string.ra_toast_untracked
+                                )
+                            }
+                            else -> Unit
+                        }
+                    }
+                }
+
+        session.start(romFile, hackId, hardcoreEnabled = CorePrefs.getRaHardcore(appContext)) {
+            view.getMemoryRegion(LibretroDroid.MEMORY_SYSTEM_RAM)
+        }
+
+
+        // System notifications are opt-in default ON; on API 33+ they need
+        // the POST_NOTIFICATIONS runtime permission. Ask once as soon as the
+        // session goes live so the first unlock is never lost.
+        RaNotificationHelper.ensureChannel(appContext)
+        ensureNotificationPermission()
+    }
+
+    /** Requests POST_NOTIFICATIONS on API 33+ when missing. No-op otherwise. */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val activity = activityContext ?: return
+        val granted =
+                ContextCompat.checkSelfPermission(
+                        activity,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    RA_NOTIFICATION_PERMISSION_REQUEST
+            )
+        }
+    }
+
+    /** Attaches the in-game RA overlay created by GameActivity. */
+    fun attachRaOverlay(overlay: RaOverlayView) {
+        raOverlay = overlay
+    }
+
+    /** Capture the current emulator framebuffer as a single PNG in the gallery. */
+    private fun captureScreenshotAction() {
+        val context = activityContext ?: return
+        val emulator =
+                retroView
+                        ?: run {
+                            Toast.makeText(context, R.string.capture_failed, Toast.LENGTH_SHORT)
+                                    .show()
+                            return
+                        }
+        val hackId = currentHackId ?: return
+        val output = Storage.getInstance(context).screenshotFile(hackId, System.currentTimeMillis())
+        emulator.captureScreenshot { bitmap ->
+            viewModelScope.launch(Dispatchers.IO) {
+                val saved =
+                        bitmap?.let { frame ->
+                            runCatching {
+                                output.outputStream().use { stream ->
+                                    frame.compress(
+                                            android.graphics.Bitmap.CompressFormat.PNG,
+                                            100,
+                                            stream
+                                    )
+                                }
+                            }
+                                    .getOrDefault(false)
+                                    .also { frame.recycle() }
+                        }
+                                ?: false
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                                    context,
+                                    if (saved) R.string.capture_saved else R.string.capture_failed,
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
+            }
+        }
+    }
+
+    /** Toggle an emulator-only recording; no system screen-capture consent is needed. */
+    private fun toggleRecording() {
+        val context = activityContext ?: return
+        if (_isRecording.value == true) {
+            stopRecording()
+            return
+        }
+        val hackId = currentHackId ?: return
+        val emulator =
+                retroView
+                        ?: run {
+                            Toast.makeText(context, R.string.capture_failed, Toast.LENGTH_SHORT)
+                                    .show()
+                            return
+                        }
+        val outputFile =
+                Storage.getInstance(context).recordingFile(hackId, System.currentTimeMillis())
+        val includeMicrophone = CorePrefs.getCaptureIncludeMicrophone(context)
+        if (includeMicrophone &&
+                        ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.RECORD_AUDIO
+                        ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                    context,
+                    arrayOf(android.Manifest.permission.RECORD_AUDIO),
+                    CAPTURE_MICROPHONE_PERMISSION_REQUEST
+            )
+            Toast.makeText(
+                            context,
+                            R.string.capture_microphone_permission_required,
+                            Toast.LENGTH_SHORT
+                    )
+                    .show()
+            return
+        }
+        emulator.startVideoRecording(outputFile, includeMicrophone) { started ->
+            _isRecording.value = started
+            Toast.makeText(
+                            context,
+                            if (started) R.string.recording_started else R.string.capture_failed,
+                            Toast.LENGTH_SHORT
+                    )
+                    .show()
+        }
+    }
+
+    /** Stop the emulator-only recording and reset the toggle state. */
+    fun stopRecording() {
+        // Do nothing if no recording is active — avoids the "Gravação parada"
+        // toast when simply leaving emulation without a live capture.
+        if (_isRecording.value != true) return
+        val context = activityContext ?: return
+        retroView?.stopVideoRecording {
+            _isRecording.value = false
+            Toast.makeText(context, R.string.recording_stopped, Toast.LENGTH_SHORT).show()
+        }
+                ?: run { _isRecording.value = false }
+    }
+
+    /**
+     * Returns the currently running RetroAchievements game summary, or null when the session has
+     * not yet identified a game (Idle / NotLoggedIn / LoggingIn / LoadingGame / Failed). The menu
+     * buttons read this to decide their enabled state, so it must reflect the live session state at
+     * evaluation time.
+     */
+    private fun currentRaGame(): RaGameSummary? =
+            (raSession?.state?.value as? RaSessionState.Running)?.game
+
+    /**
+     * True iff the RA session has identified the running game (Running state). Leaderboards may
+     * exist even for untracked games, so this gates the leaderboards button independently of
+     * achievement availability.
+     */
+    private fun isRaSessionRunning(): Boolean = currentRaGame() != null
+
+    /**
+     * True iff the RA session is Running AND the game exposes at least one core achievement. Used
+     * to grey out the achievements button for untracked games (identified but with
+     * numCoreAchievements == 0).
+     */
+    private fun isRaAchievementsAvailable(): Boolean {
+        val game = currentRaGame() ?: return false
+        return game.numCoreAchievements > 0
+    }
+
+    /**
+     * Opens the leaderboards dialog for [gameId] (in-game menu only). No-op when [gameId] is 0L
+     * (session not running / game not identified yet).
+     */
+    private fun showRaLeaderboards(gameId: Long) {
+        if (gameId == 0L) return
+        val activity = activityContext as? androidx.fragment.app.FragmentActivity ?: return
+        RaLeaderboardDialogFragment.newInstance(gameId)
+                .show(activity.supportFragmentManager, "ra_leaderboards")
+    }
+
+    /** Opens the achievements list for the running game as a popup (no Activity switch). */
+    private fun openRaAchievements() {
+        val hackId = currentHackId ?: return
+        val activity = activityContext as? androidx.fragment.app.FragmentActivity ?: return
+        RaAchievementsDialogFragment.newInstance(hackId)
+                .show(activity.supportFragmentManager, "ra_achievements")
+    }
+
+    /** Routes one client event to the overlay and/or a system notification. */
+    private fun handleRaEvent(event: RaClientEvent) {
+        val overlay = raOverlay
+        when (event.eventType) {
+            RcheevosJni.Events.ACHIEVEMENT_TRIGGERED -> {
+                overlay?.showUnlock(event.payloadJson)
+                val gameTitle =
+                        (raSession?.state?.value as? RaSessionState.Running)?.game?.title.orEmpty()
+                RaNotificationHelper.postUnlock(appContext, event.payloadJson, gameTitle)
+            }
+            RcheevosJni.Events.CHALLENGE_INDICATOR_SHOW ->
+                    if (RcheevosJni.nativeIsHardcore() ||
+                                    CorePrefs.getRaShowChallengeIndicators(appContext)
+                    )
+                            overlay?.showChallengeIndicator(event.payloadJson)
+            RcheevosJni.Events.CHALLENGE_INDICATOR_HIDE ->
+                    overlay?.hideChallengeIndicator(event.payloadJson)
+            RcheevosJni.Events.PROGRESS_INDICATOR_SHOW,
+            RcheevosJni.Events.PROGRESS_INDICATOR_UPDATE ->
+                    if (RcheevosJni.nativeIsHardcore() ||
+                                    CorePrefs.getRaShowChallengeIndicators(appContext)
+                    )
+                            overlay?.updateProgressIndicator(event.payloadJson, visible = true)
+            RcheevosJni.Events.PROGRESS_INDICATOR_HIDE ->
+                    overlay?.updateProgressIndicator(event.payloadJson, visible = false)
+            RcheevosJni.Events.LEADERBOARD_STARTED -> {
+                if (CorePrefs.getRaShowChallengeIndicators(appContext)) {
+                    overlay?.showMessage(appContext.getString(R.string.ra_leaderboard_started))
+                }
+            }
+            RcheevosJni.Events.LEADERBOARD_FAILED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_leaderboard_failed))
+            }
+            RcheevosJni.Events.LEADERBOARD_SUBMITTED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_leaderboard_submitted))
+            }
+            RcheevosJni.Events.LEADERBOARD_TRACKER_SHOW,
+            RcheevosJni.Events.LEADERBOARD_TRACKER_UPDATE,
+            RcheevosJni.Events.LEADERBOARD_TRACKER_HIDE,
+            RcheevosJni.Events.LEADERBOARD_SCOREBOARD -> Unit // Rankings stay inside the menu.
+            RcheevosJni.Events.GAME_COMPLETED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_game_completed))
+            }
+            RcheevosJni.Events.SUBSET_COMPLETED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_subset_completed))
+            }
+            RcheevosJni.Events.RESET -> {
+                overlay?.clearAll()
+                retroView?.view?.queueEvent { LibretroDroid.reset() }
+            }
+            RcheevosJni.Events.SERVER_ERROR -> {
+                val api =
+                        runCatching { org.json.JSONObject(event.payloadJson).optString("api") }
+                                .getOrDefault("")
+                if (api == "award_achievement") {
+                    overlay?.showMessage(appContext.getString(R.string.ra_award_sync_failed))
+                }
+            }
+            RcheevosJni.Events.DISCONNECTED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_disconnected))
+            }
+            RcheevosJni.Events.RECONNECTED -> {
+                overlay?.showMessage(appContext.getString(R.string.ra_reconnected))
+            }
+            else -> Unit
+        }
+    }
+
+    /**
+     * Stops the RA session. MUST run before the native core is destroyed (GameActivity.onDestroy
+     * calls this ahead of super.onDestroy()) because the aliased memory region dies with the core.
+     */
+    fun stopRaSession() {
+        LibretroDroid.setFrameCallback(null)
+        ++trackerGeneration
+        autoTracker = null
+        autoTrackerState = null
+        appContext.getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+                .unregisterOnSharedPreferenceChangeListener(trackerPreferenceListener)
+        LibretroDroid.setStateCallback(null)
+        raEventCollector?.cancel()
+        raEventCollector = null
+        raStateCollector?.cancel()
+        raStateCollector = null
+        raOverlay?.clearAll()
+        raSession?.stop()
+        raSession = null
+    }
+
+    /**
+     * Shows the one-shot game-start RetroAchievements toast. Safe to call repeatedly; only the
+     * first call per game session takes effect.
+     */
+    private fun announceRaStatus(messageRes: Int, arg1: Int = 0, arg2: Int = 0, mode: String = "") {
+        if (raAnnounced) return
+        raAnnounced = true
+        Toast.makeText(
+                        appContext,
+                        appContext.getString(messageRes, arg1, arg2, mode),
+                        Toast.LENGTH_LONG
+                )
+                .show()
+    }
+
+    /** Hook the RetroView with the GLRetroView instance */
+    fun setupRetroView(activity: ComponentActivity, container: FrameLayout, hackId: String) {
+        /* A new RetroView is being created; release any keys held by a previous
+        (now stale) macro player and reset playback state. */
+        cancelOcarina()
+        val coreLib = CorePrefs.getSelectedCoreLib(appContext)
+        retroView = RetroView(activity, compositeDisposable, hackId, coreLib)
+        retroViewUtils = RetroViewUtils(activity, hackId)
+        container.removeAllViews()
+
+        /* The ViewModel survives Activity recreation, so clear any readiness state
+        left over from a previous RetroView instance before wiring the new one. */
+        _coreReady.value = false
+        _coreFailed.value = false
+        pendingRecreate = false
+
+        retroView?.let { retroView ->
+            container.addView(retroView.view)
+            activity.lifecycle.addObserver(retroView.view)
+            retroView.registerFrameRenderedListener()
+            retroView.registerCoreErrorListener()
+
+            /* Restore state after first frame loaded */
+            retroView.frameRendered.observe(activity) {
+                if (it != true) return@observe
+
+                _coreReady.value = true
+                _frameRenderedForDisplay.value = true
+                retroViewUtils?.restoreEmulatorState(retroView)
+
+                startRaSessionIfNeeded(hackId)
+                startFrameTracking(hackId)
+
+                /* A background-return recreate was deferred while the core was still
+                loading (see handleBackgroundReturn). Now that a frame has rendered
+                the GL context can be safely rebuilt via a full Activity recreate. */
+                if (pendingRecreate) {
+                    pendingRecreate = false
+                    activity.recreate()
+                }
+            }
+
+            /* Track fatal core errors so the exit/recreate guards know the core
+            aborted (LibretroDroid then skips destroy internally, making teardown
+            safe even mid-load). */
+            retroView.coreError.observe(activity) { error -> _coreFailed.value = error != null }
+        }
+    }
+
+    /**
+     * Create the on-screen GamePads, each positioned independently to match referencia.png. Must
+     * run after setupRetroView() -- each pad is subscribed to the current [retroView] as soon as
+     * it's created (subscribing later, e.g. back in setupRetroView(), would iterate this class's
+     * gamePads list before it's populated and silently wire up nothing).
+     */
+    fun setupGamePads(overlay: FrameLayout) {
+        val context = getApplication<Application>().applicationContext
+        val density = overlay.resources.displayMetrics.density
+        val config = GamePadConfig(context, resources)
+
+        // Applies equally to RadialGamePad, ButtonStick, and FloatingJoystick without changing
+        // their input behavior or the overlay visibility lifecycle.
+        overlay.alpha = TouchControlLayout.OVERLAY_OPACITY
+
+        /* RadialGamePad caches its on-screen position/size on its first layout pass, and
+        doesn't refresh that cache on a later resize -- it keeps drawing in the new spot
+        but hit-tests touches against the stale one. So each pad must be created with its
+        final size and position already known (from the overlay's real, post-inset
+        dimensions) instead of being added small and resized once layout completes. */
+        overlay.viewTreeObserver.addOnGlobalLayoutListener(
+                object : ViewTreeObserver.OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        if (overlay.width == 0 || overlay.height == 0) return
+
+                        overlay.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                        isButtonStickEnabled = CorePrefs.getButtonStickEnabled(context)
+                        autoZEnabled = getSavedAutoZEnabled()
+                        val overlayScale = CorePrefs.getOverlayScaleFactor(context)
+
+                        // Cluster que ficava amontoado (C-left/C-down/C-right/A/B/R) se afasta
+                        // proporcionalmente ao overlayScale para não sobrepor quando aumenta.
+                        val clusterKeyCodes =
+                                setOf(
+                                        KeyEvent.KEYCODE_BUTTON_R2, // R
+                                        KeyEvent.KEYCODE_BUTTON_R1, // C-right
+                                        KeyEvent.KEYCODE_BUTTON_B, // B
+                                        KeyEvent.KEYCODE_BUTTON_L1, // C-left
+                                        KeyEvent.KEYCODE_BUTTON_X, // C-down
+                                        KeyEvent.KEYCODE_BUTTON_A // A
+                                )
+                        val clusterPlacements =
+                                config.placements.filter { placement ->
+                                    val centerId =
+                                            (placement.config.primaryDial as?
+                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                                    ?.center
+                                                    ?.id
+                                    centerId != null && centerId in clusterKeyCodes
+                                }
+                        val centroidX =
+                                if (clusterPlacements.isNotEmpty())
+                                        clusterPlacements.map { it.gravityX }.average().toFloat()
+                                else 0.5f
+                        val centroidY =
+                                if (clusterPlacements.isNotEmpty())
+                                        clusterPlacements.map { it.gravityY }.average().toFloat()
+                                else 0.5f
+                        fun spreadX(placement: PadPlacement): Float {
+                            val centerId =
+                                    (placement.config.primaryDial as?
+                                                    com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                            ?.center
+                                            ?.id
+                            return if (centerId != null && centerId in clusterKeyCodes) {
+                                centroidX + (placement.gravityX - centroidX) * overlayScale
+                            } else placement.gravityX
+                        }
+                        fun spreadY(placement: PadPlacement): Float {
+                            val centerId =
+                                    (placement.config.primaryDial as?
+                                                    com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                            ?.center
+                                            ?.id
+                            return if (centerId != null && centerId in clusterKeyCodes) {
+                                centroidY + (placement.gravityY - centroidY) * overlayScale
+                            } else placement.gravityY
+                        }
+
+                        /* Added first so it sits at the lowest z-order -- every real button placed after
+                        it (Select, D-pad) naturally claims its own touches first, leaving the
+                        joystick only the genuinely empty area to react to. */
+                        if (resources.getBoolean(R.bool.config_left_analog)) {
+                            val regionWidthPx =
+                                    (GamePadConfig.FLOATING_JOYSTICK_REGION_RIGHT_FRACTION *
+                                                    overlay.width)
+                                            .toInt()
+                            val joystickParams =
+                                    FrameLayout.LayoutParams(regionWidthPx, overlay.height)
+
+                            floatingJoystick =
+                                    FloatingJoystick(context).also { joystick ->
+                                        joystick.retroView = retroView?.view
+                                        joystick.sensitivity = getSavedN64StickSensitivity()
+                                        joystick.hintX =
+                                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_X *
+                                                        overlay.width
+                                        joystick.hintY =
+                                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_Y *
+                                                        overlay.height
+                                        joystick.hintRadius =
+                                                GamePadConfig.FLOATING_JOYSTICK_HINT_SIZE_FRACTION *
+                                                        overlay.height / 2f
+                                        joystick.maxReachPx =
+                                                GamePadConfig.FLOATING_JOYSTICK_MAX_REACH_FRACTION *
+                                                        overlay.width
+
+                                        /* onInterceptTouchEvent-only wrapper: drag/analog motion on the
+                                        joystick itself is completely unaffected. */
+                                        val container =
+                                                DoubleTapContainer(context) { onStickDoubleTap() }
+                                        container.addView(
+                                                joystick,
+                                                FrameLayout.LayoutParams(
+                                                        FrameLayout.LayoutParams.MATCH_PARENT,
+                                                        FrameLayout.LayoutParams.MATCH_PARENT
+                                                )
+                                        )
+                                        overlay.addView(container, joystickParams)
+                                    }
+                        }
+
+                        // RightTapZone: always created (lowest z-order) so real buttons claim
+                        // touches first
+                        val rightTapKeyCode = CorePrefs.getRightTapKeyCode(context)
+                        val zoneWidth = (overlay.width * 0.5f).toInt()
+                        val zoneParams =
+                                FrameLayout.LayoutParams(zoneWidth, overlay.height).apply {
+                                    leftMargin = overlay.width - zoneWidth
+                                    topMargin = 0
+                                }
+                        rightTapZone =
+                                RightTapZone(context).also {
+                                    it.retroView = retroView?.view
+                                    it.targetKeyCode = rightTapKeyCode
+                                    it.visibility =
+                                            if (rightTapKeyCode == null) View.GONE else View.VISIBLE
+                                    overlay.addView(it, zoneParams)
+                                }
+
+                        // C/A/B use ButtonStick behavior; R shares the same visual button as a
+                        // pure press control, so it never captures a larger transparent area.
+                        val stickKeyCodes =
+                                setOf(
+                                        KeyEvent.KEYCODE_BUTTON_R1, // C-Right
+                                        KeyEvent.KEYCODE_BUTTON_L1, // C-Left
+                                        KeyEvent.KEYCODE_BUTTON_X, // C-Down
+                                        KeyEvent.KEYCODE_BUTTON_A, // A
+                                        KeyEvent.KEYCODE_BUTTON_B, // B
+                                        KeyEvent.KEYCODE_BUTTON_R2 // R
+                                )
+                        val stickPlacements =
+                                config.placements.filter { placement ->
+                                    val pd = placement.config.primaryDial
+                                    val cid =
+                                            (pd as?
+                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                                    ?.center
+                                                    ?.id
+                                    cid != null && cid in stickKeyCodes
+                                }
+                        val regularPlacements = config.placements.filter { it !in stickPlacements }
+
+                        // C/A/B/R action buttons; only C/A/B honor ButtonStick drag behavior.
+                        val stickSensitivity = getSavedButtonStickSensitivity()
+                        stickButtons =
+                                stickPlacements.mapNotNull { placement ->
+                                    val centerId =
+                                            (placement.config.primaryDial as
+                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                                    .center
+                                                    ?.id
+                                                    ?: return@mapNotNull null
+                                    val label =
+                                            when (centerId) {
+                                                KeyEvent.KEYCODE_BUTTON_R1 -> "C▶"
+                                                KeyEvent.KEYCODE_BUTTON_L1 -> "C◀"
+                                                KeyEvent.KEYCODE_BUTTON_X -> "C▼"
+                                                KeyEvent.KEYCODE_BUTTON_A -> "A"
+                                                KeyEvent.KEYCODE_BUTTON_B -> "B"
+                                                KeyEvent.KEYCODE_BUTTON_R2 -> "R"
+                                                else -> "?"
+                                            }
+                                    val theme =
+                                            when (centerId) {
+                                                KeyEvent.KEYCODE_BUTTON_A -> StickButton.BLUE_THEME
+                                                KeyEvent.KEYCODE_BUTTON_B -> StickButton.GREEN_THEME
+                                                KeyEvent.KEYCODE_BUTTON_R2 ->
+                                                        StickButton.NEUTRAL_THEME
+                                                else -> StickButton.YELLOW_THEME
+                                            }
+                                    val sizePx =
+                                            (placement.sizeFraction * overlay.height * overlayScale)
+                                                    .toInt()
+                                    val sx = spreadX(placement)
+                                    val sy = spreadY(placement)
+                                    val radiusX = sizePx / 2f / overlay.width
+                                    val radiusY = sizePx / 2f / overlay.height
+                                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
+                                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
+                                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
+                                    params.leftMargin =
+                                            (clampedX * overlay.width - sizePx / 2f).toInt()
+                                    params.topMargin =
+                                            (clampedY * overlay.height - sizePx / 2f).toInt()
+                                    StickButton(
+                                                    context,
+                                                    centerId,
+                                                    label,
+                                                    theme,
+                                                    supportsAnalogDrag =
+                                                            centerId != KeyEvent.KEYCODE_BUTTON_R2,
+                                                    hapticEnabled =
+                                                            centerId !=
+                                                                    KeyEvent.KEYCODE_BUTTON_R2 ||
+                                                                    resources.getBoolean(
+                                                                            R.bool.config_gamepad_haptic
+                                                                    )
+                                            )
+                                            .also { btn ->
+                                                btn.retroView = retroView?.view
+                                                btn.sensitivity = stickSensitivity
+                                                btn.stickEnabled = isButtonStickEnabled
+                                                overlay.addView(btn, params)
+                                            }
+                                }
+
+                        gamePads =
+                                regularPlacements.map { placement ->
+                                    val sizePx =
+                                            (placement.sizeFraction * overlay.height * overlayScale)
+                                                    .toInt()
+                                    val sx = spreadX(placement)
+                                    val sy = spreadY(placement)
+                                    val radiusX = sizePx / 2f / overlay.width
+                                    val radiusY = sizePx / 2f / overlay.height
+                                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
+                                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
+                                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
+                                    params.leftMargin =
+                                            (clampedX * overlay.width - sizePx / 2f).toInt()
+                                    params.topMargin =
+                                            (clampedY * overlay.height - sizePx / 2f).toInt()
+                                    GamePad(context, placement).also {
+                                        it.pad.primaryDialMaxSizeDp = sizePx / density
+                                        overlay.addView(it.pad, params)
+                                        retroView?.let { rv ->
+                                            val onButtonDown: ((Int) -> Unit)? =
+                                                    placement.buttonKeyCode?.let { keyCode ->
+                                                        { trackCButtonPress(keyCode) }
+                                                    }
+                                            it.subscribe(compositeDisposable, rv.view, onButtonDown)
+                                        }
+                                    }
+                                }
+
+                        controllerInput.isButtonStickEnabled = { isButtonStickEnabled }
+                        controllerInput.buttonStickTargetKeyCode = {
+                            if (isButtonStickEnabled) KeyEvent.KEYCODE_BUTTON_R1 else null
+                        }
+                        controllerInput.buttonStickSensitivity = stickSensitivity
+                        controllerInput.autoZEnabled = autoZEnabled
+                        controllerInput.onCButtonDown = { keyCode -> trackCButtonPress(keyCode) }
+                    }
+                }
+        )
+    }
+
+    /** Hide the on-screen GamePads */
+    fun updateGamePadVisibility(activity: Activity, overlay: FrameLayout) {
+        /* INVISIBLE, not GONE -- a GONE view is skipped during layout and never gets real
+        width/height, so setupGamePads()'s ViewTreeObserver.OnGlobalLayoutListener (which
+        waits for overlay.width/height != 0) would never fire when a physical gamepad is
+        connected at launch, silently skipping ButtonStick/FloatingJoystick creation and the
+        ControllerInput wiring the physical controller itself depends on. INVISIBLE still
+        gets measured/laid out normally while staying undrawn and untouchable. */
+        overlay.visibility =
+                if (GamePad.shouldShowGamePads(activity)) View.VISIBLE else View.INVISIBLE
+    }
+
+    /** Process a key event and return the result */
+    fun processKeyEvent(keyCode: Int, event: KeyEvent): Boolean? {
+        /* Any physical key during playback cancels the macro but still reaches
+        the game normally (we do not swallow it). */
+        if (ocarinaPlayer?.isRunning == true) cancelOcarina()
+        retroView?.let {
+            return controllerInput.processKeyEvent(keyCode, event, it)
+        }
+
+        return false
+    }
+
+    /** Process a motion event and return the result */
+    fun processMotionEvent(event: MotionEvent): Boolean? {
+        if (ocarinaPlayer?.isRunning == true) cancelOcarina()
+        retroView?.let {
+            return controllerInput.processMotionEvent(event, it)
+        }
+
+        return false
+    }
+
+    /** Deallocate the old RetroView */
+    fun detachRetroView(activity: ComponentActivity) {
+        retroView?.let { activity.lifecycle.removeObserver(it.view) }
+        retroView = null
+    }
+
+    /** Set the screen orientation based on the config */
+    fun setConfigOrientation(activity: Activity) {
+        when (resources.getInteger(R.integer.config_orientation)) {
+            1 -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+            2 -> ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+            3 -> ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+            else -> return
+        }.also { activity.requestedOrientation = it }
+    }
+
+    /** Dispose the composite disposable; call on onDestroy */
+    fun dispose() {
+        compositeDisposable.dispose()
+        compositeDisposable = CompositeDisposable()
+    }
+
+    // ---- Install-time patching: the ROM is already patched and stored ----
+
+    /**
+     * Play [hackId]. The patched ROM is produced at install time (see
+     * [br.com.redclaw.hylianbox.store.DownloadManager]) and stored durably via [Storage.rom];
+     * launching just loads it. If the ROM is missing (hack not installed, or a prior install
+     * failed) we log the miss, hide the progress overlay, and show an i18n'd error that finishes
+     * the activity -- there is nothing to play without the ROM.
+     */
+    fun launchHack(
+            activity: ComponentActivity,
+            container: FrameLayout,
+            overlay: FrameLayout,
+            progress: View,
+            hackId: String
+    ) {
+        val romFile = GameRomResolver.resolveRomFile(appContext, hackId)
+        if (romFile != null && romFile.exists() && romFile.length() > 0) {
+            currentHackId = hackId
+            if (ocarinaGame == null) {
+                ocarinaGame =
+                        runCatching {
+                                    OcarinaSongCatalog.detectGame(
+                                            RomHeader.fromNormalizedZ64(romFile)
+                                    )
+                                }
+                                .getOrNull()
+            }
+            progress.visibility = View.GONE
+            setupRetroView(activity, container, hackId)
+            setupGamePads(overlay)
+        } else {
+            Log.e(TAG, "launchHack: playable ROM not found for $hackId")
+            progress.visibility = View.GONE
+            showError(R.string.error_rom_not_installed)
+        }
+    }
+
+    private fun showError(messageRes: Int) {
+        val context = activityContext ?: return
+        AlertDialog.Builder(context)
+                .setMessage(messageRes)
+                .setPositiveButton(android.R.string.ok, null)
+                /* A failed launch leaves no RetroView behind, so the game screen
+                would just sit black under the gamepad overlay -- close it. */
+                .setOnDismissListener { (context as? Activity)?.finish() }
+                .show()
+    }
+}

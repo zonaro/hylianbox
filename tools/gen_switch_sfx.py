@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the original Switch-style UI sound effects for Zelda 64 Player.
+"""Generate the original Switch-style UI sound effects for HylianBox.
 
 All clips are synthesized from scratch using only the Python standard library
 (wave, math, struct), so there are no licensing concerns. Output is 44.1 kHz,

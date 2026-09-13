@@ -1,30 +1,30 @@
-/* Zelda 64 Player — landing page logic
+/* HylianBox — landing page logic
    User-facing copy in pt-BR, English and Spanish.
 */
 
 const I18N = {
   pt: {
-    "meta.title": "Zelda 64 Player — Suas aventuras Zelda 64 no Android",
+    "meta.title": "HylianBox — Suas aventuras Zelda 64 no Android",
     "meta.desc": "Descubra e jogue aventuras de Zelda 64 no Android. Biblioteca pessoal, Auto-Ocarina, RetroAchievements, controles flexíveis e capturas. Gratuito, GPL-3.0 e sem ROMs incluídas.",
     "nav.features": "O app", "nav.catalog": "Aventuras", "nav.download": "Baixar",
-    "hero.title.pre": "Zelda 64", "hero.title.accent": "Player",
+    "hero.title.pre": "Hylian", "hero.title.accent": "Box",
     "hero.subtitle": "Suas aventuras de Zelda 64, prontas para jogar no Android. Encontre novos mundos, mantenha sua biblioteca por perto e volte para a jornada quando quiser.",
     "hero.cta": "Baixar para Android", "hero.secondaryCta": "Conheça o app",
     "hero.badge1": "Gratuito para Android", "hero.badge2": "Português, English e Español", "hero.badge3": "Sem ROMs incluídas",
     "features.title": "Feito para a sua próxima aventura", "features.sub": "Menos configuração, mais tempo explorando.",
     "start.title": "Comece em poucos passos", "start.sub": "Você leva suas próprias ROMs; o resto acontece dentro do app.",
-    "start.step1": "Baixe o Zelda 64 Player no seu Android.",
+    "start.step1": "Baixe o HylianBox no seu Android.",
     "start.step2": "Importe uma cópia sua, obtida legalmente, de Ocarina of Time ou Majora's Mask.",
     "start.step3": "Escolha uma aventura no catálogo e comece a jogar.",
     "catalog.title": "Encontre sua próxima aventura", "catalog.sub": "Uma prévia das aventuras que você pode descobrir no catálogo do app.",
     "catalog.loading": "Buscando aventuras...", "catalog.error": "Não foi possível mostrar as aventuras agora.", "catalog.retry": "Tentar novamente", "catalog.count": "aventuras para explorar",
     "card.author": "Por", "card.baseRom": "Jogo necessário", "card.coverFallback": "Aventura Zelda 64",
     "popup.close": "Fechar", "popup.author": "Criado por", "popup.version": "Versão", "popup.baseRom": "ROM base", "popup.tags": "Tags", "popup.screenshots": "Capturas", "popup.videos": "Vídeos", "popup.links": "Links do criador", "popup.changelog": "Novidades", "popup.compatibility": "Compatibilidade", "popup.completion": "Status", "popup.supportedGames": "Jogo", "popup.lastUpdated": "Atualizado em", "popup.source": "Fonte", "popup.noLinks": "Nenhum link externo disponível.",
-    "download.title": "Pronto para começar?", "download.sub": "O Zelda 64 Player é gratuito para Android.",
+    "download.title": "Pronto para começar?", "download.sub": "O HylianBox é gratuito para Android.",
     "download.lead": "Baixe a versão mais recente e prepare sua biblioteca de aventuras Zelda 64.", "download.versionLabel": "Versão mais recente:", "download.button": "Baixar APK",
     "download.note": "O app não inclui nem distribui ROMs. Para jogar, importe uma cópia sua obtida legalmente de Ocarina of Time ou Majora's Mask.",
-    "legal.title": "Jogue respeitando os criadores", "legal.text": "Zelda 64 Player não distribui, baixa nem inclui ROMs. O aplicativo usa apenas as ROMs que você importa legalmente e é software livre sob a licença GPL-3.0. Não é afiliado à Nintendo.",
-    "footer.text": "Zelda 64 Player é software livre sob GPL-3.0. Não afiliado à Nintendo.", "footer.source": "Ver código-fonte", "footer.license": "Licença GPL-3.0", "footer.releases": "Todas as versões",
+    "legal.title": "Jogue respeitando os criadores", "legal.text": "HylianBox não distribui, baixa nem inclui ROMs. O aplicativo usa apenas as ROMs que você importa legalmente e é software livre sob a licença GPL-3.0. Não é afiliado à Nintendo.",
+    "footer.text": "HylianBox é software livre sob GPL-3.0. Não afiliado à Nintendo.", "footer.source": "Ver código-fonte", "footer.license": "Licença GPL-3.0", "footer.releases": "Todas as versões",
     "f.discover.title": "Descubra novas jornadas", "f.discover.desc": "Explore um catálogo de aventuras feitas pela comunidade, com capas, autores e detalhes para você escolher a próxima experiência.",
     "f.discover.points": ["Navegue por aventuras em um só lugar", "Veja quem criou cada projeto", "Volte para suas favoritas quando quiser"],
     "f.library.title": "Sua biblioteca, do seu jeito", "f.library.desc": "Mantenha suas próprias versões de Ocarina of Time e Majora's Mask na biblioteca, ao lado das aventuras que você preparar.",
@@ -39,27 +39,27 @@ const I18N = {
     "f.memories.points": ["Capturas com ou sem controles na tela", "Grave vídeos da sua partida", "Galeria local e backup dos saves"]
   },
   en: {
-    "meta.title": "Zelda 64 Player — Your Zelda 64 adventures on Android",
+    "meta.title": "HylianBox — Your Zelda 64 adventures on Android",
     "meta.desc": "Discover and play Zelda 64 adventures on Android. Personal library, Auto-Ocarina, RetroAchievements, flexible controls and captures. Free, GPL-3.0 and with no bundled ROMs.",
     "nav.features": "The app", "nav.catalog": "Adventures", "nav.download": "Download",
-    "hero.title.pre": "Zelda 64", "hero.title.accent": "Player",
+    "hero.title.pre": "Hylian", "hero.title.accent": "Box",
     "hero.subtitle": "Your Zelda 64 adventures, ready to play on Android. Find new worlds, keep your library close, and return to the journey whenever you like.",
     "hero.cta": "Get it for Android", "hero.secondaryCta": "Explore the app",
     "hero.badge1": "Free for Android", "hero.badge2": "Português, English and Español", "hero.badge3": "No bundled ROMs",
     "features.title": "Made for your next adventure", "features.sub": "Less setup, more time exploring.",
     "start.title": "Start in a few steps", "start.sub": "Bring your own ROMs; the rest happens in the app.",
-    "start.step1": "Download Zelda 64 Player on your Android device.",
+    "start.step1": "Download HylianBox on your Android device.",
     "start.step2": "Import a legally obtained copy of Ocarina of Time or Majora's Mask that you own.",
     "start.step3": "Pick an adventure from the catalog and start playing.",
     "catalog.title": "Find your next adventure", "catalog.sub": "A preview of the adventures you can discover in the app catalog.",
     "catalog.loading": "Finding adventures...", "catalog.error": "We could not show the adventures right now.", "catalog.retry": "Try again", "catalog.count": "adventures to explore",
     "card.author": "By", "card.baseRom": "Game needed", "card.coverFallback": "Zelda 64 adventure",
     "popup.close": "Close", "popup.author": "By", "popup.version": "Version", "popup.baseRom": "Base ROM", "popup.tags": "Tags", "popup.screenshots": "Screenshots", "popup.videos": "Videos", "popup.links": "Creator links", "popup.changelog": "Changelog", "popup.compatibility": "Compatibility", "popup.completion": "Status", "popup.supportedGames": "Game", "popup.lastUpdated": "Updated", "popup.source": "Source", "popup.noLinks": "No external links available.",
-    "download.title": "Ready to begin?", "download.sub": "Zelda 64 Player is free for Android.",
+    "download.title": "Ready to begin?", "download.sub": "HylianBox is free for Android.",
     "download.lead": "Download the latest version and start building your Zelda 64 adventure library.", "download.versionLabel": "Latest version:", "download.button": "Download APK",
     "download.note": "The app does not include or distribute ROMs. To play, import a legally obtained copy of Ocarina of Time or Majora's Mask that you own.",
-    "legal.title": "Play with respect for creators", "legal.text": "Zelda 64 Player does not distribute, download or include ROMs. The app only uses ROMs you legally import and is free software under the GPL-3.0 license. It is not affiliated with Nintendo.",
-    "footer.text": "Zelda 64 Player is free software under GPL-3.0. Not affiliated with Nintendo.", "footer.source": "View source code", "footer.license": "GPL-3.0 license", "footer.releases": "All releases",
+    "legal.title": "Play with respect for creators", "legal.text": "HylianBox does not distribute, download or include ROMs. The app only uses ROMs you legally import and is free software under the GPL-3.0 license. It is not affiliated with Nintendo.",
+    "footer.text": "HylianBox is free software under GPL-3.0. Not affiliated with Nintendo.", "footer.source": "View source code", "footer.license": "GPL-3.0 license", "footer.releases": "All releases",
     "f.discover.title": "Discover new journeys", "f.discover.desc": "Browse a catalog of community-made adventures, with cover art, authors and details to help you choose your next experience.",
     "f.discover.points": ["Browse adventures in one place", "See who made each project", "Return to your favorites anytime"],
     "f.library.title": "Your library, your way", "f.library.desc": "Keep your own copies of Ocarina of Time and Majora's Mask in your library, alongside the adventures you prepare.",
@@ -74,27 +74,27 @@ const I18N = {
     "f.memories.points": ["Captures with or without on-screen controls", "Record videos of your session", "Local gallery and save backups"]
   },
   es: {
-    "meta.title": "Zelda 64 Player — Tus aventuras de Zelda 64 en Android",
+    "meta.title": "HylianBox — Tus aventuras de Zelda 64 en Android",
     "meta.desc": "Descubre y juega aventuras de Zelda 64 en Android. Biblioteca personal, Auto-Ocarina, RetroAchievements, controles flexibles y capturas. Gratis, GPL-3.0 y sin ROMs incluidas.",
     "nav.features": "La app", "nav.catalog": "Aventuras", "nav.download": "Descargar",
-    "hero.title.pre": "Zelda 64", "hero.title.accent": "Player",
+    "hero.title.pre": "Hylian", "hero.title.accent": "Box",
     "hero.subtitle": "Tus aventuras de Zelda 64, listas para jugar en Android. Encuentra nuevos mundos, mantén tu biblioteca cerca y vuelve al viaje cuando quieras.",
     "hero.cta": "Descargar para Android", "hero.secondaryCta": "Conoce la app",
     "hero.badge1": "Gratis para Android", "hero.badge2": "Português, English y Español", "hero.badge3": "Sin ROMs incluidas",
     "features.title": "Hecha para tu próxima aventura", "features.sub": "Menos configuración, más tiempo explorando.",
     "start.title": "Empieza en pocos pasos", "start.sub": "Trae tus propias ROMs; el resto ocurre dentro de la app.",
-    "start.step1": "Descarga Zelda 64 Player en tu Android.",
+    "start.step1": "Descarga HylianBox en tu Android.",
     "start.step2": "Importa una copia tuya obtenida legalmente de Ocarina of Time o Majora's Mask.",
     "start.step3": "Elige una aventura del catálogo y empieza a jugar.",
     "catalog.title": "Encuentra tu próxima aventura", "catalog.sub": "Una vista previa de las aventuras que puedes descubrir en el catálogo de la app.",
     "catalog.loading": "Buscando aventuras...", "catalog.error": "No podemos mostrar las aventuras ahora.", "catalog.retry": "Intentar de nuevo", "catalog.count": "aventuras para explorar",
     "card.author": "Por", "card.baseRom": "Juego necesario", "card.coverFallback": "Aventura Zelda 64",
     "popup.close": "Cerrar", "popup.author": "Por", "popup.version": "Versión", "popup.baseRom": "ROM base", "popup.tags": "Etiquetas", "popup.screenshots": "Capturas", "popup.videos": "Vídeos", "popup.links": "Enlaces del creador", "popup.changelog": "Cambios", "popup.compatibility": "Compatibilidad", "popup.completion": "Estado", "popup.supportedGames": "Juego", "popup.lastUpdated": "Actualizado", "popup.source": "Fuente", "popup.noLinks": "No hay enlaces externos disponibles.",
-    "download.title": "¿Listo para empezar?", "download.sub": "Zelda 64 Player es gratis para Android.",
+    "download.title": "¿Listo para empezar?", "download.sub": "HylianBox es gratis para Android.",
     "download.lead": "Descarga la versión más reciente y prepara tu biblioteca de aventuras Zelda 64.", "download.versionLabel": "Última versión:", "download.button": "Descargar APK",
     "download.note": "La app no incluye ni distribuye ROMs. Para jugar, importa una copia tuya obtenida legalmente de Ocarina of Time o Majora's Mask.",
-    "legal.title": "Juega respetando a los creadores", "legal.text": "Zelda 64 Player no distribuye, descarga ni incluye ROMs. La app solo usa las ROMs que importas legalmente y es software libre bajo la licencia GPL-3.0. No está afiliada a Nintendo.",
-    "footer.text": "Zelda 64 Player es software libre bajo GPL-3.0. No está afiliado a Nintendo.", "footer.source": "Ver código fuente", "footer.license": "Licencia GPL-3.0", "footer.releases": "Todas las versiones",
+    "legal.title": "Juega respetando a los creadores", "legal.text": "HylianBox no distribuye, descarga ni incluye ROMs. La app solo usa las ROMs que importas legalmente y es software libre bajo la licencia GPL-3.0. No está afiliada a Nintendo.",
+    "footer.text": "HylianBox es software libre bajo GPL-3.0. No está afiliado a Nintendo.", "footer.source": "Ver código fuente", "footer.license": "Licencia GPL-3.0", "footer.releases": "Todas las versiones",
     "f.discover.title": "Descubre nuevos viajes", "f.discover.desc": "Explora un catálogo de aventuras creadas por la comunidad, con portadas, autores y detalles para elegir tu próxima experiencia.",
     "f.discover.points": ["Explora aventuras en un solo lugar", "Conoce quién creó cada proyecto", "Vuelve a tus favoritas cuando quieras"],
     "f.library.title": "Tu biblioteca, a tu manera", "f.library.desc": "Guarda tus propias copias de Ocarina of Time y Majora's Mask en la biblioteca, junto a las aventuras que prepares.",
@@ -112,12 +112,12 @@ const I18N = {
 
 const FEATURE_KEYS = ["discover", "library", "ocarina", "achievements", "controls", "memories"];
 const FEATURE_ICONS = { discover: "a", library: "i", ocarina: "e", achievements: "f", controls: "j", memories: "o" };
-const LIVE_CATALOG_URL = "https://cdn.jsdelivr.net/gh/zonaro/zelda64player@main/catalog/catalog.json";
-const FALLBACK_CATALOG_URL = "https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/catalog.json";
+const LIVE_CATALOG_URL = "https://cdn.jsdelivr.net/gh/zonaro/hylianbox@main/catalog/catalog.json";
+const FALLBACK_CATALOG_URL = "https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/catalog.json";
 let currentLang = "pt";
 
 function detectLang() {
-  const stored = localStorage.getItem("z64p_lang");
+  const stored = localStorage.getItem("hylianbox_lang");
   if (stored && I18N[stored]) return stored;
   const nav = (navigator.language || "pt-BR").slice(0, 2).toLowerCase();
   return I18N[nav] ? nav : "pt";
@@ -126,7 +126,7 @@ function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N.e
 function setLang(lang) {
   if (!I18N[lang]) return;
   currentLang = lang;
-  localStorage.setItem("z64p_lang", lang);
+  localStorage.setItem("hylianbox_lang", lang);
   document.documentElement.lang = lang;
   renderStatic(); renderFeatures(); updateLangButtons();
   if (window.__catalogData) renderCatalog(window.__catalogData);
@@ -377,7 +377,7 @@ async function fetchJson(url) { var response = await fetch(url, { cache: "no-sto
 async function loadCatalog() { showCatalogLoading(); try { renderCatalog(await fetchJson(LIVE_CATALOG_URL)); } catch (error) { try { renderCatalog(await fetchJson(FALLBACK_CATALOG_URL)); } catch (fallbackError) { showCatalogError(); } } }
 function fetchLatestRelease() {
   var version = document.getElementById("download-version"); var date = document.getElementById("download-date"); if (!version) return;
-  fetch("https://api.github.com/repos/zonaro/zelda64player/releases/latest", { cache: "no-store" }).then(function (response) { if (!response.ok) throw new Error("Latest release unavailable"); return response.json(); }).then(function (release) {
+  fetch("https://api.github.com/repos/zonaro/hylianbox/releases/latest", { cache: "no-store" }).then(function (response) { if (!response.ok) throw new Error("Latest release unavailable"); return response.json(); }).then(function (release) {
     if (!release || !release.tag_name) return; version.textContent = release.tag_name;
     if (date && release.published_at) { var published = new Date(release.published_at); if (!isNaN(published)) date.textContent = "(" + published.toISOString().slice(0, 10) + ")"; }
   }).catch(function () { /* Keep the bundled version when offline. */ });

@@ -143,7 +143,7 @@ public class LibretroDroid {
     public static native byte[] serializeSRAM();
     public static native boolean unserializeSRAM(byte[] sram);
 
-    // Zelda64Player addition: memory ids mirror the libretro
+    // HylianBox addition: memory ids mirror the libretro
     // retro_memory_type enum values (RETRO_MEMORY_*).
     public static final int MEMORY_SAVE_RAM = 0;
     public static final int MEMORY_STATE = 1;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Zelda 64 Player — Release & Deploy via ADB
+# HylianBox — Release & Deploy via ADB
 #
 # Runs the project's release.sh (which builds the signed/unsigned release APK
 # and publishes the GitHub release) and then installs the resulting APK on a
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 # ---- Config ----------------------------------------------------------------
-PACKAGE="br.com.redclaw.zelda64player"
+PACKAGE="br.com.redclaw.hylianbox"
 ADB="${ADB:-adb}"
 LAUNCH="${LAUNCH:-1}"            # set LAUNCH=0 to skip launching after install
 APK_DIR="app/build/outputs/apk/release"
@@ -115,7 +115,7 @@ launch_app() {
 
 main() {
     echo "=================================================="
-    echo "  Zelda 64 Player — Build & Deploy (ADB)"
+    echo "  HylianBox — Build & Deploy (ADB)"
     echo "=================================================="
     echo
     check_device

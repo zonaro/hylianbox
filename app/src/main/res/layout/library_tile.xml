@@ -21,7 +21,7 @@
         android:background="@drawable/shape_card"
         android:elevation="@dimen/card_elevation">
 
-        <br.com.redclaw.zelda64player.views.CoverImageView
+        <br.com.redclaw.hylianbox.views.CoverImageView
             android:id="@+id/tile_cover"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

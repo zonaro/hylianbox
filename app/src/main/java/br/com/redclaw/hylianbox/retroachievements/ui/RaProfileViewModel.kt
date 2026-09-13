@@ -1,0 +1,64 @@
+package br.com.redclaw.hylianbox.retroachievements.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.retroachievements.data.RaUserProfile
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/** State rendered by [RaProfileActivity]. */
+sealed interface RaProfileUiState {
+    data object Loading : RaProfileUiState
+    data object SignedOut : RaProfileUiState
+
+    /** Signed in but no Web API key stored — the profile cannot be fetched. */
+    data object NeedsApiKey : RaProfileUiState
+    data class Content(val profile: RaUserProfile) : RaProfileUiState
+    data object Error : RaProfileUiState
+}
+
+/** Loads the local profile snapshot first, then refreshes it from RetroAchievements. */
+class RaProfileViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = HylianBoxApp.raUserProfileRepository
+    private val credentials = HylianBoxApp.raCredentialStore
+
+    private val _state = MutableStateFlow<RaProfileUiState>(RaProfileUiState.Loading)
+    val state: StateFlow<RaProfileUiState> = _state.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun retry() = load()
+
+    private fun load() {
+        if (!credentials.hasCredentials()) {
+            _state.value = RaProfileUiState.SignedOut
+            return
+        }
+        // The profile reads the public Web API, which authenticates with the
+        // Web API key (control panel), not the rcheevos login token.
+        if (!credentials.hasApiKey()) {
+            _state.value = RaProfileUiState.NeedsApiKey
+            return
+        }
+        viewModelScope.launch {
+            val cached = repository.getCachedProfile()
+            if (cached != null) _state.value = RaProfileUiState.Content(cached)
+            else _state.value = RaProfileUiState.Loading
+
+            // Opening the profile should show the current server snapshot. A
+            // cached profile is rendered first so the screen remains responsive
+            // while this refresh is in flight.
+            val result = repository.getProfile(forceRefresh = true)
+            result.onSuccess { _state.value = RaProfileUiState.Content(it) }
+                .onFailure {
+                    if (cached == null) _state.value = RaProfileUiState.Error
+                }
+        }
+    }
+}

@@ -1,4 +1,4 @@
-// Zelda 64 Player — app module build file.
+// HylianBox — app module build file.
 //
 // Selective migration from Ludere (br.com.redclaw.ootdx). The emulation core
 // (.so) files are fetched at build time by the `prepareCore` task (ported from
@@ -17,7 +17,7 @@ plugins {
 }
 
 android {
-    namespace = "br.com.redclaw.zelda64player"
+    namespace = "br.com.redclaw.hylianbox"
     compileSdk = 35
 
     // Generate version at build time: {yy}.{dayOfYear}.{hhmm}
@@ -28,7 +28,7 @@ android {
     val generatedVersionCode = buildTime.format(DateTimeFormatter.ofPattern("yyDDDHHmm")).toInt()
 
     defaultConfig {
-        applicationId = "br.com.redclaw.zelda64player"
+        applicationId = "br.com.redclaw.hylianbox"
         minSdk = 24
         targetSdk = 35
         versionCode = generatedVersionCode
@@ -141,7 +141,7 @@ val prepareCore by
                                                         listOf(
                                                                 CoreCandidate(
                                                                         url =
-                                                                                "https://github.com/zonaro/zelda64player/releases/download/parallel-n64-latest/parallel_n64_libretro_android_{abi}.so",
+                                                                                "https://github.com/zonaro/hylianbox/releases/download/parallel-n64-latest/parallel_n64_libretro_android_{abi}.so",
                                                                         isZip = false,
                                                                         label =
                                                                                 "self-built rolling release"
@@ -257,11 +257,11 @@ val buildXdeltaHost by
 tasks.withType<Test>().configureEach {
     dependsOn(buildXdeltaHost)
     systemProperty(
-            "zelda64.xdelta.jni.path",
+            "hylianbox.xdelta.jni.path",
             File(xdeltaHostOut.get().asFile, "libxdelta_jni.so").absolutePath
     )
     systemProperty(
-            "zelda64.xdelta.cli.path",
+            "hylianbox.xdelta.cli.path",
             File(xdeltaHostOut.get().asFile, "xdelta3").absolutePath
     )
 }

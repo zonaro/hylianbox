@@ -8,7 +8,7 @@ RetroAchievements integration: users log in with their RA account, see unlocked/
 
 ### Current identity and catalog flow
 
-- `RaSessionManager.start` receives the library `hackId`. After the live rcheevos client identifies the final playable ROM, the session writes its verified hash, game ID and title to the shared `Zelda64PlayerApp.raInstallMetadataStore` before publishing `Running`. This applies to patched hacks and original games (`vanilla_<crc32>`); original games use the user's normalized playable ROM.
+- `RaSessionManager.start` receives the library `hackId`. After the live rcheevos client identifies the final playable ROM, the session writes its verified hash, game ID and title to the shared `HylianBoxApp.raInstallMetadataStore` before publishing `Running`. This applies to patched hacks and original games (`vanilla_<crc32>`); original games use the user's normalized playable ROM.
 - Profile/achievement screens resolve identity through `RaHashService.ensureIdentity` and the same shared metadata store. Lazy resolution merges with the latest stored identity so a failed lookup does not discard an identity already supplied by the live session. Original games no longer launch a separate competing hash request alongside session identification.
 - `RaCatalogRepository` builds authenticated standalone rapi requests using the stored username/token. HTTP response bodies pass through `nativeProcessFetchGameDataResponse` or `nativeProcessFetchUserUnlocksResponse` before Kotlin parses the normalized JSON. The raw service payload is not the app's data model.
 - An unlock request failure returns `null`; a successful empty set means zero unlocked achievements. Achievement detail reports request failures, while the profile skips games whose data could not be loaded. The leaderboard dialog reports a failed request separately from a successful response with no visible leaderboards.
@@ -63,7 +63,7 @@ For N64 + mupen64plus-next, `RETRO_MEMORY_SYSTEM_RAM` is **RDRAM** (8MB with exp
 - `server_call(request, callback, callback_data, client)` → **ASYNC HTTP** (GET if `request->post_data==NULL` else POST); invoke callback with `rc_api_server_response_t{body, body_length, http_status_code}` from **any thread**
 - `log_message` → internal log
 
-**Required User-Agent:** `<product>/<semver> (<system-info>) <extensions>` e.g. `Zelda64Player/1.0 (Android) rcheevos/12.x`. Hardcore unlocks need UA validated by RAdmin; until then, server downgrades to softcore.
+**Required User-Agent:** `<product>/<semver> (<system-info>) <extensions>` e.g. `HylianBox/1.0 (Android) rcheevos/12.x`. Hardcore unlocks need UA validated by RAdmin; until then, server downgrades to softcore.
 
 ### rapi (standalone requests)
 Headers `rc_api_user.h`, `rc_api_runtime.h` allow building standalone requests (login, fetch_game_data, fetch_user_unlocks, resolve_hash, fetch_leaderboards, fetch_leaderboard_entries) — useful for showing data of **non-running** games without booting cores.
@@ -171,8 +171,8 @@ Original games use `vanilla_<crc32>` keys in the same document. `gameId: 0` repr
 
 ## 7. Manifest Changes
 ```xml
-<activity android:name=".retroachievements.ui.AchievementsActivity" android:theme="@style/Theme.Zelda64Player.NoActionBar" />
-<activity android:name=".retroachievements.ui.AchievementDetailActivity" android:theme="@style/Theme.Zelda64Player.NoActionBar" />
+<activity android:name=".retroachievements.ui.AchievementsActivity" android:theme="@style/Theme.HylianBox.NoActionBar" />
+<activity android:name=".retroachievements.ui.AchievementDetailActivity" android:theme="@style/Theme.HylianBox.NoActionBar" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 

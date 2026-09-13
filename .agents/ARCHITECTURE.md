@@ -1,8 +1,8 @@
-# Architecture — Zelda 64 Player
+# Architecture — HylianBox
 
-**Package:** `br.com.redclaw.zelda64player`
+**Package:** `br.com.redclaw.hylianbox`
 **Base project:** Ludere (fork of Swordfish90/Ludere, GPL-3.0) at `/mnt/GIT/Ludere`
-**App name:** "Zelda 64 Player"
+**App name:** "HylianBox"
 
 ---
 
@@ -45,8 +45,8 @@ Native Android (Kotlin) emulator frontend for Nintendo 64 **Zelda ROM hacks** (O
 ## 3. Package Layout (Actual)
 
 ```
-br.com.redclaw.zelda64player
-├── Zelda64PlayerApp.kt        # Application subclass + AppContainer (Service Locator)
+br.com.redclaw.hylianbox
+├── HylianBoxApp.kt        # Application subclass + AppContainer (Service Locator)
 ├── data/                     # Models + local repositories
 │   ├── model/                # BaseRom, HackEntry, HackCatalog, PatchFile, Checksums
 │   └── local/                # BaseRomRepository, PatchRepository, CatalogRepository, SaveBackupManager
@@ -122,7 +122,7 @@ br.com.redclaw.zelda64player
 ├── libretrodroid/            # LOCAL GRADLE MODULE (vendor LibretroDroid 0.13.2 + 2 JNI passthroughs)
 ```
 
-> **Note:** The original `AGENTS.md` referenced `di/AppContainer.kt` and `ui/switchui/`. The actual code places `AppContainer` inside `Zelda64PlayerApp.kt` and the Switch components under `ui/`. This doc reflects the real layout.
+> **Note:** The original `AGENTS.md` referenced `di/AppContainer.kt` and `ui/switchui/`. The actual code places `AppContainer` inside `HylianBoxApp.kt` and the Switch components under `ui/`. This doc reflects the real layout.
 
 ---
 

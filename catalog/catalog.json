@@ -9,7 +9,7 @@
       "description": "Quality-of-life overhaul of Ocarina of Time: widescreen support, restored content, difficulty options, alternative dungeon layouts and many gameplay enhancements.",
       "author": "Admentus & GhostlyDark",
       "version": "0.6.0-beta",
-      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/covers/ocarina_of_time_dx.png",
+      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/covers/ocarina_of_time_dx.png",
       "baseRom": {
         "name": "The Legend of Zelda: Ocarina of Time (NTSC-U 1.0)",
         "gameCode": "CZLE",
@@ -116,7 +116,7 @@
       "description": "Quality-of-life improvement hack built on the Majora's Mask Randomizer ASM patches: D-Pad masks, underwater ocarina, text restorations from Japanese and PAL versions and much more.",
       "author": "Maroc",
       "version": "2.0",
-      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/covers/majoras_mask_redux.png",
+      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/covers/majoras_mask_redux.png",
       "baseRom": {
         "name": "The Legend of Zelda: Majora's Mask (NTSC-U 1.0)",
         "gameCode": "NSME",
@@ -127,7 +127,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/majoras_mask_redux_v2.0.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/majoras_mask_redux_v2.0.bps",
         "filename": "majoras_mask_redux_v2.0.bps",
         "size": 748141,
         "checksums": {
@@ -170,7 +170,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/master_of_time_revisited_v1.4.2.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/master_of_time_revisited_v1.4.2.bps",
         "filename": "master_of_time_revisited_v1.4.2.bps",
         "size": 20118663,
         "checksums": {
@@ -226,7 +226,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/the_missing_link_v2.0_z64.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/the_missing_link_v2.0_z64.bps",
         "filename": "the_missing_link_v2.0_z64.bps",
         "size": 4674020,
         "checksums": {
@@ -278,7 +278,7 @@
       "description": "Brand-new fan-made sequel to Ocarina of Time featuring custom cutscenes, songs and dungeons, plus 100 Skulltula tokens and 20 hearts to collect.",
       "author": "Jinnosuke9",
       "version": "1.3",
-      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/covers/sealed_palace.jpeg",
+      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/covers/sealed_palace.jpeg",
       "baseRom": {
         "name": "The Legend of Zelda: Ocarina of Time (NTSC-U 1.0)",
         "gameCode": "CZLE",
@@ -290,7 +290,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/sealed_palace_v1.3.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/sealed_palace_v1.3.bps",
         "filename": "sealed_palace_v1.3.bps",
         "size": 11764110,
         "checksums": {
@@ -322,7 +322,7 @@
       "description": "Brand-new fan-made disk expansion for Ocarina of Time, purpose-built to showcase the console's 64DD support with original development and music by Captain Seedy-Eye and 64DD porting by LuigiBlood.",
       "author": "Captain Seedy-Eye",
       "version": "2.0",
-      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/zelda64player/main/catalog/covers/dawn_and_dusk.png",
+      "coverImageUrl": "https://raw.githubusercontent.com/zonaro/hylianbox/main/catalog/covers/dawn_and_dusk.png",
       "baseRom": {
         "name": "The Legend of Zelda: Ocarina of Time (NTSC-U 1.0)",
         "gameCode": "CZLE",
@@ -334,7 +334,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/dawn_and_dusk_v2.0.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/dawn_and_dusk_v2.0.bps",
         "filename": "dawn_and_dusk_v2.0.bps",
         "size": 1370831,
         "checksums": {
@@ -349,7 +349,7 @@
       "developerLinks": [
         {
           "label": "GitHub",
-          "url": "https://github.com/LuigiBlood/zelda64-dawn-dusk"
+          "url": "https://github.com/LuigiBlood/hylianbox-dawn-dusk"
         }
       ],
       "videos": [],
@@ -912,7 +912,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/the_helix_blade.bps",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/the_helix_blade.bps",
         "filename": "the_helix_blade.bps",
         "size": 12055368,
         "checksums": {
@@ -1030,7 +1030,7 @@
         }
       },
       "patch": {
-        "url": "https://github.com/zonaro/zelda64player/releases/download/catalog-patches-v1/CZLE_1.0.xdelta",
+        "url": "https://github.com/zonaro/hylianbox/releases/download/catalog-patches-v1/CZLE_1.0.xdelta",
         "filename": "CZLE_1.0.xdelta",
         "size": 5009414,
         "checksums": {
@@ -2306,8 +2306,8 @@
         }
       },
       "patch": {
-        "url": "https://hylianmodding.com/mods/four_swords_arena_editon/downloads/zelda64-four-swords-arena-edition-fixed.bps",
-        "filename": "zelda64-four-swords-arena-edition-fixed.bps",
+        "url": "https://hylianmodding.com/mods/four_swords_arena_editon/downloads/hylianbox-four-swords-arena-edition-fixed.bps",
+        "filename": "hylianbox-four-swords-arena-edition-fixed.bps",
         "size": 0,
         "checksums": {
           "crc32": ""
@@ -2337,8 +2337,8 @@
       "downloadTarget": {
         "type": "direct",
         "patch": {
-          "url": "https://hylianmodding.com/mods/four_swords_arena_editon/downloads/zelda64-four-swords-arena-edition-fixed.bps",
-          "filename": "zelda64-four-swords-arena-edition-fixed.bps",
+          "url": "https://hylianmodding.com/mods/four_swords_arena_editon/downloads/hylianbox-four-swords-arena-edition-fixed.bps",
+          "filename": "hylianbox-four-swords-arena-edition-fixed.bps",
           "size": 0,
           "checksums": {
             "crc32": ""
@@ -4581,7 +4581,7 @@
       }
     },
     {
-      "id": "zelda64_dawn_and_dusk",
+      "id": "hylianbox_dawn_and_dusk",
       "name": "Zelda 64: Dawn and Dusk",
       "description": "Zelda 64 - Dawn & Dusk is an expansion disk for The Legend of Zelda - Ocarina of Time, created to demonstrate the game's 64DD support. Make your way from the peaceful forests and rivers of the Dawnside to the harrowing chasms and caves of the Duskside in a grand quest to defeat evil! Developed by Captain Seedy-Eye and ported to 64DD by LuigiBlood, this mod is not a recreation of Ura Zelda or Zelda Gaiden, but rather a fanmade disk expansion featuring a short new adventure to play through.",
       "author": "Captain Seedy-Eye, LuigiBlood, PK-LOVE, BWXIX",
@@ -4595,14 +4595,14 @@
         }
       },
       "patch": {
-        "url": "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/downloads/Zelda64DawnDusk_v2_ROM_Patches.zip",
-        "filename": "Zelda64DawnDusk_v2_ROM_Patches.zip",
+        "url": "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/downloads/HylianBoxDawnDusk_v2_ROM_Patches.zip",
+        "filename": "HylianBoxDawnDusk_v2_ROM_Patches.zip",
         "size": 0,
         "checksums": {
           "crc32": ""
         }
       },
-      "coverImageUrl": "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/thumbnail.jpg",
+      "coverImageUrl": "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/thumbnail.jpg",
       "tags": [
         "mod",
         "complete"
@@ -4610,12 +4610,12 @@
       "storeId": "picks",
       "sourceCatalogId": "picks",
       "screenshots": [
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_0.jpg",
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_1.jpg",
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_2.jpg",
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_3.jpg",
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_4.jpg",
-        "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/screenshots/screenshot_5.jpg"
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_0.jpg",
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_1.jpg",
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_2.jpg",
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_3.jpg",
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_4.jpg",
+        "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/screenshots/screenshot_5.jpg"
       ],
       "videos": [],
       "developerLinks": [],
@@ -4631,8 +4631,8 @@
       "downloadTarget": {
         "type": "direct",
         "patch": {
-          "url": "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/downloads/Zelda64DawnDusk_v2_ROM_Patches.zip",
-          "filename": "Zelda64DawnDusk_v2_ROM_Patches.zip",
+          "url": "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/downloads/HylianBoxDawnDusk_v2_ROM_Patches.zip",
+          "filename": "HylianBoxDawnDusk_v2_ROM_Patches.zip",
           "size": 0,
           "checksums": {
             "crc32": ""
@@ -4642,7 +4642,7 @@
       "importSource": {
         "provider": "Hylian Modding",
         "catalogId": "mods",
-        "modUrl": "https://hylianmodding.com/mods/zelda64_dawn_and_dusk/mod.json",
+        "modUrl": "https://hylianmodding.com/mods/hylianbox_dawn_and_dusk/mod.json",
         "managed": true
       }
     },

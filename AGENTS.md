@@ -1,8 +1,8 @@
-# Zelda 64 Player — Project Rules for Agent Team
+# HylianBox — Project Rules for Agent Team
 
-**Package:** `br.com.redclaw.zelda64player`
+**Package:** `br.com.redclaw.hylianbox`
 **Base project:** Ludere (fork of Swordfish90/Ludere, GPL-3.0) at `/mnt/GIT/Ludere`
-**App name:** "Zelda 64 Player"
+**App name:** "HylianBox"
 **Type:** Native Android (Kotlin) emulator frontend for Nintendo 64 Zelda ROM hacks (OoT/MM) with on-the-fly BPS/IPS patching.
 
 > **Documentation is now organized in `.agents/`.** This file is a concise index. The detailed, categorized docs live in `.agents/*.md` (architecture, rules, visual identity, features, build, i18n, testing). The legacy `plano.md` has been superseded and removed — its RetroAchievements content now lives in `.agents/RETROACHIEVEMENTS.md`.

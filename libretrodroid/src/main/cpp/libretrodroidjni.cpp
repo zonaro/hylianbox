@@ -272,7 +272,7 @@ JNIEXPORT jbyteArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_seri
     return nullptr;
 }
 
-// Zelda64Player addition: expose a core memory region as a direct ByteBuffer
+// HylianBox addition: expose a core memory region as a direct ByteBuffer
 // aliasing core-owned memory (zero copy). Returns null when there is no game
 // loaded or the region is unavailable. The buffer is only valid while the
 // current game stays loaded; callers must not cache it across unload/reload.

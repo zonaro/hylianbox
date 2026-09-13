@@ -4,10 +4,10 @@
     android:height="1920dp"
     android:viewportWidth="1080"
     android:viewportHeight="1920">
-    <!-- Zelda 64 Player splash artwork (original, no Nintendo IP).
+    <!-- HylianBox splash artwork (original, no Nintendo IP).
          Deep forest-green vertical gradient field, ornamental golden "relic"
          abstractions flanking a central safe area reserved for the wordmark
-         overlay ("Zelda 64" / "PLAYER"), which the app draws as a TextView
+         overlay ("Hylian" / "BOX"), which the app draws as a TextView
          on top of this drawable for crisp typography.
          Composition is aspect-safe (9:16 to 21:9): preserveAspectRatio slice
          keeps the vertical-center content visible; only top/bottom may crop. -->

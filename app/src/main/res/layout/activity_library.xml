@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/switch_home_row_top_spacing" />
 
-        <br.com.redclaw.zelda64player.ui.switchui.SwitchHomeRow
+        <br.com.redclaw.hylianbox.ui.switchui.SwitchHomeRow
             android:id="@+id/library_home_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
@@ -27,7 +27,7 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <br.com.redclaw.zelda64player.ui.switchui.SwitchDock
+        <br.com.redclaw.hylianbox.ui.switchui.SwitchDock
             android:id="@+id/library_dock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -43,7 +43,7 @@
             android:alpha="0.55"
             android:background="@color/switch_text_secondary" />
 
-        <br.com.redclaw.zelda64player.ui.switchui.SwitchFooterHints
+        <br.com.redclaw.hylianbox.ui.switchui.SwitchFooterHints
             android:id="@+id/library_footer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

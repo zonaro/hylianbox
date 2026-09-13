@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Zelda 64 Player — Automated Release Script
+# HylianBox — Automated Release Script
 # Generates version at build time, commits, pushes, and creates GitHub release via GH CLI
 # Version format: {yy}.{dayOfYear}.{hhmm} (e.g., 26.238.1430)
 #
@@ -53,7 +53,7 @@ build_app() {
 get_generated_version() {
     # The version is generated at build time in BuildConfig
     # We can extract it from the generated BuildConfig class
-    local build_config_path="app/build/generated/source/buildConfig/release/br/com/redclaw/zelda64player/BuildConfig.java"
+    local build_config_path="app/build/generated/source/buildConfig/release/br/com/redclaw/hylianbox/BuildConfig.java"
     
     if [[ -f "$build_config_path" ]]; then
         local version_name=$(grep -E 'VERSION_NAME\s*=' "$build_config_path" | sed -E 's/.*"([^"]+)".*/\1/')
@@ -125,7 +125,7 @@ create_github_release() {
     fi
     
     # Generate release notes
-    local release_notes="## Zelda 64 Player v$version_name
+    local release_notes="## HylianBox v$version_name
 
 **Build:** $version_name (versionCode: $version_code)
 **Date:** $(date -u +"%Y-%m-%d %H:%M UTC")
@@ -140,7 +140,7 @@ Download the APK below and install on your Android device (API 24+).
 > **Note:** This app does not include any ROMs. You must legally own and import your own Ocarina of Time and Majora's Mask ROMs."
     
     gh release create "$tag" "$apk_path" \
-        --title "Zelda 64 Player $tag" \
+        --title "HylianBox $tag" \
         --notes "$release_notes" \
         --latest
     
@@ -152,7 +152,7 @@ Download the APK below and install on your Android device (API 24+).
 # only build the APK locally.
 main() {
     echo "=========================================="
-    echo "  Zelda 64 Player — Release Automation"
+    echo "  HylianBox — Release Automation"
     echo "=========================================="
     echo
 

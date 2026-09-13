@@ -1,4 +1,4 @@
-# Hard Rules — Zelda 64 Player
+# Hard Rules — HylianBox
 
 These rules are **mandatory** and apply to every agent and every change in this repository. Violations block merge.
 

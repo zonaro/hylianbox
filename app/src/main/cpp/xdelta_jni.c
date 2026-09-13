@@ -1,5 +1,5 @@
 /*
- * Zelda 64 Player - JNI bridge to the xdelta3 library (VCDIFF / xdelta3 patch
+ * HylianBox - JNI bridge to the xdelta3 library (VCDIFF / xdelta3 patch
  * decoding).
  *
  * xdelta3 is vendored unmodified from upstream tag release3_2_apl
@@ -45,7 +45,7 @@ extern int main(int argc, char **argv);
 static char g_last_error[2048];
 
 JNIEXPORT jint JNICALL
-Java_br_com_redclaw_zelda64player_patcher_xdelta_XdeltaApplier_applyNative(
+Java_br_com_redclaw_hylianbox_patcher_xdelta_XdeltaApplier_applyNative(
         JNIEnv* env, jclass clazz,
         jstring src, jstring patch, jstring out) {
     (void) clazz;
@@ -119,7 +119,7 @@ Java_br_com_redclaw_zelda64player_patcher_xdelta_XdeltaApplier_applyNative(
 }
 
 JNIEXPORT jstring JNICALL
-Java_br_com_redclaw_zelda64player_patcher_xdelta_XdeltaApplier_getLastError(
+Java_br_com_redclaw_hylianbox_patcher_xdelta_XdeltaApplier_getLastError(
         JNIEnv* env, jclass clazz) {
     (void) clazz;
     return (*env)->NewStringUTF(env, g_last_error);

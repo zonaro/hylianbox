@@ -278,7 +278,7 @@ class GLRetroView(
     }
 
     /**
-     * Zelda64Player addition: direct ByteBuffer view of a core memory region
+     * HylianBox addition: direct ByteBuffer view of a core memory region
      * (used by the RetroAchievements runtime). Returns null when no game is
      * loaded or the region is unavailable. The returned buffer aliases memory
      * owned by the loaded core: it is valid only while the current game stays
