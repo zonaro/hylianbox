@@ -620,6 +620,92 @@ a:hover {
   line-height: 1;
 }
 
+.download-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.download-or {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.btn-obtainium {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a1a1a;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-family: var(--font-heading);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-obtainium:hover {
+  border-color: var(--accent-focus);
+  background: #222;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  text-decoration: none;
+}
+
+.btn-obtainium-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--accent-focus);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.btn-obtainium-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.btn-obtainium-text strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.btn-obtainium-text small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .download-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .download-actions .btn-download,
+  .download-actions .btn-obtainium {
+    justify-content: center;
+  }
+
+  .download-or {
+    text-align: center;
+  }
+}
+
 .download-note {
   margin: 16px 0 0;
   font-size: 16px;
