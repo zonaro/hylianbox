@@ -1,15 +1,17 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityRaCredentialsBinding
 import br.com.redclaw.hylianbox.retroachievements.auth.RaCredentialStore
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import kotlinx.coroutines.launch
 
 /**
@@ -21,6 +23,10 @@ import kotlinx.coroutines.launch
  * View.
  */
 class RaCredentialsActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivityRaCredentialsBinding
 

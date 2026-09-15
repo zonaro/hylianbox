@@ -23,13 +23,18 @@ import br.com.redclaw.hylianbox.databinding.ActivityGamepadTesterBinding
 import br.com.redclaw.hylianbox.input.InputDeviceUtils
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 
 /**
- * A safe place to inspect a connected physical controller. The screen consumes
- * controller events exclusively for visualization, so no emulation core is
- * created and the game's RadialGamePad layout remains untouched.
+ * A safe place to inspect a connected physical controller. The screen consumes controller events
+ * exclusively for visualization, so no emulation core is created and the game's RadialGamePad
+ * layout remains untouched.
  */
 class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListener {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
+
     private lateinit var binding: ActivityGamepadTesterBinding
     private lateinit var inputManager: InputManager
     private val backHelper = SwitchBackButton()
@@ -43,6 +48,12 @@ class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListe
         binding = ActivityGamepadTesterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Dynamic accent for header icon and mode tabs
+        val accent = br.com.redclaw.hylianbox.ui.switchui.AccentManager.getAccentColor(this)
+        binding.testerHeaderIcon.setColorFilter(accent)
+        binding.testerPhysical.background = br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(this)
+        binding.testerN64.background = br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(this)
+
         backHelper.attach(this, binding.testerBack.root, onBack = { finish() })
         binding.testerPhysical.setOnClickListener { selectMode(GamepadTesterView.Mode.PHYSICAL) }
         binding.testerN64.setOnClickListener { selectMode(GamepadTesterView.Mode.N64) }
@@ -50,7 +61,8 @@ class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListe
         val device = findConnectedController()
         updateInputDevice(device)
         if (device == null) {
-            Toast.makeText(this, R.string.gamepad_tester_connect_controller, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.gamepad_tester_connect_controller, Toast.LENGTH_SHORT)
+                    .show()
         }
 
         window.decorView.setOnApplyWindowInsetsListener { _, insets ->
@@ -125,11 +137,12 @@ class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListe
         if (device?.id == currentDeviceId) return
         currentDeviceId = device?.id
         binding.testerSurface.setInputDevice(device)
-        binding.testerDevice.text = if (device == null) {
-            getString(R.string.gamepad_tester_disconnected)
-        } else {
-            getString(R.string.gamepad_tester_connected, device.name)
-        }
+        binding.testerDevice.text =
+                if (device == null) {
+                    getString(R.string.gamepad_tester_disconnected)
+                } else {
+                    getString(R.string.gamepad_tester_connected, device.name)
+                }
     }
 
     private fun isController(device: InputDevice?): Boolean {
@@ -137,17 +150,21 @@ class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListe
     }
 
     private fun hasCurrentController(): Boolean =
-        currentDeviceId?.let(InputDevice::getDevice)?.let(InputDeviceUtils::isPhysicalController) == true
+            currentDeviceId
+                    ?.let(InputDevice::getDevice)
+                    ?.let(InputDeviceUtils::isPhysicalController) == true
 
-    private fun findConnectedController(): InputDevice? = InputDevice.getDeviceIds()
-        .asSequence()
-        .mapNotNull(InputDevice::getDevice)
-        .firstOrNull(InputDeviceUtils::isPhysicalController)
+    private fun findConnectedController(): InputDevice? =
+            InputDevice.getDeviceIds()
+                    .asSequence()
+                    .mapNotNull(InputDevice::getDevice)
+                    .firstOrNull(InputDeviceUtils::isPhysicalController)
 
     private fun finishForDisconnect() {
         if (connectionLossHandled || isFinishing) return
         connectionLossHandled = true
-        Toast.makeText(this, R.string.gamepad_tester_controller_disconnected, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, R.string.gamepad_tester_controller_disconnected, Toast.LENGTH_SHORT)
+                .show()
         finish()
     }
 

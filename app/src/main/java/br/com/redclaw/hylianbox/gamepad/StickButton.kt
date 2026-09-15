@@ -1,11 +1,14 @@
 package br.com.redclaw.hylianbox.gamepad
 
 import android.content.Context
+import android.content.res.Resources
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Bitmap
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -20,9 +23,10 @@ import kotlin.math.min
  *
  * - Toque simples: pressiona/solta [targetKeyCode] (como botão normal).
  * - Toque + arraste com UM ÚNICO dedo: mantém [targetKeyCode] pressionado e move o analógico N64
- *   (MOTION_SOURCE_ANALOG_LEFT) proporcional ao deslocamento, escalado por [sensitivity].
- * - Com 2+ dedos na tela o ButtonStick é desarmado: o botão continua pressionado mas NÃO move
- *   o analógico — prioridade total do [FloatingJoystick]/analógico. Só volta a arrastar no próximo toque.
+ * (MOTION_SOURCE_ANALOG_LEFT) proporcional ao deslocamento, escalado por [sensitivity].
+ * - Com 2+ dedos na tela o ButtonStick é desarmado: o botão continua pressionado mas NÃO move o
+ * analógico — prioridade total do [FloatingJoystick]/analógico. Só volta a arrastar no próximo
+ * toque.
  *
  * Quando [stickEnabled] está OFF, comporta-se como botão puro (sem analógico).
  */
@@ -39,6 +43,7 @@ class StickButton(
 
     companion object {
         private const val DRAG_THRESHOLD_DP = 12f
+        private const val OCARINA_HOLD_MS = 600L
 
         val YELLOW_THEME = Theme(0xFFFFEB3B.toInt(), 0xFFF9A825.toInt(), Color.DKGRAY)
         val BLUE_THEME = Theme(0xFF2196F3.toInt(), 0xFF1565C0.toInt(), Color.WHITE)
@@ -49,8 +54,14 @@ class StickButton(
     var retroView: GLRetroView? = null
     var sensitivity: Float = 0.5f
     var stickEnabled: Boolean = true
+    var isOcarinaButton: Boolean = false
+    var onOcarinaHold: (() -> Unit)? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var ocarinaHoldRunnable: Runnable? = null
 
-    private val dragThresholdPx = DRAG_THRESHOLD_DP * resources.displayMetrics.density
+    // Overlay uses physical pixels and the system density so the global UI
+    // scale (UiScaleManager) never affects the emulator controls.
+    private val dragThresholdPx = DRAG_THRESHOLD_DP * Resources.getSystem().displayMetrics.density
 
     private var downX = 0f
     private var downY = 0f
@@ -62,7 +73,8 @@ class StickButton(
     /** Quando true, o arraste analógico fica bloqueado até o próximo ACTION_DOWN (multi-toque). */
     private var stickLockedOut = false
 
-    val isDragging: Boolean get() = dragging
+    val isDragging: Boolean
+        get() = dragging
 
     private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -71,11 +83,40 @@ class StickButton(
                 textAlign = Paint.Align.CENTER
                 isFakeBoldText = true
             }
+    private val badgeBgPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xCC000000.toInt()
+                style = Paint.Style.FILL
+            }
+    private val badgeBorderPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.STROKE
+                // System density: overlay stays immune to the global UI scale.
+                strokeWidth = 1.5f * Resources.getSystem().displayMetrics.density
+            }
+    private val badgeTextPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textAlign = Paint.Align.CENTER
+                isFakeBoldText = true
+                color = Color.WHITE
+            }
     private var icon: Bitmap? = null
+    private var badgeCount: Int? = null
 
     /** Replaces the button label with an equipped-item icon, or restores the label for null. */
     fun setIcon(bitmap: Bitmap?) {
         icon = bitmap
+        invalidate()
+    }
+
+    /**
+     * Shows a quantity badge (ammo count) at the button's bottom-right edge, or hides it for null.
+     * Only items with a quantity concept ever receive a non-null count (see ItemAmmoResolver);
+     * everything else keeps no badge.
+     */
+    fun setBadge(count: Int?) {
+        badgeCount = count
         invalidate()
     }
 
@@ -95,7 +136,12 @@ class StickButton(
             val currentIcon = icon
             if (currentIcon != null) {
                 val half = radius * 0.68f
-                canvas.drawBitmap(currentIcon, null, RectF(cx - half, cy - half, cx + half, cy + half), null)
+                canvas.drawBitmap(
+                        currentIcon,
+                        null,
+                        RectF(cx - half, cy - half, cx + half, cy + half),
+                        null
+                )
             } else {
                 textPaint.color = theme.text
                 textPaint.textSize = radius * 0.6f
@@ -106,10 +152,38 @@ class StickButton(
                         textPaint
                 )
             }
+            drawBadge(canvas, cx, cy, radius)
         }
     }
 
-    /** Chamado pelo [GamepadOverlayLayout] quando um segundo dedo entra — cancela o arraste imediatamente. */
+    private fun drawBadge(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
+        val count = badgeCount ?: return
+        val text = count.toString()
+        badgeTextPaint.textSize = radius * 0.38f
+        val textWidth = badgeTextPaint.measureText(text)
+        val padH = radius * 0.16f
+        val padV = radius * 0.10f
+        val halfW = textWidth / 2f + padH
+        val halfH = badgeTextPaint.textSize / 2f + padV
+        // Bottom-right edge, slightly inset so it never clips outside the view.
+        val badgeCx = cx + radius * 0.62f
+        val badgeCy = cy + radius * 0.62f
+        val rect = RectF(badgeCx - halfW, badgeCy - halfH, badgeCx + halfW, badgeCy + halfH)
+        val corner = halfH
+        canvas.drawRoundRect(rect, corner, corner, badgeBgPaint)
+        canvas.drawRoundRect(rect, corner, corner, badgeBorderPaint)
+        canvas.drawText(
+                text,
+                badgeCx,
+                badgeCy - (badgeTextPaint.ascent() + badgeTextPaint.descent()) / 2,
+                badgeTextPaint
+        )
+    }
+
+    /**
+     * Chamado pelo [GamepadOverlayLayout] quando um segundo dedo entra — cancela o arraste
+     * imediatamente.
+     */
     fun cancelDragFromOverlay() {
         if (!dragging) {
             stickLockedOut = true
@@ -137,6 +211,24 @@ class StickButton(
         thumbOffsetY = 0f
         activePointerId = -1
         stickLockedOut = false
+        cancelOcarinaHold()
+    }
+
+    private fun cancelOcarinaHold() {
+        ocarinaHoldRunnable?.let { handler.removeCallbacks(it) }
+        ocarinaHoldRunnable = null
+    }
+
+    private fun scheduleOcarinaHold() {
+        if (!isOcarinaButton || onOcarinaHold == null) return
+        cancelOcarinaHold()
+        val r = Runnable {
+            if (pressed && !dragging && !stickLockedOut) {
+                onOcarinaHold?.invoke()
+            }
+        }
+        ocarinaHoldRunnable = r
+        handler.postDelayed(r, OCARINA_HOLD_MS)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -151,6 +243,7 @@ class StickButton(
                 stickLockedOut = false
                 if (hapticEnabled) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 retroView?.sendKeyEvent(KeyEvent.ACTION_DOWN, InputMapper.mapKeyCode(targetKeyCode))
+                scheduleOcarinaHold()
                 invalidate()
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -167,7 +260,10 @@ class StickButton(
                     pressed = true
                     stickLockedOut = true
                     if (hapticEnabled) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                    retroView?.sendKeyEvent(KeyEvent.ACTION_DOWN, InputMapper.mapKeyCode(targetKeyCode))
+                    retroView?.sendKeyEvent(
+                            KeyEvent.ACTION_DOWN,
+                            InputMapper.mapKeyCode(targetKeyCode)
+                    )
                     invalidate()
                 } else {
                     // Segundo dedo em outro lugar (ex.: analógico) -> desarma ButtonStick
@@ -202,7 +298,10 @@ class StickButton(
                 val dx = x - downX
                 val dy = y - downY
                 val dist = hypot(dx, dy)
-                if (!dragging && dist > dragThresholdPx) dragging = true
+                if (!dragging && dist > dragThresholdPx) {
+                    dragging = true
+                    cancelOcarinaHold()
+                }
                 if (!dragging) return true
                 val clampedDist = min(dist, maxRadius)
                 val nx = if (dist > 0) dx / dist else 0f
@@ -224,11 +323,15 @@ class StickButton(
                     if (dragging) {
                         retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
                     }
-                    retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(targetKeyCode))
+                    retroView?.sendKeyEvent(
+                            KeyEvent.ACTION_UP,
+                            InputMapper.mapKeyCode(targetKeyCode)
+                    )
                     resetState()
                     invalidate()
                 } else {
-                    // Outro dedo levantado, mantém botão pressionado mas continua bloqueado até soltar
+                    // Outro dedo levantado, mantém botão pressionado mas continua bloqueado até
+                    // soltar
                     // (evita que o arraste volte no meio do gesto)
                 }
             }
@@ -247,7 +350,10 @@ class StickButton(
                 }
                 // Cancela sem soltar key se já foi solto? Garante soltura
                 if (pressed) {
-                    retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(targetKeyCode))
+                    retroView?.sendKeyEvent(
+                            KeyEvent.ACTION_UP,
+                            InputMapper.mapKeyCode(targetKeyCode)
+                    )
                 }
                 resetState()
                 invalidate()

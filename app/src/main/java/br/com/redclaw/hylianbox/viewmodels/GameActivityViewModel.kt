@@ -30,15 +30,18 @@ import br.com.redclaw.hylianbox.BuildConfig
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.data.local.MergedCatalogRepository
+import br.com.redclaw.hylianbox.gamepad.AreaControl
+import br.com.redclaw.hylianbox.gamepad.AreaOverlayView
+import br.com.redclaw.hylianbox.gamepad.ControlOverlayMode
 import br.com.redclaw.hylianbox.gamepad.DoubleTapContainer
 import br.com.redclaw.hylianbox.gamepad.FloatingJoystick
 import br.com.redclaw.hylianbox.gamepad.GamePad
 import br.com.redclaw.hylianbox.gamepad.GamePadConfig
-import br.com.redclaw.hylianbox.gamepad.PadPlacement
-import br.com.redclaw.hylianbox.gamepad.RightTapZone
 import br.com.redclaw.hylianbox.gamepad.StickButton
 import br.com.redclaw.hylianbox.gamepad.TouchControlLayout
+import br.com.redclaw.hylianbox.hud.HudHider
 import br.com.redclaw.hylianbox.input.ControllerInput
+import br.com.redclaw.hylianbox.input.InputDeviceUtils
 import br.com.redclaw.hylianbox.input.InputMapper
 import br.com.redclaw.hylianbox.input.N64ControllerMapping
 import br.com.redclaw.hylianbox.ocarina.OcarinaGame
@@ -67,15 +70,19 @@ import br.com.redclaw.hylianbox.retroview.RetroView
 import br.com.redclaw.hylianbox.savename.FileNameTable
 import br.com.redclaw.hylianbox.savename.PlayerNameCodec
 import br.com.redclaw.hylianbox.savename.SaveSlotEditor
+import br.com.redclaw.hylianbox.store.CanonicalIdResolver
+import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
 import br.com.redclaw.hylianbox.tracker.autotracker.AutoTrackerPoller
 import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
-import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
+import br.com.redclaw.hylianbox.tracker.autotracker.parser.SaveContextParser
 import br.com.redclaw.hylianbox.tracker.data.TrackerRepository
 import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipCommand
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
 import br.com.redclaw.hylianbox.tracker.model.VisibilityMode
 import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
 import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
+import br.com.redclaw.hylianbox.ui.switchui.BadgeBinder
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.utils.MenuActionItem
 import br.com.redclaw.hylianbox.utils.MenuEnabledEntry
@@ -140,7 +147,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var equippedItemsGame: TrackerGame? = null
     private var equippedItemsAssetCrc: String? = null
     private val equippedIconBitmaps = mutableMapOf<String, Bitmap>()
-    private var rightTapZone: RightTapZone? = null
+    private var areaOverlayView: AreaOverlayView? = null
 
     /** True while Z is held from a double-tap on the analog stick (see [onStickDoubleTap]). */
     private var zHeldViaDoubleTap = false
@@ -213,6 +220,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
             }
 
     private var compositeDisposable = CompositeDisposable()
+    /** Subscriptions owned by the touch overlay (RadialGamePad pads). Cleared on hot-swap. */
+    private var overlayDisposables = CompositeDisposable()
     private val controllerInput = ControllerInput()
 
     /**
@@ -274,7 +283,10 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         badgeViews.clear()
         val view = buildMenuView(context)
         menuView = view
-        menuDialog = AlertDialog.Builder(context).setView(view).create()
+        menuDialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setView(view)
+                        .create()
     }
 
     /**
@@ -384,6 +396,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                 ) {
                                     autoZEnabled = !autoZEnabled
                                     controllerInput.autoZEnabled = autoZEnabled
+                                    areaOverlayView?.autoZEnabled = autoZEnabled
                                     appContext
                                             .getSharedPreferences(
                                                     N64ControllerMapping.PREFERENCES_NAME,
@@ -416,15 +429,44 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                     applyButtonStickEnabled(isButtonStickEnabled)
                                 },
                                 MenuActionItem(
-                                        "overlay_scale",
-                                        R.string.menu_overlay_scale,
-                                        R.drawable.ic_tune
-                                ) { showOverlayScaleDialog() },
+                                        "hide_hud_buttons",
+                                        R.string.menu_hide_hud_buttons,
+                                        R.drawable.ic_visibility_off,
+                                        isToggle = true,
+                                        isActive = { CorePrefs.getHideHudButtons(appContext) },
+                                        isEnabled = { !RcheevosJni.nativeIsHardcore() }
+                                ) {
+                                    if (RcheevosJni.nativeIsHardcore()) return@MenuActionItem
+                                    val next = !CorePrefs.getHideHudButtons(appContext)
+                                    CorePrefs.setHideHudButtons(appContext, next)
+                                },
                                 MenuActionItem(
-                                        "right_tap",
-                                        R.string.menu_right_tap,
-                                        R.drawable.ic_target
-                                ) { showRightTapDialog() },
+                                        "show_equipped_icons",
+                                        R.string.menu_show_equipped_icons,
+                                        R.drawable.ic_tracker,
+                                        isToggle = true,
+                                        isActive = {
+                                            CorePrefs.getShowEquippedIcons(
+                                                    appContext,
+                                                    currentHackId,
+                                                    isVanillaHack(currentHackId)
+                                            )
+                                        }
+                                ) {
+                                    val next =
+                                            !CorePrefs.getShowEquippedIcons(
+                                                    appContext,
+                                                    currentHackId,
+                                                    isVanillaHack(currentHackId)
+                                            )
+                                    CorePrefs.setShowEquippedIcons(appContext, currentHackId, next)
+                                    updateEquippedButtonIcons()
+                                },
+                                MenuActionItem(
+                                        "control_overlay",
+                                        R.string.menu_control_overlay,
+                                        R.drawable.ic_gamepad
+                                ) { showControlOverlayDialog() },
                                 MenuActionItem(
                                         "sensitivity",
                                         R.string.menu_sensitivity,
@@ -533,8 +575,19 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private fun openItemTracker(game: TrackerGame) {
         val activity = activityContext as? androidx.fragment.app.FragmentActivity ?: return
         TrackerDialogFragment.newInstance(game, currentHackId)
-                .show(activity.supportFragmentManager, "item_tracker")
+                .show(activity.supportFragmentManager, TrackerDialogFragment.TAG)
     }
+
+    /** Tracker identity for the running session, used by the automatic dual-screen surface. */
+    fun currentTrackerGame(): TrackerGame? =
+            when (ocarinaGame) {
+                OcarinaGame.OOT -> TrackerGame.OOT
+                OcarinaGame.MM -> TrackerGame.MM
+                null -> null
+            }
+
+    /** Current library id, keeping dual-screen tracker progress isolated per game/hack. */
+    fun currentTrackerHackId(): String? = currentHackId
 
     /** Whether the Item Tracker menu entry should be shown, per the user's visibility setting. */
     private fun isTrackerVisible(): Boolean {
@@ -554,6 +607,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         val activeForeground = ContextCompat.getColor(context, android.R.color.black)
         val onSurfaceVariant = ContextCompat.getColor(context, R.color.color_on_surface_variant)
         val onSurface = ContextCompat.getColor(context, R.color.color_on_surface)
+        val accent = br.com.redclaw.hylianbox.ui.switchui.AccentManager.getAccentColor(context)
         for ((item, cell, icon, label) in toggleEntries) {
             val active = item.isActive()
             icon.setImageResource(if (active) item.activeIconRes else item.iconRes)
@@ -561,10 +615,15 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     ColorStateList.valueOf(if (active) activeForeground else onSurfaceVariant)
             label.setTextColor(if (active) activeForeground else onSurface)
             cell.background =
-                    ContextCompat.getDrawable(
-                            context,
-                            if (active) R.drawable.bg_menu_item_active else R.drawable.bg_menu_item
-                    )
+                    if (active) br.com.redclaw.hylianbox.ui.switchui.AccentManager.createMenuItemActiveBackground(context)
+                    else br.com.redclaw.hylianbox.ui.switchui.AccentManager.createMenuItemBackground(context)
+            // Ensure active text/icon contrast against accent (accent may be light like yellow)
+            if (active) {
+                val useDark = isColorLight(accent)
+                val fg = if (useDark) ContextCompat.getColor(context, android.R.color.black) else ContextCompat.getColor(context, android.R.color.white)
+                icon.imageTintList = ColorStateList.valueOf(fg)
+                label.setTextColor(fg)
+            }
             val activeLabel = item.activeLabelRes
             if (active && activeLabel != null) {
                 label.setText(activeLabel)
@@ -774,7 +833,20 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         val header =
                 runCatching { if (romFile != null) RomHeader.fromNormalizedZ64(romFile) else null }
                         .getOrNull()
-        ocarinaGame = header?.let { OcarinaSongCatalog.detectGame(it) }
+        val declaredGame =
+                runCatching {
+                            val canonicalHackId = CanonicalIdResolver.resolve(hackId, "")
+                            MergedCatalogRepository(
+                                            File(appContext.filesDir, "merged_catalog.json")
+                                    )
+                                    .load()
+                                    .firstOrNull {
+                                        it.id == hackId || it.canonicalId == canonicalHackId
+                                    }
+                                    ?.let(BadgeBinder::familyForHack)
+                        }
+                        .getOrNull()
+        ocarinaGame = OcarinaSongCatalog.detectGame(header, declaredGame)
         ocarinaExactGameCode = header?.gameCode
     }
 
@@ -784,21 +856,115 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         val hackId = currentHackId ?: return
         val songs = OcarinaSongCatalog.getSongs(game, getCustomOcarinaSongs(hackId))
         ocarinaCurrentSongs = songs
-        val titles = songs.map { it.displayName(context) }.toTypedArray()
+        val trackerGame =
+                when (game) {
+                    OcarinaGame.OOT -> TrackerGame.OOT
+                    OcarinaGame.MM -> TrackerGame.MM
+                }
+        val foundSongs =
+                runCatching { TrackerRepository(appContext).load(trackerGame, hackId).foundSongs }
+                        .getOrDefault(emptySet())
+        val crc =
+                equippedItemsAssetCrc
+                        ?: runCatching {
+                                    TrackerViewModel(appContext, trackerGame, hackId).assetCrc.value
+                                }
+                                .getOrNull()
+        val songNoteFile =
+                crc
+                        ?.let {
+                            File(
+                                    appContext.filesDir,
+                                    "tracker_assets/$it/${br.com.redclaw.hylianbox.tracker.assets.mapping.SongIconMap.ASSET_KEY}.png"
+                            )
+                        }
+                        ?.takeIf { it.isFile }
+        // Cache the tinted drawable once (decoding per row would jank the list)
+        val cachedNoteDrawable: android.graphics.drawable.Drawable? =
+                songNoteFile?.let { file ->
+                    runCatching {
+                                val bmp =
+                                        BitmapFactory.decodeFile(file.absolutePath)
+                                                ?: return@runCatching null
+                                val size = (22 * context.resources.displayMetrics.density).toInt()
+                                val scaled =
+                                        Bitmap.createScaledBitmap(bmp, size, (size * 24 / 16), true)
+                                android.graphics.drawable.BitmapDrawable(context.resources, scaled)
+                                        .apply { setBounds(0, 0, intrinsicWidth, intrinsicHeight) }
+                            }
+                            .getOrNull()
+                }
+        val pad = (8 * context.resources.displayMetrics.density).toInt()
+        val adapter =
+                object :
+                        android.widget.ArrayAdapter<String>(
+                                context,
+                                android.R.layout.select_dialog_item,
+                                songs.map { it.displayName(context) }
+                        ) {
+                    override fun getView(
+                            position: Int,
+                            convertView: android.view.View?,
+                            parent: android.view.ViewGroup
+                    ): android.view.View {
+                        val view = super.getView(position, convertView, parent) as TextView
+                        val song = songs[position]
+                        val trackerId =
+                                br.com.redclaw.hylianbox.ocarina.OcarinaSongTrackerMap
+                                        .trackerSongId(song.id)
+                        val obtained = trackerId != null && foundSongs.contains(trackerId)
+                        // Reset recycled view state
+                        view.alpha = if (obtained) 1f else 0.55f
+                        view.setCompoundDrawablesRelative(null, null, null, null)
+                        view.compoundDrawablePadding = 0
+                        if (obtained) {
+                            val tint =
+                                    if (trackerId != null)
+                                            br.com.redclaw.hylianbox.tracker.assets.mapping
+                                                    .SongIconMap.tintFor(trackerId)
+                                    else 0xFFFFFFFF.toInt()
+                            val d: android.graphics.drawable.Drawable? =
+                                    cachedNoteDrawable
+                                            ?.constantState
+                                            ?.newDrawable()
+                                            ?.mutate()
+                                            ?.apply {
+                                                setColorFilter(
+                                                        tint,
+                                                        android.graphics.PorterDuff.Mode.SRC_IN
+                                                )
+                                                setBounds(0, 0, intrinsicWidth, intrinsicHeight)
+                                            }
+                                            ?: run {
+                                                val fallback =
+                                                        AppCompatResources.getDrawable(
+                                                                context,
+                                                                R.drawable.ic_tracker
+                                                        )
+                                                                ?: return view
+                                                fallback.mutate().apply {
+                                                    setColorFilter(
+                                                            tint,
+                                                            android.graphics.PorterDuff.Mode.SRC_IN
+                                                    )
+                                                }
+                                            }
+                            view.setCompoundDrawablesRelative(d, null, null, null)
+                            view.compoundDrawablePadding = pad
+                        }
+                        return view
+                    }
+                }
         val builder =
-                AlertDialog.Builder(context)
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
                         .setTitle(context.getString(R.string.menu_auto_ocarina))
-                        .setItems(titles) { dialog, which ->
+                        .setAdapter(adapter) { dialog, which ->
                             dialog.dismiss()
                             playOcarinaSong(songs[which])
                         }
                         .setNegativeButton(R.string.dialog_cancel, null)
         ocarinaSongDialog = builder.create()
-        ocarinaSongDialog?.show()
-        ocarinaSongDialog?.window?.setBackgroundDrawable(
-                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-        )
-        // Ensure the list can be navigated/selected with a physical controller.
+        ocarinaSongDialog?.let(GameplayFullscreenDialog::show)
         ocarinaSongDialog?.listView?.apply {
             requestFocus()
             setSelection(0)
@@ -927,6 +1093,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private fun applyButtonStickEnabled(enabled: Boolean) {
         isButtonStickEnabled = enabled
         stickButtons.forEach { it.stickEnabled = enabled }
+        areaOverlayView?.stickEnabled = enabled
         controllerInput.isButtonStickEnabled = { isButtonStickEnabled }
         // Physical right stick analog behavior follows toggle
         controllerInput.buttonStickTargetKeyCode = {
@@ -934,72 +1101,40 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun showOverlayScaleDialog() {
+    private fun showControlOverlayDialog() {
         val context = activityContext ?: return
         val options =
                 arrayOf(
-                        context.getString(R.string.overlay_scale_small),
-                        context.getString(R.string.overlay_scale_medium),
-                        context.getString(R.string.overlay_scale_large)
+                        context.getString(R.string.control_overlay_standard),
+                        context.getString(R.string.control_overlay_area)
                 )
-        val current =
-                when (CorePrefs.getOverlayScale(context)) {
-                    CorePrefs.OVERLAY_SCALE_MEDIUM -> 1
-                    CorePrefs.OVERLAY_SCALE_LARGE -> 2
-                    else -> 0
-                }
-        AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.menu_overlay_scale))
-                .setSingleChoiceItems(options, current) { dialog, which ->
-                    val scale =
-                            when (which) {
-                                1 -> CorePrefs.OVERLAY_SCALE_MEDIUM
-                                2 -> CorePrefs.OVERLAY_SCALE_LARGE
-                                else -> CorePrefs.OVERLAY_SCALE_SMALL
+        val current = if (CorePrefs.getControlMode(context) == CorePrefs.CONTROL_MODE_AREA) 1 else 0
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setTitle(context.getString(R.string.menu_control_overlay))
+                        .setSingleChoiceItems(options, current) { dialog, which ->
+                            val mode =
+                                    if (which == 1) CorePrefs.CONTROL_MODE_AREA
+                                    else CorePrefs.CONTROL_MODE_STANDARD
+                            val previous =
+                                    CorePrefs.getControlMode(context)
+                            CorePrefs.setControlMode(context, mode)
+                            dialog.dismiss()
+                            if (mode == previous) return@setSingleChoiceItems
+                            if (coreReady.value == true || coreFailed.value == true) {
+                                switchControlOverlay()
+                            } else {
+                                Toast.makeText(
+                                                context,
+                                                R.string.control_overlay_restart_hint,
+                                                Toast.LENGTH_LONG
+                                        )
+                                        .show()
                             }
-                    CorePrefs.setOverlayScale(context, scale)
-                    dialog.dismiss()
-                    Toast.makeText(context, R.string.overlay_scale_restart_hint, Toast.LENGTH_LONG)
-                            .show()
-                }
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show()
-    }
-
-    private fun showRightTapDialog() {
-        val context = activityContext ?: return
-        val options =
-                arrayOf(
-                        context.getString(R.string.right_tap_off),
-                        context.getString(R.string.right_tap_a),
-                        context.getString(R.string.right_tap_b),
-                        context.getString(R.string.right_tap_r)
-                )
-        val current =
-                when (CorePrefs.getRightTapAction(context)) {
-                    CorePrefs.RIGHT_TAP_A -> 1
-                    CorePrefs.RIGHT_TAP_B -> 2
-                    CorePrefs.RIGHT_TAP_R -> 3
-                    else -> 0
-                }
-        AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.menu_right_tap))
-                .setSingleChoiceItems(options, current) { dialog, which ->
-                    val action =
-                            when (which) {
-                                1 -> CorePrefs.RIGHT_TAP_A
-                                2 -> CorePrefs.RIGHT_TAP_B
-                                3 -> CorePrefs.RIGHT_TAP_R
-                                else -> CorePrefs.RIGHT_TAP_OFF
-                            }
-                    CorePrefs.setRightTapAction(context, action)
-                    rightTapZone?.targetKeyCode = CorePrefs.getRightTapKeyCode(context)
-                    rightTapZone?.visibility =
-                            if (action == CorePrefs.RIGHT_TAP_OFF) View.GONE else View.VISIBLE
-                    dialog.dismiss()
-                }
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show()
+                        }
+                        .setNegativeButton(R.string.dialog_cancel, null)
+                        .create()
+        GameplayFullscreenDialog.show(dialog)
     }
 
     private fun getSavedAutoZEnabled(): Boolean {
@@ -1092,15 +1227,12 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         }
 
         sensitivityDialog =
-                AlertDialog.Builder(context)
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
                         .setTitle(context.getString(R.string.menu_sensitivity))
                         .setView(container)
                         .setPositiveButton(R.string.dialog_ok, null)
                         .create()
-        sensitivityDialog?.show()
-        sensitivityDialog?.window?.setBackgroundDrawable(
-                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-        )
+        sensitivityDialog?.let(GameplayFullscreenDialog::show)
         sensitivityDialog?.setOnKeyListener(menuKeyListenerSensitivity)
     }
 
@@ -1192,31 +1324,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                     )
                             return
                         }
-        val metrics = context.resources.displayMetrics
-        val screenWidth = metrics.widthPixels
-        val screenHeight = metrics.heightPixels
-
-        val maxWidthPx = context.resources.getDimensionPixelSize(R.dimen.dialog_menu_max_width)
-        val dialogWidth = minOf((screenWidth * 0.92f).toInt(), maxWidthPx)
-
-        /* Measure the content at the dialog's actual width (AT_MOST) so wrapped
-        labels reflect the real height. A bare UNSPECIFIED width would let the
-        weight-based cells expand and under-report the height. */
-        val widthSpec = View.MeasureSpec.makeMeasureSpec(dialogWidth, View.MeasureSpec.AT_MOST)
-        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        view.measure(widthSpec, heightSpec)
-        val contentHeight = view.measuredHeight
-
-        val verticalInset =
-                context.resources.getDimensionPixelSize(R.dimen.dialog_menu_vertical_inset)
-        val maxHeight = (screenHeight * 0.90f).toInt()
-        val dialogHeight = minOf(contentHeight + verticalInset, maxHeight)
-
-        dialog.show()
-        dialog.window?.setLayout(dialogWidth, dialogHeight)
-        dialog.window?.setBackgroundDrawable(
-                AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-        )
+        GameplayFullscreenDialog.show(dialog)
         dialog.setOnKeyListener(menuKeyListenerMain)
     }
 
@@ -1311,11 +1419,9 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         val memory = retroView?.view?.getMemoryRegion(LibretroDroid.MEMORY_SYSTEM_RAM)
         if (game != null && memory != null) {
             val tracker = TrackerViewModel(appContext, game, hackId)
-            val usesStandardOverlay =
-                    CorePrefs.getControlMode(appContext) == CorePrefs.CONTROL_MODE_STANDARD
             autoTrackerState = tracker
             equippedItemsGame = game
-            equippedItemsAssetCrc = tracker.assetCrc.value.takeIf { usesStandardOverlay }
+            equippedItemsAssetCrc = tracker.assetCrc.value
             val poller =
                     AutoTrackerPoller(
                             memory = memory,
@@ -1338,24 +1444,35 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                             }
                     )
             autoTracker = poller
-            if (usesStandardOverlay) {
-                viewModelScope.launch {
-                    tracker.ensureAssetsExtracted()
-                    if (generation == trackerGeneration) {
-                        equippedItemsAssetCrc = tracker.assetCrc.value
-                        equippedIconBitmaps.clear()
-                        updateEquippedButtonIcons()
-                        poller.invalidate()
-                    }
+            viewModelScope.launch {
+                tracker.ensureAssetsExtracted()
+                if (generation == trackerGeneration) {
+                    equippedItemsAssetCrc = tracker.assetCrc.value
+                    equippedIconBitmaps.clear()
+                    updateEquippedButtonIcons()
+                    poller.invalidate()
                 }
             }
         }
         val session = raSession
         val poller = autoTracker
+        val hudGame = game
+        val hudMemory = memory
+        val hudHider = if (hudGame != null && hudMemory != null) HudHider() else null
         LibretroDroid.setFrameCallback(
                 Runnable {
                     session?.onFrame()
                     poller?.onFrame()
+                    if (hudGame != null && hudMemory != null && hudHider != null) {
+                        hudHider.onFrame(
+                                hudMemory,
+                                hudGame,
+                                CorePrefs.getHideHudButtons(appContext),
+                                InputDeviceUtils.hasConnectedController(),
+                                RcheevosJni.nativeIsHardcore(),
+                                poller?.resolvedSaveContextBase ?: SaveContextParser.base(hudGame)
+                        )
+                    }
                 }
         )
     }
@@ -1793,14 +1910,6 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
      * gamePads list before it's populated and silently wire up nothing).
      */
     fun setupGamePads(overlay: FrameLayout) {
-        val context = getApplication<Application>().applicationContext
-        val density = overlay.resources.displayMetrics.density
-        val config = GamePadConfig(context, resources)
-
-        // Applies equally to RadialGamePad, ButtonStick, and FloatingJoystick without changing
-        // their input behavior or the overlay visibility lifecycle.
-        overlay.alpha = TouchControlLayout.OVERLAY_OPACITY
-
         /* RadialGamePad caches its on-screen position/size on its first layout pass, and
         doesn't refresh that cache on a later resize -- it keeps drawing in the new spot
         but hit-tests touches against the stale one. So each pad must be created with its
@@ -1812,61 +1921,76 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                         if (overlay.width == 0 || overlay.height == 0) return
 
                         overlay.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                        buildOverlay(overlay)
+                    }
+                }
+        )
+    }
 
-                        isButtonStickEnabled = CorePrefs.getButtonStickEnabled(context)
-                        autoZEnabled = getSavedAutoZEnabled()
-                        val overlayScale = CorePrefs.getOverlayScaleFactor(context)
+    /**
+     * (Re)builds the touch overlay for the current [ControlOverlayMode] without touching the
+     * emulator core: only views inside [overlay] are torn down and recreated, so the game keeps
+     * running. Used both for the initial build (via [setupGamePads]) and for hot-switching
+     * Standard <-> Pro from the in-game menu.
+     */
+    private fun buildOverlay(overlay: FrameLayout) {
+        val context = getApplication<Application>().applicationContext
+        // System density: the overlay is sized in physical pixels (fractions of
+        // overlay.width/height) and must stay immune to the global UI scale.
+        val density = android.content.res.Resources.getSystem().displayMetrics.density
+        val config = GamePadConfig(context, resources)
 
-                        // Cluster que ficava amontoado (C-left/C-down/C-right/A/B/R) se afasta
-                        // proporcionalmente ao overlayScale para não sobrepor quando aumenta.
-                        val clusterKeyCodes =
-                                setOf(
-                                        KeyEvent.KEYCODE_BUTTON_R2, // R
-                                        KeyEvent.KEYCODE_BUTTON_R1, // C-right
-                                        KeyEvent.KEYCODE_BUTTON_B, // B
-                                        KeyEvent.KEYCODE_BUTTON_L1, // C-left
-                                        KeyEvent.KEYCODE_BUTTON_X, // C-down
-                                        KeyEvent.KEYCODE_BUTTON_A // A
-                                )
-                        val clusterPlacements =
-                                config.placements.filter { placement ->
-                                    val centerId =
-                                            (placement.config.primaryDial as?
-                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
-                                                    ?.center
-                                                    ?.id
-                                    centerId != null && centerId in clusterKeyCodes
-                                }
-                        val centroidX =
-                                if (clusterPlacements.isNotEmpty())
-                                        clusterPlacements.map { it.gravityX }.average().toFloat()
-                                else 0.5f
-                        val centroidY =
-                                if (clusterPlacements.isNotEmpty())
-                                        clusterPlacements.map { it.gravityY }.average().toFloat()
-                                else 0.5f
-                        fun spreadX(placement: PadPlacement): Float {
-                            val centerId =
-                                    (placement.config.primaryDial as?
-                                                    com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
-                                            ?.center
-                                            ?.id
-                            return if (centerId != null && centerId in clusterKeyCodes) {
-                                centroidX + (placement.gravityX - centroidX) * overlayScale
-                            } else placement.gravityX
-                        }
-                        fun spreadY(placement: PadPlacement): Float {
-                            val centerId =
-                                    (placement.config.primaryDial as?
-                                                    com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
-                                            ?.center
-                                            ?.id
-                            return if (centerId != null && centerId in clusterKeyCodes) {
-                                centroidY + (placement.gravityY - centroidY) * overlayScale
-                            } else placement.gravityY
-                        }
+        clearOverlay(overlay)
 
-                        /* Added first so it sits at the lowest z-order -- every real button placed after
+        isButtonStickEnabled = CorePrefs.getButtonStickEnabled(context)
+        autoZEnabled = getSavedAutoZEnabled()
+
+        val controlMode = ControlOverlayMode.fromPref(CorePrefs.getControlMode(context))
+        if (controlMode == ControlOverlayMode.AREA) {
+            overlay.alpha = 1f
+            setupAreaOverlay(overlay, context)
+            wirePhysicalController(getSavedButtonStickSensitivity())
+            return
+        }
+        buildStandardOverlay(overlay, context, density, config)
+    }
+
+    /** Tears down only the overlay views; the RetroView / core keeps running untouched. */
+    private fun clearOverlay(overlay: FrameLayout) {
+        overlayDisposables.dispose()
+        overlayDisposables = CompositeDisposable()
+        overlay.removeAllViews()
+        gamePads = emptyList()
+        stickButtons = emptyList()
+        floatingJoystick = null
+        areaOverlayView = null
+    }
+
+    /**
+     * Hot-swaps Standard <-> Pro while the game keeps running. No Activity recreate, no core
+     * reload: only the overlay views are rebuilt via [buildOverlay].
+     */
+    private fun switchControlOverlay() {
+        val activity = activityContext ?: return
+        val overlay =
+                activity.findViewById<FrameLayout>(R.id.gamepad_overlay) ?: return
+        if (overlay.width == 0 || overlay.height == 0) {
+            overlay.post { buildOverlay(overlay) }
+        } else {
+            buildOverlay(overlay)
+        }
+        updateGamePadVisibility(activity, overlay)
+    }
+
+    private fun buildStandardOverlay(
+            overlay: FrameLayout,
+            context: Context,
+            density: Float,
+            config: GamePadConfig
+    ) {
+        overlay.alpha = TouchControlLayout.OVERLAY_OPACITY
+
+        /* Added first so it sits at the lowest z-order -- every real button placed after
                         it (Select, D-pad) naturally claims its own touches first, leaving the
                         joystick only the genuinely empty area to react to. */
                         if (resources.getBoolean(R.bool.config_left_analog)) {
@@ -1908,24 +2032,6 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                         overlay.addView(container, joystickParams)
                                     }
                         }
-
-                        // RightTapZone: always created (lowest z-order) so real buttons claim
-                        // touches first
-                        val rightTapKeyCode = CorePrefs.getRightTapKeyCode(context)
-                        val zoneWidth = (overlay.width * 0.5f).toInt()
-                        val zoneParams =
-                                FrameLayout.LayoutParams(zoneWidth, overlay.height).apply {
-                                    leftMargin = overlay.width - zoneWidth
-                                    topMargin = 0
-                                }
-                        rightTapZone =
-                                RightTapZone(context).also {
-                                    it.retroView = retroView?.view
-                                    it.targetKeyCode = rightTapKeyCode
-                                    it.visibility =
-                                            if (rightTapKeyCode == null) View.GONE else View.VISIBLE
-                                    overlay.addView(it, zoneParams)
-                                }
 
                         // C/A/B use ButtonStick behavior; R shares the same visual button as a
                         // pure press control, so it never captures a larger transparent area.
@@ -1978,11 +2084,9 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                                         StickButton.NEUTRAL_THEME
                                                 else -> StickButton.YELLOW_THEME
                                             }
-                                    val sizePx =
-                                            (placement.sizeFraction * overlay.height * overlayScale)
-                                                    .toInt()
-                                    val sx = spreadX(placement)
-                                    val sy = spreadY(placement)
+                                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
+                                    val sx = placement.gravityX
+                                    val sy = placement.gravityY
                                     val radiusX = sizePx / 2f / overlay.width
                                     val radiusY = sizePx / 2f / overlay.height
                                     val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
@@ -2018,11 +2122,9 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
 
                         gamePads =
                                 regularPlacements.map { placement ->
-                                    val sizePx =
-                                            (placement.sizeFraction * overlay.height * overlayScale)
-                                                    .toInt()
-                                    val sx = spreadX(placement)
-                                    val sy = spreadY(placement)
+                                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
+                                    val sx = placement.gravityX
+                                    val sy = placement.gravityY
                                     val radiusX = sizePx / 2f / overlay.width
                                     val radiusY = sizePx / 2f / overlay.height
                                     val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
@@ -2040,31 +2142,82 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                                     placement.buttonKeyCode?.let { keyCode ->
                                                         { trackCButtonPress(keyCode) }
                                                     }
-                                            it.subscribe(compositeDisposable, rv.view, onButtonDown)
+                                            it.subscribe(overlayDisposables, rv.view, onButtonDown)
                                         }
                                     }
                                 }
 
-                        controllerInput.isButtonStickEnabled = { isButtonStickEnabled }
-                        controllerInput.buttonStickTargetKeyCode = {
-                            if (isButtonStickEnabled) KeyEvent.KEYCODE_BUTTON_R1 else null
-                        }
-                        controllerInput.buttonStickSensitivity = stickSensitivity
-                        controllerInput.autoZEnabled = autoZEnabled
-                        controllerInput.onCButtonDown = { keyCode -> trackCButtonPress(keyCode) }
-                    }
+        wirePhysicalController(stickSensitivity)
+    }
+
+    private fun setupAreaOverlay(overlay: FrameLayout, context: Context) {
+        gamePads = emptyList()
+        stickButtons = emptyList()
+        floatingJoystick = null
+        areaOverlayView =
+                AreaOverlayView(context).also { area ->
+                    area.retroView = retroView?.view
+                    area.analogSensitivity = getSavedN64StickSensitivity()
+                    area.stickSensitivity = getSavedButtonStickSensitivity()
+                    area.stickEnabled = isButtonStickEnabled
+                    area.autoZEnabled = autoZEnabled
+                    area.onControlDown = { keyCode -> trackCButtonPress(keyCode) }
+                    area.onAnalogDoubleTap = { onStickDoubleTap() }
+                    configureAreaOcarinaShortcut(area)
+                    overlay.addView(
+                            area,
+                            FrameLayout.LayoutParams(
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+                    )
                 }
-        )
+        updateEquippedButtonIcons()
+    }
+
+    private fun configureAreaOcarinaShortcut(area: AreaOverlayView) {
+        val snapshot = equippedItems ?: return
+        val game = equippedItemsGame ?: return
+        area.isOcarinaEquipped = { keyCode ->
+            val itemId =
+                    when (keyCode) {
+                        KeyEvent.KEYCODE_BUTTON_L1 -> snapshot.cLeft
+                        KeyEvent.KEYCODE_BUTTON_X -> snapshot.cDown
+                        KeyEvent.KEYCODE_BUTTON_R1 -> snapshot.cRight
+                        else -> EquippedItemsSnapshot.NONE
+                    }
+            isOcarinaItem(game, itemId)
+        }
+        area.onOcarinaHold = { showOcarinaSongList() }
+    }
+
+    private fun wirePhysicalController(stickSensitivity: Float) {
+        controllerInput.isButtonStickEnabled = { isButtonStickEnabled }
+        controllerInput.buttonStickTargetKeyCode = {
+            if (isButtonStickEnabled) KeyEvent.KEYCODE_BUTTON_R1 else null
+        }
+        controllerInput.buttonStickSensitivity = stickSensitivity
+        controllerInput.autoZEnabled = autoZEnabled
+        controllerInput.onCButtonDown = { keyCode -> trackCButtonPress(keyCode) }
     }
 
     /**
-     * Updates only the normal touch overlay's button artwork. The control geometry, key mapping,
-     * touch handling and every alternate/minimal presentation remain unchanged.
+     * Updates only the normal touch overlay's button artwork. Also wires the ocarina hold shortcut
+     * on whichever C button currently holds the ocarina (both STANDARD and AREA).
+     *
+     * Equipped-item icons are shown only when the per-game "show equipped icons" toggle is on
+     * (default true for vanilla ROMs, false for hacks). The ocarina hold shortcut is always wired
+     * regardless of icon visibility.
      */
     private fun updateEquippedButtonIcons() {
-        if (CorePrefs.getControlMode(appContext) != CorePrefs.CONTROL_MODE_STANDARD) return
         val snapshot = equippedItems ?: return
         val game = equippedItemsGame ?: return
+        val showIcons =
+                CorePrefs.getShowEquippedIcons(
+                        appContext,
+                        currentHackId,
+                        isVanillaHack(currentHackId)
+                )
         val itemByButton =
                 mapOf(
                         KeyEvent.KEYCODE_BUTTON_L1 to snapshot.cLeft,
@@ -2073,11 +2226,85 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                         KeyEvent.KEYCODE_BUTTON_B to snapshot.sword,
                         KeyEvent.KEYCODE_BUTTON_R2 to snapshot.shield
                 )
+        val ammoByButton =
+                mapOf(
+                        KeyEvent.KEYCODE_BUTTON_L1 to snapshot.cLeftAmmo,
+                        KeyEvent.KEYCODE_BUTTON_X to snapshot.cDownAmmo,
+                        KeyEvent.KEYCODE_BUTTON_R1 to snapshot.cRightAmmo
+                )
         stickButtons.forEach { button ->
             val itemId = itemByButton[button.targetKeyCode] ?: return@forEach
-            button.setIcon(loadEquippedIcon(game, itemId))
+            button.setIcon(if (showIcons) loadEquippedIcon(game, itemId) else null)
+            button.setBadge(if (showIcons) ammoByButton[button.targetKeyCode] else null)
+            val isOcarina = isOcarinaItem(game, itemId)
+            button.isOcarinaButton = isOcarina
+            button.onOcarinaHold =
+                    if (isOcarina) {
+                        { showOcarinaSongList() }
+                    } else null
+        }
+        // Keep AREA overlay in sync when equipment changes mid-session
+        (activityContext as? android.app.Activity)?.let { act ->
+            val overlay =
+                    act.findViewById<android.widget.FrameLayout>(
+                            br.com.redclaw.hylianbox.R.id.gamepad_overlay
+                    )
+            overlay?.let { ov ->
+                val icons =
+                        if (showIcons) {
+                            mapOf(
+                                    AreaControl.C_LEFT to loadEquippedIcon(game, snapshot.cLeft),
+                                    AreaControl.C_DOWN to loadEquippedIcon(game, snapshot.cDown),
+                                    AreaControl.C_RIGHT to loadEquippedIcon(game, snapshot.cRight),
+                                    AreaControl.B to loadEquippedIcon(game, snapshot.sword),
+                                    AreaControl.R to loadEquippedIcon(game, snapshot.shield)
+                            )
+                        } else {
+                            emptyMap()
+                        }
+                val badges =
+                        if (showIcons) {
+                            mapOf(
+                                    AreaControl.C_LEFT to snapshot.cLeftAmmo,
+                                    AreaControl.C_DOWN to snapshot.cDownAmmo,
+                                    AreaControl.C_RIGHT to snapshot.cRightAmmo
+                            )
+                        } else {
+                            emptyMap()
+                        }
+                for (i in 0 until ov.childCount) {
+                    val child = ov.getChildAt(i)
+                    if (child is br.com.redclaw.hylianbox.gamepad.AreaOverlayView) {
+                        child.isOcarinaEquipped = { keyCode ->
+                            val id =
+                                    when (keyCode) {
+                                        KeyEvent.KEYCODE_BUTTON_L1 -> snapshot.cLeft
+                                        KeyEvent.KEYCODE_BUTTON_X -> snapshot.cDown
+                                        KeyEvent.KEYCODE_BUTTON_R1 -> snapshot.cRight
+                                        else -> EquippedItemsSnapshot.NONE
+                                    }
+                            isOcarinaItem(game, id)
+                        }
+                        child.onOcarinaHold = { showOcarinaSongList() }
+                        child.setEquippedIcons(icons, badges)
+                    }
+                }
+            }
         }
     }
+
+    private fun isOcarinaItem(game: TrackerGame, itemId: Int): Boolean =
+            when (game) {
+                TrackerGame.OOT -> itemId == 0x07 || itemId == 0x08
+                TrackerGame.MM -> itemId == 0x00
+            }
+
+    /**
+     * Vanilla base-ROM entries use ids prefixed with `vanilla_` (see [GameRomResolver]); every
+     * other id is a store hack. Used as the default for the per-game equipped-icons toggle.
+     */
+    private fun isVanillaHack(hackId: String?): Boolean =
+            hackId?.startsWith(GameRomResolver.VANILLA_PREFIX) == true
 
     /** Loads a tiny ROM-extracted icon once per game session; missing icons restore the label. */
     private fun loadEquippedIcon(game: TrackerGame, itemId: Int): Bitmap? {
@@ -2086,15 +2313,16 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         }
         val crc = equippedItemsAssetCrc ?: return null
         val cacheKey = "$crc:$itemId"
-        equippedIconBitmaps[cacheKey]?.let { return it }
+        equippedIconBitmaps[cacheKey]?.let {
+            return it
+        }
         val file =
                 File(
                         appContext.filesDir,
                         "tracker_assets/$crc/${EquippedItemIconMap.assetKey(itemId)}.png"
                 )
         val bitmap =
-                file.takeIf { it.isFile }
-                        ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                file.takeIf { it.isFile }?.let { BitmapFactory.decodeFile(it.absolutePath) }
                         ?: return null
         equippedIconBitmaps[cacheKey] = bitmap
         return bitmap
@@ -2154,6 +2382,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     fun dispose() {
         compositeDisposable.dispose()
         compositeDisposable = CompositeDisposable()
+        overlayDisposables.dispose()
+        overlayDisposables = CompositeDisposable()
     }
 
     // ---- Install-time patching: the ROM is already patched and stored ----
@@ -2196,13 +2426,15 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
 
     private fun showError(messageRes: Int) {
         val context = activityContext ?: return
-        AlertDialog.Builder(context)
-                .setMessage(messageRes)
-                .setPositiveButton(android.R.string.ok, null)
-                /* A failed launch leaves no RetroView behind, so the game screen
-                would just sit black under the gamepad overlay -- close it. */
-                .setOnDismissListener { (context as? Activity)?.finish() }
-                .show()
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setMessage(messageRes)
+                        .setPositiveButton(android.R.string.ok, null)
+                        /* A failed launch leaves no RetroView behind, so the game screen
+                        would just sit black under the gamepad overlay -- close it. */
+                        .setOnDismissListener { (context as? Activity)?.finish() }
+                        .create()
+        GameplayFullscreenDialog.show(dialog)
     }
 
     // ---- Change Name (per-slot player name) ----
@@ -2268,28 +2500,26 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                             }
                         }
                         .toTypedArray()
-        AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.change_name_pick_slot))
-                .setItems(labels) { dialog, which ->
-                    dialog.dismiss()
-                    val chosen = slots[which]
-                    if (!chosen.isValid) {
-                        Toast.makeText(
-                                        context,
-                                        R.string.change_name_no_valid_slot,
-                                        Toast.LENGTH_SHORT
-                                )
-                                .show()
-                        return@setItems
-                    }
-                    showChangeNameInput(chosen.index, chosen.displayName, game, table)
-                }
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show()
-                .window
-                ?.setBackgroundDrawable(
-                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-                )
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setTitle(context.getString(R.string.change_name_pick_slot))
+                        .setItems(labels) { dialog, which ->
+                            dialog.dismiss()
+                            val chosen = slots[which]
+                            if (!chosen.isValid) {
+                                Toast.makeText(
+                                                context,
+                                                R.string.change_name_no_valid_slot,
+                                                Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                                return@setItems
+                            }
+                            showChangeNameInput(chosen.index, chosen.displayName, game, table)
+                        }
+                        .setNegativeButton(R.string.dialog_cancel, null)
+                        .create()
+        GameplayFullscreenDialog.show(dialog)
     }
 
     private fun showChangeNameInput(
@@ -2324,30 +2554,30 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                             )
                     )
                 }
-        AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.change_name_enter_name))
-                .setView(container)
-                .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
-                    val raw = input.text?.toString() ?: ""
-                    val normalized = PlayerNameCodec.normalize(raw)
-                    if (normalized == null || PlayerNameCodec.encode(normalized, table) == null) {
-                        Toast.makeText(
-                                        context,
-                                        R.string.change_name_invalid_name,
-                                        Toast.LENGTH_LONG
-                                )
-                                .show()
-                        return@setPositiveButton
-                    }
-                    dialog.dismiss()
-                    showChangeNameConfirm(slot, currentName, normalized, game, table)
-                }
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show()
-                .window
-                ?.setBackgroundDrawable(
-                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-                )
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setTitle(context.getString(R.string.change_name_enter_name))
+                        .setView(container)
+                        .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
+                            val raw = input.text?.toString() ?: ""
+                            val normalized = PlayerNameCodec.normalize(raw)
+                            if (normalized == null ||
+                                            PlayerNameCodec.encode(normalized, table) == null
+                            ) {
+                                Toast.makeText(
+                                                context,
+                                                R.string.change_name_invalid_name,
+                                                Toast.LENGTH_LONG
+                                        )
+                                        .show()
+                                return@setPositiveButton
+                            }
+                            dialog.dismiss()
+                            showChangeNameConfirm(slot, currentName, normalized, game, table)
+                        }
+                        .setNegativeButton(R.string.dialog_cancel, null)
+                        .create()
+        GameplayFullscreenDialog.show(dialog)
         input.requestFocus()
         input.post {
             val imm =
@@ -2365,26 +2595,24 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
             table: FileNameTable
     ) {
         val context = activityContext ?: return
-        AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.change_name_confirm_title))
-                .setMessage(
-                        context.getString(
-                                R.string.change_name_confirm_message,
-                                slot + 1,
-                                oldName.ifEmpty { "—" },
-                                newName
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setTitle(context.getString(R.string.change_name_confirm_title))
+                        .setMessage(
+                                context.getString(
+                                        R.string.change_name_confirm_message,
+                                        slot + 1,
+                                        oldName.ifEmpty { "—" },
+                                        newName
+                                )
                         )
-                )
-                .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
-                    dialog.dismiss()
-                    applyChangeName(slot, newName, game, table)
-                }
-                .setNegativeButton(R.string.dialog_cancel, null)
-                .show()
-                .window
-                ?.setBackgroundDrawable(
-                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
-                )
+                        .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
+                            dialog.dismiss()
+                            applyChangeName(slot, newName, game, table)
+                        }
+                        .setNegativeButton(R.string.dialog_cancel, null)
+                        .create()
+        GameplayFullscreenDialog.show(dialog)
     }
 
     private fun applyChangeName(
@@ -2479,5 +2707,13 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun isColorLight(color: Int): Boolean {
+        val r = android.graphics.Color.red(color)
+        val g = android.graphics.Color.green(color)
+        val b = android.graphics.Color.blue(color)
+        val luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 186
     }
 }

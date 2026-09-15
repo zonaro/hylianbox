@@ -32,6 +32,7 @@ import androidx.fragment.app.Fragment
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.tracker.model.TrackerHintType
 import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 
@@ -143,7 +144,11 @@ class HintsTab : Fragment() {
                                 setPadding(innerPad, innerPad, innerPad, innerPad)
                                 addView(inner)
                         }
-                android.app.AlertDialog.Builder(requireContext(), R.style.SwitchDialogTheme)
+                val dialog =
+                        android.app.AlertDialog.Builder(
+                                        requireContext(),
+                                        R.style.GameplayFullscreenDialogTheme
+                                )
                         .setTitle(R.string.tracker_stone)
                         .setView(dialogView)
                         .setPositiveButton(android.R.string.ok) { _, _ ->
@@ -151,7 +156,8 @@ class HintsTab : Fragment() {
                                 buildList(container)
                         }
                         .setNegativeButton(android.R.string.cancel, null)
-                        .show()
+                        .create()
+                GameplayFullscreenDialog.show(dialog)
         }
 
         private fun hintRow(label: String, hintId: String, gap: Int): LinearLayout {

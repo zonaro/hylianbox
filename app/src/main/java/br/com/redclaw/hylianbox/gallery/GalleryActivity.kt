@@ -18,8 +18,8 @@
 
 package br.com.redclaw.hylianbox.gallery
 
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -28,24 +28,27 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import br.com.redclaw.hylianbox.BuildConfig
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.databinding.ActivityGalleryBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.databinding.ActivityGalleryBinding
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
- * Gallery screen (Nintendo Switch style): a grid of captured screenshots and
- * recordings. Each card opens a Switch-style action dialog offering View
- * (the internal [CaptureViewerActivity]), Share ([Intent.ACTION_SEND]) and Delete
- * (confirmation then [GalleryViewModel.delete]). The list is observed from
- * [GalleryViewModel] and refreshed on create / resume.
+ * Gallery screen (Nintendo Switch style): a grid of captured screenshots and recordings. Each card
+ * opens a Switch-style action dialog offering View (the internal [CaptureViewerActivity]), Share (
+ * [Intent.ACTION_SEND]) and Delete (confirmation then [GalleryViewModel.delete]). The list is
+ * observed from [GalleryViewModel] and refreshed on create / resume.
  */
 class GalleryActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivityGalleryBinding
     private lateinit var viewModel: GalleryViewModel
@@ -54,8 +57,10 @@ class GalleryActivity : AppCompatActivity() {
     private val backHelper = SwitchBackButton()
     private val sfx = runCatching { HylianBoxApp.sfxManager }.getOrNull()
 
-    /** FileProvider authority, derived from the application id (matches the
-     *  provider declared in AndroidManifest.xml). */
+    /**
+     * FileProvider authority, derived from the application id (matches the provider declared in
+     * AndroidManifest.xml).
+     */
     private val fileProviderAuthority = "${BuildConfig.APPLICATION_ID}.fileprovider"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,9 +81,9 @@ class GalleryActivity : AppCompatActivity() {
             viewModel.items.collectLatest { items ->
                 adapter.submit(items)
                 binding.galleryRecycler.visibility =
-                    if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+                        if (items.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
                 binding.galleryEmpty.visibility =
-                    if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
+                        if (items.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
             }
         }
     }
@@ -114,22 +119,23 @@ class GalleryActivity : AppCompatActivity() {
 
     /** Present View / Share / Delete actions for [item] in a Switch dialog. */
     private fun showItemActions(item: GalleryItem) {
-        val options = listOf(
-            getString(R.string.gallery_view),
-            getString(R.string.gallery_share),
-            getString(R.string.gallery_delete)
-        )
+        val options =
+                listOf(
+                        getString(R.string.gallery_view),
+                        getString(R.string.gallery_share),
+                        getString(R.string.gallery_delete)
+                )
         SwitchDialog(this)
-            .title(getString(R.string.gallery_title))
-            .icon(R.drawable.ic_gallery)
-            .singleChoice(options, 0) { index ->
-                when (index) {
-                    0 -> viewItem(item)
-                    1 -> shareItem(item)
-                    2 -> confirmDelete(item)
+                .title(getString(R.string.gallery_title))
+                .icon(R.drawable.ic_gallery)
+                .singleChoice(options, 0) { index ->
+                    when (index) {
+                        0 -> viewItem(item)
+                        1 -> shareItem(item)
+                        2 -> confirmDelete(item)
+                    }
                 }
-            }
-            .show()
+                .show()
     }
 
     /** Open [item] in the app's image viewer or video player. */
@@ -141,21 +147,22 @@ class GalleryActivity : AppCompatActivity() {
     private fun shareItem(item: GalleryItem) {
         val uri = FileProvider.getUriForFile(this, fileProviderAuthority, item.path)
         val mime = if (item.type == MediaType.VIDEO) "video/mp4" else "image/png"
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = mime
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        val intent =
+                Intent(Intent.ACTION_SEND).apply {
+                    type = mime
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
         startActivity(Intent.createChooser(intent, getString(R.string.gallery_share)))
     }
 
     /** Confirm then delete the item. */
     private fun confirmDelete(item: GalleryItem) {
         SwitchDialog(this)
-            .title(getString(R.string.gallery_delete))
-            .message(getString(R.string.gallery_delete_confirm))
-            .positiveButton(getString(android.R.string.ok)) { viewModel.delete(item) }
-            .negativeButton(getString(android.R.string.cancel))
-            .show()
+                .title(getString(R.string.gallery_delete))
+                .message(getString(R.string.gallery_delete_confirm))
+                .positiveButton(getString(android.R.string.ok)) { viewModel.delete(item) }
+                .negativeButton(getString(android.R.string.cancel))
+                .show()
     }
 }

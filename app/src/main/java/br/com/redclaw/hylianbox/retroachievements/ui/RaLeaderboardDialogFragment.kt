@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.DialogFragment
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
@@ -27,6 +28,11 @@ class RaLeaderboardDialogFragment : DialogFragment() {
 
     private lateinit var container: LinearLayout
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setStyle(STYLE_NO_TITLE, R.style.GameplayFullscreenDialogTheme)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -39,6 +45,7 @@ class RaLeaderboardDialogFragment : DialogFragment() {
             setPadding(pad, pad, pad, pad)
         }
         val scroll = android.widget.ScrollView(context).apply {
+            setBackgroundColor(context.getColor(R.color.switch_bg))
             addView(this@RaLeaderboardDialogFragment.container)
         }
         this.container.addView(makeHeader(context))
@@ -148,11 +155,7 @@ class RaLeaderboardDialogFragment : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
-        dialog?.window?.setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            (resources.displayMetrics.heightPixels * 0.7).toInt()
-        )
-        dialog?.window?.setBackgroundDrawableResource(R.drawable.bg_switch_dialog)
+        GameplayFullscreenDialog.apply(requireDialog())
     }
 
     companion object {

@@ -23,7 +23,8 @@ import org.json.JSONObject
 class TrackerAssetCache(private val context: Context) {
 
     companion object {
-        const val CACHE_VERSION = 7 // includes exact equipped-button icons for the touch overlay
+        const val CACHE_VERSION =
+                8 // adds IA8 song-note texture (gSongNoteTex / gItemIconSongNoteTex)
     }
 
     private fun dirFor(crc32: String): File =

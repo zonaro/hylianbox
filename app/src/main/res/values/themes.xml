@@ -173,6 +173,16 @@
         <item name="android:windowAnimationStyle">@style/SwitchDialogAnimation</item>
     </style>
 
+    <!-- Modal lifecycle with normal-screen geometry for every surface opened over gameplay. -->
+    <style name="GameplayFullscreenDialogTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/switch_bg</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:backgroundDimAmount">0</item>
+        <item name="android:windowAnimationStyle">@style/SwitchDialogAnimation</item>
+    </style>
+
     <style name="SwitchDialogAnimation">
         <item name="android:windowEnterAnimation">@android:anim/fade_in</item>
         <item name="android:windowExitAnimation">@android:anim/fade_out</item>

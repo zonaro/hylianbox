@@ -114,7 +114,6 @@ br.com.redclaw.hylianbox
 │   ├── SwitchGridScreen.kt
 │   ├── SwitchDock.kt
 │   ├── SwitchFooterHints.kt
-│   ├── SwitchSidePanel.kt
 │   ├── SwitchDialog.kt
 │   ├── SwitchFocusBorder.kt
 │   ├── SfxManager.kt
@@ -206,6 +205,14 @@ app/
 
 **Gamepad layout is FROZEN (Rule 14):** `gamepad/GamePadConfig.kt` placements, ButtonStick + Auto mode, Auto-Z double-tap, FloatingJoystick region/hint/reach, DoubleTapContainer, physical-controller mirroring, sensitivity dialogs — measured from a reference image, tuned for OoT/MM. Migrate verbatim (package rename only). Any layout change requires explicit user approval + update to `plano.md` "Layout de Controles Sob Medida". Integration invariants must not regress: overlay uses INVISIBLE (never GONE), pads created only after first real layout pass, GL-context recovery via full Activity recreate(), `super.onDestroy()` called BEFORE dispose. **In-game menu chrome, overlays, pause menu, achievement overlay, leaderboard dialog, ocarina HUD ARE restyled to Switch UI** — only the RadialGamePad touch-control LAYOUT remains frozen.
 
+### Interactive gameplay surface lifecycle
+
+Interactive UI opened over a running game is a **fullscreen modal surface**. It remains technically attached to `GameActivity` through a `Dialog`, `DialogFragment`, or equivalent overlay so the Activity, `RetroView`, GL/core session, SRAM, RA session, tracker repository, and current input state are not torn down. Its window and content both cover the complete immersive bounds with an opaque Switch screen; it must not reveal gameplay through a scrim or retain a centered-card dialog layout. Nested surfaces form a modal stack, and Back removes only the top entry before returning to its parent or the unchanged game.
+
+This contract includes the root emulator menu, every submenu and confirmation, Auto-Ocarina song selection, Item Tracker, RA achievements/leaderboards, control and sensitivity choices, capture actions, and future interactive in-game windows. The technical container is not permission to use popup visuals, and a `MATCH_PARENT` dialog window is not compliant when the content itself remains a floating card.
+
+Transient layers have a separate contract: achievement toasts/progress, Auto-Ocarina playback HUD, recording indicators, and brief status/loading/error overlays stay compact and non-interactive. They neither enter the modal stack nor take focus. Android-owned permission or capture-consent windows are outside the app-rendered surface contract.
+
 ---
 
 ## 8. References
@@ -225,8 +232,8 @@ app/
 
 `tracker/autotracker` reads the loaded core's RAM alias under the existing frame lock, at most every 100 ms. `GameActivityViewModel` acquires the alias outside the frame callback (`getMemoryRegion` locks a non-recursive mutex), installs a composite RA/tracker callback, and removes it before native destruction. Only immutable scalar snapshots are dispatched to Main; a session generation discards stale deliveries. Tracking works independently of RA login/enabling.
 
-`SaveContextParser` supports the fixed OoT NTSC 1.0 / MM US 1.0 offsets and compatible hacks. Save signatures identify byte lanes; bounds, health capacity and game mode reject incompatible/uninitialized RAM. MM has its own inventory/quest layout. `AutoTrackerMapper` merges discoveries additively into the same live `TrackerState` used by manual UI; repository revisions refresh existing cells. The global opt-in lives in CorePrefs and is exposed by the tracker Switch and Dashboard settings, while progress remains per hack. See `.github/prompts/plan-autoTrackingOotMm.prompt.md` for limitations and validation.
+`SaveContextParser` supports the OoT NTSC 1.0 / MM US 1.0 structures and compatible hacks. The fixed addresses remain the fast path; `SaveContextLocator` incrementally searches four-byte-aligned RDRAM candidates when a hack relocates the otherwise compatible structure, then caches the first fully validated address for the game session. A signature alone is insufficient: byte lane, bounds, health, magic and game mode must all validate. Hacks that alter fields inside `SaveContext`, remove its signature, combine both games, or use another regional structure remain unsupported. MM has its own inventory/quest layout. `AutoTrackerMapper` merges discoveries additively into the same live `TrackerState` used by manual UI; repository revisions refresh existing cells. The global opt-in lives in CorePrefs and is exposed by the tracker Switch and Dashboard settings, while progress remains per hack. See `.github/prompts/plan-autoTrackingOotMm.prompt.md` for limitations and validation.
 
-The same validated parser also emits a read-only equipped-item snapshot every 100 ms even when automatic progress tracking is off. In the standard overlay only, `GameActivityViewModel` maps the current C-Left/C-Down/C-Right assignments plus equipped sword/shield to B/R and asks `StickButton` to draw 32×32 icons extracted from the user's own ROM. Missing/unsupported values retain the original button label. The mapped-area/minimal overlay neither extracts nor renders these button icons.
+The same validated parser also emits a read-only equipped-item snapshot every 100 ms even when automatic progress tracking is off. In the standard overlay only, `GameActivityViewModel` maps the current C-Left/C-Down/C-Right assignments plus equipped sword/shield to B/R and asks `StickButton` to draw 32×32 icons extracted from the user's own ROM. Missing/unsupported values retain the original button label. The same snapshot carries live ammo per C button (`ItemAmmoResolver`, mirroring each game's own `Interface_DrawAmmoCount` rules); `StickButton` draws a quantity badge at the button's bottom-right edge only for items with a quantity concept (bow/arrows, bombs, sticks, nuts, slingshot, bombchu, beans, powder keg, pictograph). The mapped-area/minimal overlay neither extracts nor renders these button icons.
 
 Obtained tracker items also support safe in-game assignment by long press. The dialog only enqueues a typed command; `AutoTrackerPoller` drains it inside the existing frame callback while `coreLock` is held. `SaveContextWriter` revalidates signature, byte lane, game mode and real ownership before changing the documented `buttonItems`/`cButtonSlots` pair or OoT selected-equipment nibble. Short taps retain the original tracker count cycle. MM exposes only C-item assignment; its sword and shield remain tracker-only. This writer has the same NTSC 1.0 compatibility boundary as automatic tracking and never grants inventory ownership.

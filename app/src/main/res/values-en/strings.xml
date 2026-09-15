@@ -15,18 +15,14 @@
     <string name="menu_fast_forward">Fast Forward</string>
     <string name="menu_core">Core</string>
     <string name="menu_button_stick">Button Stick</string>
+    <string name="menu_hide_hud_buttons">Hide C/B Buttons</string>
     <string name="menu_auto_z">Auto-Z</string>
+    <string name="menu_show_equipped_icons">Item Icons</string>
     <string name="menu_sensitivity">Sensitivity</string>
-    <string name="menu_overlay_scale">Button Size</string>
-    <string name="menu_right_tap">Right Area Tap</string>
-    <string name="overlay_scale_small">Small</string>
-    <string name="overlay_scale_medium">Medium</string>
-    <string name="overlay_scale_large">Large</string>
-    <string name="overlay_scale_restart_hint">Restart the game to apply the new size.</string>
-    <string name="right_tap_off">Off</string>
-    <string name="right_tap_a">Button A</string>
-    <string name="right_tap_b">Button B</string>
-    <string name="right_tap_r">Button R</string>
+    <string name="menu_control_overlay">Control Mode</string>
+    <string name="control_overlay_standard">Standard — Controls</string>
+    <string name="control_overlay_area">Pro — Touch Areas</string>
+    <string name="control_overlay_restart_hint">The new mode will be applied when the game restarts.</string>
     <string name="menu_exit">Exit</string>
     <string name="menu_change_name">Change Name</string>
     <string name="msg_game_still_loading">Please wait, the game is still loading…</string>
@@ -144,6 +140,21 @@
     <string name="detail_completion">Status</string>
     <string name="detail_changelog">Changelog</string>
     <string name="detail_external_notice">This mod must be downloaded from its source.</string>
+
+    <!-- Embedded WebView downloader (ExternalLink hacks) -->
+    <string name="webview_title">Download hack</string>
+    <string name="webview_back_desc">Back</string>
+    <string name="webview_downloading">Downloading %1$s…</string>
+    <string name="webview_install_success">Installed: %1$s</string>
+    <string name="webview_install_error_title">Installation failed</string>
+    <string name="webview_install_failed">Failed to install the file.</string>
+    <string name="webview_download_failed">Download failed: %1$s</string>
+    <string name="webview_unsupported_file">Unsupported file: %1$s</string>
+    <string name="webview_no_patch_in_zip">No patch or ROM found inside %1$s.</string>
+    <string name="webview_no_base_rom">Base ROM not found (CRC32 %1$s). Import the %2$s ROM in Settings.</string>
+    <string name="webview_badge">Browser</string>
+    <string name="webview_badge_desc">Download via embedded browser</string>
+    <string name="detail_webview_notice">This hack requires manual download via the embedded browser.</string>
 
     <!-- Download queue (Hack Store) -->
     <string name="store_downloads">Downloads</string>
@@ -489,14 +500,9 @@
     <string name="dock_achievements">RetroAchievements</string>
     <string name="dock_settings">Settings</string>
     <string name="dock_control">Control</string>
-    <string name="footer_about">(i) About</string>
-    <string name="footer_options">+ Options</string>
     <string name="footer_gamepad_disconnected">Gamepad disconnected</string>
     <string name="footer_gamepad_connected">Gamepad: %1$s</string>
     <string name="footer_gamepad_connected_multiple">Gamepad: %1$s (+%2$d)</string>
-    <string name="options_coming_soon">Options coming soon</string>
-    <string name="about_dialog_title">About &amp; Licenses</string>
-    <string name="about_dialog_close">Close</string>
     <string name="back_button">Back</string>
 
     <!-- ===== Gamepad Tester ===== -->
@@ -537,17 +543,6 @@
     <string name="tester_n64_c_down" translatable="false">C↓</string>
     <string name="tester_n64_c_left" translatable="false">C←</string>
     <string name="tester_n64_c_right" translatable="false">C→</string>
-
-    <!-- ===== Nintendo Switch UI - Quick Options side panel (Phase D) ===== -->
-    <string name="options_panel_title">Options</string>
-    <string name="options_theme_to_light">Switch to Light Theme</string>
-    <string name="options_theme_to_dark">Switch to Dark Theme</string>
-    <string name="options_sfx">Interface Sounds</string>
-    <string name="options_sfx_on">On</string>
-    <string name="options_sfx_off">Off</string>
-    <string name="options_ra_status_connected">RetroAchievements: %1$s</string>
-    <string name="options_ra_status_disconnected">RetroAchievements: Disconnected</string>
-    <string name="options_settings_full">Full Settings</string>
 
     <!-- ===== Nintendo Switch UI - All Games grid (Phase C) ===== -->
     <string name="grid_search_hint">Search...</string>
@@ -989,6 +984,18 @@
     <string name="dashboard_url_hint">Access via browser at %1$s</string>
 
     <!-- ===== Display (Multi-Monitor) ===== -->
+    <string name="settings_appearance_title">Appearance</string>
+    <string name="settings_appearance_description">Theme, interface sounds and accent color.</string>
+    <string name="settings_appearance_theme_label">Theme</string>
+    <string name="settings_appearance_theme_to_light">Switch to Light Theme</string>
+    <string name="settings_appearance_theme_to_dark">Switch to Dark Theme</string>
+    <string name="settings_appearance_sfx_label">Interface Sounds</string>
+    <string name="settings_appearance_accent_label">Accent Color</string>
+    <string name="settings_appearance_accent_description">Changes the interface focus and highlight color.</string>
+    <string name="settings_appearance_accent_choose">Choose…</string>
+    <string name="settings_appearance_scale_label">Interface Scale</string>
+    <string name="settings_appearance_scale_description">Adjusts the size of all app elements (1 to 5, default 3). Does not affect the emulator controls.</string>
+    <string name="settings_appearance_scale_value">%1$d</string>
     <string name="settings_display_title">Display</string>
     <string name="settings_display_description">Display settings for external screens and secondary monitors.</string>
     <string name="settings_display_output_label">Game output</string>

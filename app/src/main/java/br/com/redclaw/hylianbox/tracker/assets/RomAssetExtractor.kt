@@ -17,6 +17,7 @@ import br.com.redclaw.hylianbox.tracker.assets.cache.TrackerAssetCache
 import br.com.redclaw.hylianbox.tracker.assets.compression.YarDecompressor
 import br.com.redclaw.hylianbox.tracker.assets.compression.Yaz0Decompressor
 import br.com.redclaw.hylianbox.tracker.assets.dma.DmaTableParser
+import br.com.redclaw.hylianbox.tracker.assets.graphics.N64TextureFormat
 import br.com.redclaw.hylianbox.tracker.assets.graphics.TextureDecoder
 import br.com.redclaw.hylianbox.tracker.assets.mapping.DmaTableOffsets
 import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
@@ -24,6 +25,7 @@ import br.com.redclaw.hylianbox.tracker.assets.mapping.IconArchiveFormat
 import br.com.redclaw.hylianbox.tracker.assets.mapping.IconMapping
 import br.com.redclaw.hylianbox.tracker.assets.mapping.MmIconMap
 import br.com.redclaw.hylianbox.tracker.assets.mapping.OotIconMap
+import br.com.redclaw.hylianbox.tracker.assets.mapping.SongIconMap
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -51,8 +53,14 @@ class RomAssetExtractor(
 
                 private fun mappingsFor(game: TrackerGame): List<IconMapping> =
                         when (game) {
-                                TrackerGame.OOT -> OotIconMap.entries + EquippedItemIconMap.mappings(game)
-                                TrackerGame.MM -> MmIconMap.entries + EquippedItemIconMap.mappings(game)
+                                TrackerGame.OOT ->
+                                        OotIconMap.entries +
+                                                EquippedItemIconMap.mappings(game) +
+                                                SongIconMap.mappingFor(game)
+                                TrackerGame.MM ->
+                                        MmIconMap.entries +
+                                                EquippedItemIconMap.mappings(game) +
+                                                SongIconMap.mappingFor(game)
                         }
         }
 
@@ -161,6 +169,24 @@ class RomAssetExtractor(
                                                                                 tlutOff
                                                                         )
                                                                 }
+                                                                br.com.redclaw.hylianbox.tracker
+                                                                        .assets.graphics
+                                                                        .N64TextureFormat.IA8 ->
+                                                                        TextureDecoder.decodeIA8(
+                                                                                archiveBytes,
+                                                                                mapping.offset,
+                                                                                mapping.width,
+                                                                                mapping.height
+                                                                        )
+                                                                br.com.redclaw.hylianbox.tracker
+                                                                        .assets.graphics
+                                                                        .N64TextureFormat.I8 ->
+                                                                        TextureDecoder.decodeI8(
+                                                                                archiveBytes,
+                                                                                mapping.offset,
+                                                                                mapping.width,
+                                                                                mapping.height
+                                                                        )
                                                                 else ->
                                                                         error(
                                                                                 "Unsupported format ${mapping.format} for ${mapping.itemId}"

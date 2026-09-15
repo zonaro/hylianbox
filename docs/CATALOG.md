@@ -50,12 +50,14 @@ is `direct`.
 
 ### Direct `patch`
 
-Use this for a direct `.bps`, `.ips`, `.xdelta`, or `.zip` URL.
+Use this for a direct `.bps`, `.ips`, `.xdelta`, `.zip`, `.7z`, or `.rar` URL.
+The app extracts the patch from archives automatically (ZIP via the JDK, 7Z
+via commons-compress + xz, RAR via junrar).
 
 | Field                              | Type      | Description                                                           |
 | ---------------------------------- | --------- | --------------------------------------------------------------------- |
 | `url`                              | HTTPS URL | Patch file or archive URL.                                            |
-| `filename`                         | string    | File name, or the expected patch entry inside a ZIP.                  |
+| `filename`                         | string    | File name, or the expected patch entry inside the archive.            |
 | `size`                             | int       | Bytes when known. `0` means the public source did not publish a size. |
 | `checksums.crc32`                  | string    | Patch CRC32 when known; an empty string means it was not published.   |
 | `checksums.md5` / `checksums.sha1` | string    | Optional stronger patch digests.                                      |
@@ -69,11 +71,11 @@ Use `downloadTarget` as an alternative to `patch` when the public entry points
 to a release page or another non-direct source. This preserves a complete
 catalog record without pretending that checksum or size data is known.
 
-| Type       | Required fields | Behavior in the app                                                                                                                                                                                                                                                                                                                                                   |
-| ---------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `direct`   | `patch`         | Downloads through the normal patch pipeline. Its nested `patch` has the same shape as the direct `patch` above.                                                                                                                                                                                                                                                       |
-| `github`   | `repoUrl`       | **Always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). If resolution fails, opens the release page in the browser. |
-| `external` | `url`           | Opens the publisher/source page in the browser so the user can obtain the file there.                                                                                                                                                                                                                                                                                 |
+| Type       | Required fields | Behavior in the app                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `direct`   | `patch`         | Downloads through the normal patch pipeline. Its nested `patch` has the same shape as the direct `patch` above.                                                                                                                                                                                                                                                                      |
+| `github`   | `repoUrl`       | **Always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`/`*.7z`/`*.rar`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). If resolution fails, opens the release page in the browser. |
+| `external` | `url`           | Opens the publisher/source page in the browser so the user can obtain the file there.                                                                                                                                                                                                                                                                                                |
 
 ```json
 "downloadTarget": {

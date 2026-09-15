@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Eye-off glyph for "hide HUD buttons" toggle. Outline style, 2px stroke, round caps/joins. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M1,1 L23,23 M10.59,10.59 A2,2 0,0 0,12,14 A2,2 0,0 0,14,12 A2,2 0,0 0,13.41,10.59 M9.53,9.53 C8.6,10.47 8,11.69 8,13 C8,16.31 10.69,19 14,19 C15.31,19 16.53,18.4 17.47,17.47 M14,5 C17.31,5 20,7.69 20,11 C20,12.31 19.4,13.53 18.47,14.47 M2,11 C2,7.69 4.69,5 8,5 C9.31,5 10.53,5.6 11.47,6.53" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M14,9 A3,3 0,0 1,14,15 A3,3 0,0 1,14,9" />
+</vector>

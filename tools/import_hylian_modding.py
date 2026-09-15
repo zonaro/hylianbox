@@ -27,25 +27,36 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, unquote, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 
 BASE_URL = "https://hylianmodding.com/"
 USER_AGENT = "HylianBoxCatalogImporter/1.0 (+https://github.com/zonaro/hylianbox)"
-DIRECT_PATCH_EXTENSIONS = (".bps", ".ips", ".xdelta", ".zip")
+# Every extension the Android app can download + install: bare patches plus
+# archives it extracts automatically (ZIP via java.util.zip, 7Z via
+# commons-compress, RAR via junrar). Anything else becomes an external link.
+DIRECT_PATCH_EXTENSIONS = (".bps", ".ips", ".xdelta", ".zip", ".7z", ".rar")
 CATALOG_VERSION = 3
 
-# Known developer sites for curated Main Store entries that have no Hylian Modding counterpart
-# or whose patch is mirrored on zonaro/hylianbox. This ensures catalog.json always has
-# useful developerLinks even for hand-curated records.
+# Curated Main Store entries whose upstream source must never be replaced by a
+# same-named Hylian Modding import. The importer skips these ids entirely; the
+# hand-verified catalog record (direct upstream patch URL + verified checksums)
+# is the source of truth.
+SKIP_IDS: set[str] = {
+    # Curated as "dawn_and_dusk" with the verified U_1.0 inner patch.
+    "zelda64_dawn_and_dusk",
+}
+
+# Known developer sites for curated Main Store entries that have no Hylian Modding counterpart.
+# This ensures catalog.json always has useful developerLinks even for hand-curated records.
+# NOTE: never point these at zonaro/hylianbox — every patch must come from its
+# original upstream source (Hylian Modding, romhacking.net, developer site).
 CURATED_DEVELOPER_LINKS: dict[str, list[dict[str, str]]] = {
     "ocarina_of_time_dx": [{"label": "GitHub", "url": "https://github.com/N64DX/oot-dx"}],
     "ultimate_trial": [{"label": "GitHub", "url": "https://github.com/RichieUltimate/ultimate-trial"}],
     "majoras_mask_redux": [{"label": "Romhacking.net", "url": "https://www.romhacking.net/hacks/5122/"}],
     "sealed_palace": [{"label": "Romhacking.net", "url": "https://www.romhacking.net/hacks/7663/"}],
-    "dawn_and_dusk": [{"label": "GitHub", "url": "https://github.com/LuigiBlood/hylianbox-dawn-dusk"}],
-    "the_missing_link": [{"label": "GitHub", "url": "https://github.com/zeldaret/oot"}],
 }
 
 
@@ -93,11 +104,17 @@ def to_strings(value: Any) -> list[str]:
 
 
 def absolute_url(value: str) -> str:
-    return urljoin(BASE_URL, value.strip())
+    """Resolve a Hylian Modding path to an absolute HTTPS URL, percent-encoding
+    spaces and other unsafe characters (OkHttp rejects raw spaces)."""
+    raw = urljoin(BASE_URL, value.strip())
+    parts = urlsplit(raw)
+    path = quote(parts.path, safe="/%")
+    query = quote(parts.query, safe="=&%")
+    return urlunsplit((parts.scheme, parts.netloc, path, query, parts.fragment))
 
 
 def filename_from_url(url: str) -> str:
-    filename = Path(urlparse(url).path).name
+    filename = unquote(Path(urlparse(url).path).name)
     return filename or "patch"
 
 
@@ -386,23 +403,32 @@ def slugs_for(source: Source, timeout: int) -> list[str]:
 def fetch_source(source: Source, timeout: int, workers: int) -> list[dict[str, Any]]:
     slugs = slugs_for(source, timeout)
 
-    def fetch_mod(slug: str) -> dict[str, Any]:
+    def fetch_mod(slug: str) -> dict[str, Any] | None:
         mod_url = urljoin(source.index_url, f"{slug}/mod.json")
-        return hylian_entry(source, slug, fetch_json(mod_url, timeout))
+        try:
+            return hylian_entry(source, slug, fetch_json(mod_url, timeout))
+        except ImportError as error:
+            # A renamed/removed upstream slug must not kill the whole import.
+            print(f"warning: skipping {source.id}/{slug}: {error}", file=sys.stderr)
+            return None
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         futures = [executor.submit(fetch_mod, slug) for slug in slugs]
-        return [future.result() for future in futures]
+        entries = [future.result() for future in futures]
+    # Drop curated ids (hand-verified upstream records win) and failed fetches.
+    return [entry for entry in entries if entry is not None and entry["id"] not in SKIP_IDS]
 
 
 def is_legacy_hylian_entry(entry: dict[str, Any]) -> bool:
     source = entry.get("importSource")
-    if (
-        isinstance(source, dict)
-        and source.get("provider") == "Hylian Modding"
-        and source.get("managed", True) is not False
+    if not (
+        isinstance(source, dict) and source.get("provider") == "Hylian Modding"
     ):
-        return True
+        return False
+    if source.get("managed", True) is False:
+        # Hand-curated record (verified upstream patch URL, inner filename,
+        # checksums, base-ROM contract): enrich metadata only, never replace.
+        return False
     patch = entry.get("patch")
     if not isinstance(patch, dict):
         return False
@@ -411,14 +437,14 @@ def is_legacy_hylian_entry(entry: dict[str, Any]) -> bool:
 
 
 def preserve_verified_patch(existing: dict[str, Any], replacement: dict[str, Any]) -> None:
-    """Keep manual size/checksums when the source still points at the same file."""
+    """Keep manual size/checksums/inner filename when the source still points at the same file."""
     previous_patch = existing.get("patch")
     imported_patch = replacement.get("patch")
     if not isinstance(previous_patch, dict) or not isinstance(imported_patch, dict):
         return
     if previous_patch.get("url") != imported_patch.get("url"):
         return
-    for key in ("size", "checksums"):
+    for key in ("size", "checksums", "filename"):
         if key in previous_patch:
             imported_patch[key] = copy.deepcopy(previous_patch[key])
     target = replacement.get("downloadTarget")
@@ -430,7 +456,6 @@ def enrich_curated_entry(existing: dict[str, Any], imported: dict[str, Any]) -> 
     """Add upstream details without replacing a curated patch or base-ROM contract."""
     enriched = copy.deepcopy(existing)
     for field in (
-        "author",
         "description",
         "coverImageUrl",
         "tags",
@@ -511,6 +536,16 @@ def merge_catalog(catalog: dict[str, Any], imported: list[dict[str, Any]]) -> tu
         raise ImportError("catalog has no hacks array")
 
     incoming = {entry["id"]: entry for entry in imported}
+    # Guard: the dead zonaro/hylianbox patch mirror must never come back
+    # through an import. Drop any incoming record that points at it.
+    for stale_id in [
+        entry_id
+        for entry_id, entry in incoming.items()
+        if isinstance(entry.get("patch"), dict)
+        and "catalog-patches-v1" in str(entry["patch"].get("url", ""))
+    ]:
+        print(f"warning: dropping {stale_id}: points at the retired patch mirror", file=sys.stderr)
+        del incoming[stale_id]
     retained: list[dict[str, Any]] = []
     updated = 0
     for item in hacks:

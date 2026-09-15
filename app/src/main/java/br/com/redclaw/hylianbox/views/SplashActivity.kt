@@ -19,6 +19,7 @@
 package br.com.redclaw.hylianbox.views
 
 import android.app.ActivityOptions
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -27,24 +28,28 @@ import androidx.appcompat.app.AppCompatActivity
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivitySplashBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 
 /**
- * Cold-start splash screen. The Zelda-themed artwork is supplied as the window
- * background by [R.style.Theme_HylianBox_Splash] (which references
- * `@drawable/splash_artwork`), so this activity only overlays the crisp
- * wordmark TextViews and drives the timed hand-off to [LibraryActivity].
+ * Cold-start splash screen. The Zelda-themed artwork is supplied as the window background by
+ * [R.style.Theme_HylianBox_Splash] (which references `@drawable/splash_artwork`), so this activity
+ * only overlays the crisp wordmark TextViews and drives the timed hand-off to [LibraryActivity].
  *
  * Behavior:
- *  - Holds for [HOLD_MS] (cancellable) and then fades into [LibraryActivity].
- *  - Any tap skips the wait and proceeds immediately.
- *  - BACK is ignored so the user cannot drop into an empty task stack; the
+ * - Holds for [HOLD_MS] (cancellable) and then fades into [LibraryActivity].
+ * - Any tap skips the wait and proceeds immediately.
+ * - BACK is ignored so the user cannot drop into an empty task stack; the
+ * ```
  *    activity simply finishes without navigating.
- *
- * The activity is intentionally theme-light: it performs no emulation, network
- * or disk work, so it is safe to show before [LibraryActivity] rebuilds the
- * library index.
+ * ```
+ * The activity is intentionally theme-light: it performs no emulation, network or disk work, so it
+ * is safe to show before [LibraryActivity] rebuilds the library index.
  */
 class SplashActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivitySplashBinding
 
@@ -90,11 +95,7 @@ class SplashActivity : AppCompatActivity() {
         handler.removeCallbacks(navigateRunnable)
 
         val intent = Intent(this, LibraryActivity::class.java)
-        val options = ActivityOptions.makeCustomAnimation(
-            this,
-            R.anim.fade_in,
-            R.anim.fade_out
-        )
+        val options = ActivityOptions.makeCustomAnimation(this, R.anim.fade_in, R.anim.fade_out)
         startActivity(intent, options.toBundle())
         finish()
     }

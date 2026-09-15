@@ -14,15 +14,15 @@ import org.json.JSONArray
  * Given a `github.com/owner/repo` (or `.../releases`, `.../releases/tag/X`) URL it queries the
  * GitHub Releases API and **always returns an asset from the latest release** (newest
  * `published_at` / first in API order) that contains a patch-like file (`*.bps`, `*.ips`,
- * `*.xdelta`, `*.zip`, case-insensitive). This guarantees that hacks distributed via GitHub
- * Releases (e.g. Ocarina of Time DX) always download the newest patch, even when the catalog's
- * pinned URL or version string is stale.
+ * `*.xdelta`, `*.zip`, `*.7z`, `*.rar`, case-insensitive). This guarantees that hacks distributed
+ * via GitHub Releases (e.g. Ocarina of Time DX) always download the newest patch, even when the
+ * catalog's pinned URL or version string is stale.
  *
  * Within the latest release that has patch assets, the best asset is chosen by ranking: prefer
- * `.bps` > `.ips` > `.xdelta` > `.zip`, prefer `21-9`/`UWS` (OOT DX ultrawide) and `n64` variants,
- * de-prefer `wii`/`4-3`/`SD`, and prefer assets whose download path contains `dist/`. On any
- * failure or API rate-limit it returns null so the caller can fall back to opening the page in a
- * browser.
+ * `.bps` > `.ips` > `.xdelta` > `.zip` > `.7z` > `.rar`, prefer `21-9`/`UWS` (OOT DX ultrawide) and
+ * `n64` variants, de-prefer `wii`/`4-3`/`SD`, and prefer assets whose download path contains
+ * `dist/`. On any failure or API rate-limit it returns null so the caller can fall back to opening
+ * the page in a browser.
  *
  * Resolutions are cached in memory for the process lifetime.
  */
@@ -30,7 +30,7 @@ class GitHubPatchResolver(private val client: OkHttpClient = OkHttpClient.Builde
 
     private val cache = mutableMapOf<String, String?>()
     private val patchNamePattern =
-            Pattern.compile(".*\\.(bps|ips|xdelta|zip)$", Pattern.CASE_INSENSITIVE)
+            Pattern.compile(".*\\.(bps|ips|xdelta|zip|7z|rar)$", Pattern.CASE_INSENSITIVE)
     private val ownerRepoPattern =
             Pattern.compile("github\\.com/([^/]+)/([^/?#]+)", Pattern.CASE_INSENSITIVE)
 
@@ -113,13 +113,15 @@ class GitHubPatchResolver(private val client: OkHttpClient = OkHttpClient.Builde
     private fun score(c: AssetCandidate): Int {
         var s = 0
         val lower = c.name.lowercase()
-        // Extension preference: bps > ips > xdelta > zip
+        // Extension preference: bps > ips > xdelta > zip > 7z > rar
         s +=
                 when {
                     lower.endsWith(".bps") -> 40
                     lower.endsWith(".ips") -> 30
                     lower.endsWith(".xdelta") -> 20
                     lower.endsWith(".zip") -> 10
+                    lower.endsWith(".7z") -> 5
+                    lower.endsWith(".rar") -> 4
                     else -> 0
                 }
         // OOT DX: prefer 21-9 UWS (ultrawide) which is the catalog's chosen variant

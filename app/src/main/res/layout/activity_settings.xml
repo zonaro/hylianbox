@@ -132,6 +132,11 @@
                     android:text="@string/settings_dashboard_title" />
 
                 <TextView
+                    android:id="@+id/settings_nav_appearance"
+                    style="@style/SwitchSettingsNavigationRow"
+                    android:text="@string/settings_appearance_title" />
+
+                <TextView
                     android:id="@+id/settings_nav_display"
                     style="@style/SwitchSettingsNavigationRow"
                     android:text="@string/settings_display_title" />
@@ -1095,6 +1100,152 @@
                         android:layout_marginTop="4dp"
                         android:textColor="@color/switch_text_secondary"
                         android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Section: Appearance (theme, interface sounds, accent color) -->
+            <LinearLayout
+                android:id="@+id/settings_section_appearance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_settings_section"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    style="@style/SwitchSectionHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_appearance_title" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/settings_appearance_description"
+                    android:textColor="@color/switch_text_secondary"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_appearance_theme_label"
+                        android:textColor="@color/switch_text_primary"
+                        android:textSize="15sp" />
+
+                    <Button
+                        android:id="@+id/settings_appearance_theme"
+                        style="@style/SwitchButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_appearance_sfx_label"
+                        android:textColor="@color/switch_text_primary"
+                        android:textSize="15sp" />
+
+                    <Switch
+                        android:id="@+id/settings_appearance_sfx"
+                        style="@style/SwitchSwitch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/settings_appearance_accent_label"
+                    android:textColor="@color/switch_text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/settings_appearance_accent_description"
+                    android:textColor="@color/switch_text_secondary"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/settings_appearance_accent_current"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:textColor="@color/switch_text_secondary"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/settings_appearance_accent"
+                        style="@style/SwitchButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_appearance_accent_choose" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/settings_appearance_scale_label"
+                    android:textColor="@color/switch_text_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/settings_appearance_scale_description"
+                    android:textColor="@color/switch_text_secondary"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <SeekBar
+                        android:id="@+id/settings_appearance_scale"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:max="4" />
+
+                    <TextView
+                        android:id="@+id/settings_appearance_scale_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:textColor="@color/switch_text_primary"
+                        android:textSize="15sp" />
                 </LinearLayout>
             </LinearLayout>
 

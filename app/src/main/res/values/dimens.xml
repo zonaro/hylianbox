@@ -60,9 +60,9 @@
     <dimen name="switch_row_text">16sp</dimen>
     <dimen name="switch_hint_text">12sp</dimen>
     <dimen name="switch_suffix_text">14sp</dimen>
-    <!-- Quick side panel: minimum width so it never gets too narrow on phones. -->
+    <!-- Dialog minimum width so it never gets too narrow on phones. -->
     <dimen name="switch_side_panel_min_width">320dp</dimen>
-    <!-- Quick side panel row height. -->
+    <!-- Dialog row height. -->
     <dimen name="switch_side_panel_row_height">52dp</dimen>
     <!-- Size of each seed-hash item icon overlaid on a seed tile. -->
     <dimen name="seed_hash_size">28dp</dimen>

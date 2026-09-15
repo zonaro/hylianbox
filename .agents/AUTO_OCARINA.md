@@ -23,8 +23,10 @@ autoocarina/
 
 ## Behavior
 - Triggered from the in-game pause menu (GameActivity): a "Tocar Ocarina" (Play Ocarina) option lists available songs for the detected game.
+- The song list is an interactive gameplay surface: it remains technically modal over `GameActivity` so the emulator session stays alive, but visually occupies the complete immersive window as an opaque Switch screen with normal header, focus, controller navigation and footer/action hints. It has no scrim, visible game backdrop, centered card, floating shell, outside margin, or outside-tap dismissal.
 - On selection, `OcarinaMacroPlayer` plays notes sequentially, injecting them as controller inputs (via the same input injection path used by RadialGamePad / physical controller mapping).
 - **Timing:** ~330ms per note (tunable per song). The HUD shows current note + progress.
+- The playback-note/progress HUD is the non-interactive transient exception: it stays compact over gameplay, does not take focus, and is not converted into a fullscreen surface.
 - **Cancellable:** pressing Back or any menu action cancels the sequence.
 - Does not require the user to own a physical Ocarina peripheral; purely software-driven input injection.
 

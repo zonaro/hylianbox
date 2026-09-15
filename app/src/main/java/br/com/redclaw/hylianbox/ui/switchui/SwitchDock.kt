@@ -89,6 +89,7 @@ class SwitchDock @JvmOverloads constructor(
             icon = findViewById(R.id.dock_icon)
             border = findViewById(R.id.dock_border)
             glow = findViewById(R.id.dock_glow)
+            border.background = AccentManager.createRoundFocusBorder(context)
             // Kill the default square elevation/ripple feedback; the round glow
             // overlay is the only focus/press indication.
             stateListAnimator = null

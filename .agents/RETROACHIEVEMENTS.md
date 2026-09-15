@@ -4,7 +4,7 @@
 
 ## 1. Overview
 
-RetroAchievements integration: users log in with their RA account, see unlocked/pending achievements per installed game, receive in-game unlock notifications (custom toast + badge), and access leaderboards **only inside the in-game menu** (GameActivity menu — never as an overlay over gameplay). Integration uses **rcheevos** (MIT, ANSI C) via JNI, with the vendored LibretroDroid 0.13.2 exposing core memory (RDRAM) pointers to rcheevos.
+RetroAchievements integration: users log in with their RA account, see unlocked/pending achievements per installed game, receive in-game unlock notifications (custom toast + badge), and access leaderboards **only inside the in-game menu**. In-game achievement and leaderboard lists remain technically modal surfaces owned by `GameActivity` so gameplay stays alive, but visually render as opaque fullscreen Switch screens rather than floating popups over visible gameplay. Integration uses **rcheevos** (MIT, ANSI C) via JNI, with the vendored LibretroDroid 0.13.2 exposing core memory (RDRAM) pointers to rcheevos.
 
 ### Current identity and catalog flow
 
@@ -18,7 +18,7 @@ These describe the implementation contract, not evidence of successful device va
 
 ## 2. User Decisions (Final)
 
-1. **Full scope INCLUDING leaderboards**, but leaderboards appear **only in the in-game menu** (GameActivity menu). No tracker/overlay over gameplay.
+1. **Full scope INCLUDING leaderboards**, but leaderboards appear **only in the in-game menu** as a fullscreen modal surface owned by `GameActivity`. No persistent tracker/widget overlay over visible gameplay.
 2. **Login screen** accessed from Library (main screen); first login with user+password, token stored encrypted (separate prefs file); subsequent logins silent via token; logout supported.
 3. **Achievements screen** shows progress of all installed games (via RA hash computed at install + gameId resolution via rapi, badges loaded with Coil); tapping a game opens the full achievement list.
 4. **Achievement unlock** generates a custom in-game toast popup (View over GLRetroView) WITH badge icon + optional system notification (toggle in settings, default ON; needs `POST_NOTIFICATIONS` on API 33+).

@@ -23,48 +23,38 @@ import android.hardware.input.InputManager
 import android.util.AttributeSet
 import android.view.InputDevice
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import br.com.redclaw.hylianbox.R
-import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 
 /**
- * Footer hints bar for the Switch home screen. The left side shows a live
- * connected-gamepad indicator (name + count, or a disconnected state); the
- * right side shows the "(i) Sobre" and "+ Opções" hints. Both hints are
- * clickable (touch) and invoke the supplied callbacks; they are intentionally
- * not focusable so D-pad navigation stays on the game row and dock (the dock
- * already exposes the About destination).
+ * Footer status bar for the Switch home screen. Shows a live connected-gamepad indicator (name +
+ * count, or a disconnected state). It is intentionally not focusable so D-pad navigation stays on
+ * the game row and dock.
  */
-class SwitchFooterHints @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr) {
-
-    private var onAbout: (() -> Unit)? = null
-    private var onOptions: (() -> Unit)? = null
+class SwitchFooterHints
+@JvmOverloads
+constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
+        LinearLayout(context, attrs, defStyleAttr) {
 
     private lateinit var gamepadText: TextView
     private lateinit var gamepadIcon: ImageView
 
     private val inputManager by lazy { context.getSystemService(InputManager::class.java) }
 
-    private val deviceListener = object : InputManager.InputDeviceListener {
-        override fun onInputDeviceAdded(deviceId: Int) = updateGamepadState()
-        override fun onInputDeviceRemoved(deviceId: Int) = updateGamepadState()
-        override fun onInputDeviceChanged(deviceId: Int) = updateGamepadState()
-    }
+    private val deviceListener =
+            object : InputManager.InputDeviceListener {
+                override fun onInputDeviceAdded(deviceId: Int) = updateGamepadState()
+                override fun onInputDeviceRemoved(deviceId: Int) = updateGamepadState()
+                override fun onInputDeviceChanged(deviceId: Int) = updateGamepadState()
+            }
 
     init {
         LayoutInflater.from(context).inflate(R.layout.switch_footer_hints, this, true)
         orientation = HORIZONTAL
         gamepadText = findViewById(R.id.footer_gamepad_text)
         gamepadIcon = findViewById(R.id.footer_gamepad_icon)
-        findViewById<View>(R.id.footer_about).setOnClickListener { onAbout?.invoke() }
-        findViewById<View>(R.id.footer_options).setOnClickListener { onOptions?.invoke() }
     }
 
     override fun onAttachedToWindow() {
@@ -80,8 +70,8 @@ class SwitchFooterHints @JvmOverloads constructor(
 
     /**
      * Reads the currently connected gamepads using the same criterion as
-     * [br.com.redclaw.hylianbox.gamepad.GamePad] (a device whose sources
-     * include SOURCE_GAMEPAD), then updates the footer text and icon tint.
+     * [br.com.redclaw.hylianbox.gamepad.GamePad] (a device whose sources include SOURCE_GAMEPAD),
+     * then updates the footer text and icon tint.
      */
     private fun updateGamepadState() {
         val names = mutableListOf<String>()
@@ -92,36 +82,32 @@ class SwitchFooterHints @JvmOverloads constructor(
             }
         }
 
-        val text = when (names.size) {
-            0 -> context.getString(R.string.footer_gamepad_disconnected)
-            1 -> context.getString(R.string.footer_gamepad_connected, names[0])
-            else -> context.getString(
-                R.string.footer_gamepad_connected_multiple,
-                names[0],
-                names.size - 1
-            )
-        }
+        val text =
+                when (names.size) {
+                    0 -> context.getString(R.string.footer_gamepad_disconnected)
+                    1 -> context.getString(R.string.footer_gamepad_connected, names[0])
+                    else ->
+                            context.getString(
+                                    R.string.footer_gamepad_connected_multiple,
+                                    names[0],
+                                    names.size - 1
+                            )
+                }
         gamepadText.text = text
 
-        val tint = if (names.isEmpty()) {
-            R.color.switch_text_secondary
-        } else {
-            // Use dynamic accent color
-            0 // placeholder, will use AccentManager.getAccentColor below
-        }
-        val color = if (names.isEmpty()) {
-            context.getColor(R.color.switch_text_secondary)
-        } else {
-            AccentManager.getAccentColor(context)
-        }
+        val tint =
+                if (names.isEmpty()) {
+                    R.color.switch_text_secondary
+                } else {
+                    // Use dynamic accent color
+                    0 // placeholder, will use AccentManager.getAccentColor below
+                }
+        val color =
+                if (names.isEmpty()) {
+                    context.getColor(R.color.switch_text_secondary)
+                } else {
+                    AccentManager.getAccentColor(context)
+                }
         gamepadIcon.setColorFilter(color)
-    }
-
-    fun setOnAbout(callback: () -> Unit) {
-        onAbout = callback
-    }
-
-    fun setOnOptions(callback: () -> Unit) {
-        onOptions = callback
     }
 }

@@ -569,7 +569,11 @@
             if (pref.type === 'boolean') {
                 control = `<input type="checkbox" data-app-setting="${escapeHtml(pref.key)}" ${pref.value === 'true' ? 'checked' : ''}>`;
             } else {
-                control = `<select class="switch-input" data-app-setting="${escapeHtml(pref.key)}">${pref.options.map(value => `<option value="${escapeHtml(value)}" ${value === pref.value ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}</select>`;
+                control = `<select class="switch-input" data-app-setting="${escapeHtml(pref.key)}">${pref.options.map(value => {
+                    const optionKey = `settings_${pref.key}_${value}`;
+                    const optionLabel = t(optionKey) === optionKey ? value : t(optionKey);
+                    return `<option value="${escapeHtml(value)}" ${value === pref.value ? 'selected' : ''}>${escapeHtml(optionLabel)}</option>`;
+                }).join('')}</select>`;
             }
             return `<div class="switch-setting-row"><label class="switch-setting-label">${escapeHtml(label)}</label>${control}</div>`;
         }).join('');

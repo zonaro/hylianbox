@@ -1,6 +1,7 @@
 package br.com.redclaw.hylianbox.store.ui
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
@@ -32,6 +33,7 @@ import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.store.ImportedPatchInstaller
 import br.com.redclaw.hylianbox.store.ImportedRomInstaller
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +51,7 @@ import org.json.JSONObject
  * intercepts any download whose URL or Content-Disposition filename ends with a supported
  * extension:
  *
- * - Patch files: `.bps`, `.ips`, `.xdelta` (also inside `.zip`)
+ * - Patch files: `.bps`, `.ips`, `.xdelta` (also inside `.zip`/`.7z`/`.rar` archives)
  * - Direct ROMs: `.n64`, `.z64`, `.v64`
  *
  * When such a file is detected the WebView navigation is cancelled, the file is downloaded with
@@ -60,14 +62,18 @@ import org.json.JSONObject
  * and writes `rom_<hackId>`).
  * - ROMs → [ImportedRomInstaller] (normalizes and registers as a base ROM).
  *
- * Archives (`.zip`, `.7z`, `.rar`) are handled when they contain a supported inner file: `.zip` is
- * extracted via [br.com.redclaw.hylianbox.store.ZipExtractor], `.7z`/`.rar` are rejected with a
- * user-facing message (the app cannot extract them without native tooling).
+ * Archives (`.zip`, `.7z`, `.rar`) are extracted automatically when they contain a supported inner
+ * file, via [br.com.redclaw.hylianbox.store.ArchiveExtractor] (shared with the direct download
+ * pipeline).
  *
  * The Activity is launched from [HackDetailDialog] with the hack JSON and the initial URL. On
  * success it finishes and the Library will show the new entry.
  */
 class WebViewDownloadActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivityWebviewDownloadBinding
     private lateinit var hack: HackEntry
@@ -218,17 +224,6 @@ class WebViewDownloadActivity : AppCompatActivity() {
             return
         }
 
-        // Reject unsupported archives early with a clear message.
-        val lowerName = filename.lowercase()
-        if (lowerName.endsWith(".7z") || lowerName.endsWith(".rar")) {
-            AlertDialog.Builder(this)
-                    .setTitle(R.string.webview_unsupported_archive_title)
-                    .setMessage(getString(R.string.webview_unsupported_archive_message, filename))
-                    .setPositiveButton(R.string.dialog_ok, null)
-                    .show()
-            return
-        }
-
         isHandlingDownload = true
         binding.webviewProgress.visibility = View.VISIBLE
         binding.webviewProgress.isIndeterminate = true
@@ -256,18 +251,6 @@ class WebViewDownloadActivity : AppCompatActivity() {
                     AlertDialog.Builder(this@WebViewDownloadActivity)
                             .setTitle(R.string.webview_install_error_title)
                             .setMessage(result.message)
-                            .setPositiveButton(R.string.dialog_ok, null)
-                            .show()
-                }
-                is WebViewInstallResult.UnsupportedArchive -> {
-                    AlertDialog.Builder(this@WebViewDownloadActivity)
-                            .setTitle(R.string.webview_unsupported_archive_title)
-                            .setMessage(
-                                    getString(
-                                            R.string.webview_unsupported_archive_message,
-                                            filename
-                                    )
-                            )
                             .setPositiveButton(R.string.dialog_ok, null)
                             .show()
                 }
@@ -342,12 +325,11 @@ class WebViewDownloadActivity : AppCompatActivity() {
                             "Downloaded ${tempFile.length()} bytes to ${tempFile.absolutePath} (finalName=$finalName)"
                     )
 
-                    // Handle ZIP archives: extract the first patch/ROM inside.
-                    val lowerFinal = finalName.lowercase()
+                    // Handle archives (.zip/.7z/.rar): extract the first patch/ROM inside.
                     val fileToInstall: File
                     val displayName: String
-                    if (lowerFinal.endsWith(".zip")) {
-                        val extracted = tryExtractFromZip(tempFile, finalName)
+                    if (br.com.redclaw.hylianbox.store.ArchiveExtractor.isArchive(finalName)) {
+                        val extracted = tryExtractFromArchive(tempFile, finalName)
                         if (extracted == null) {
                             tempFile.delete()
                             return@withContext WebViewInstallResult.Error(
@@ -409,23 +391,29 @@ class WebViewDownloadActivity : AppCompatActivity() {
             }
 
     /**
-     * Extract the first patch/ROM entry from a ZIP file. Returns a temp file with the extracted
-     * bytes, or null if no suitable entry was found.
+     * Extract the first patch/ROM entry from a downloaded archive (`.zip`, `.7z`, `.rar`). Returns
+     * a temp file with the extracted bytes, or null if no suitable entry was found.
      */
-    private fun tryExtractFromZip(zipFile: File, zipName: String): File? {
+    private fun tryExtractFromArchive(archiveFile: File, archiveName: String): File? {
         return try {
+            val extractor = br.com.redclaw.hylianbox.store.ArchiveExtractor
+            // The temp file may carry a generic name: detect the container
+            // format from the download's file name instead.
+            val format = extractor.formatOf(archiveName)
             val bytes =
                     try {
                         // Try to find a patch file first, then a ROM.
-                        br.com.redclaw.hylianbox.store.ZipExtractor.extractFirstMatching(
-                                zipFile,
-                                ".*\\.(bps|ips|xdelta)$"
+                        extractor.extractFirstMatching(
+                                archiveFile,
+                                extractor.PATCH_ENTRY_REGEX,
+                                format
                         )
                     } catch (_: Exception) {
                         try {
-                            br.com.redclaw.hylianbox.store.ZipExtractor.extractFirstMatching(
-                                    zipFile,
-                                    ".*\\.(n64|z64|v64)$"
+                            extractor.extractFirstMatching(
+                                    archiveFile,
+                                    ".*\\.(n64|z64|v64)$",
+                                    format
                             )
                         } catch (_: Exception) {
                             return null
@@ -434,7 +422,11 @@ class WebViewDownloadActivity : AppCompatActivity() {
             // Write extracted bytes to a temp file with the correct extension.
             // We need to know the inner filename to preserve the extension.
             val innerName =
-                    findFirstMatchingName(zipFile, ".*\\.(bps|ips|xdelta|n64|z64|v64)$")
+                    extractor.findFirstMatchingName(
+                            archiveFile,
+                            extractor.INSTALLABLE_ENTRY_REGEX,
+                            format
+                    )
                             ?: "extracted_patch.bps"
             val out =
                     File(
@@ -444,26 +436,9 @@ class WebViewDownloadActivity : AppCompatActivity() {
             out.writeBytes(bytes)
             out
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract from ZIP: $zipName", e)
+            Log.e(TAG, "Failed to extract from archive: $archiveName", e)
             null
         }
-    }
-
-    private fun findFirstMatchingName(zipFile: File, regex: String): String? {
-        val pattern = Regex(regex, RegexOption.IGNORE_CASE)
-        try {
-            java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    if (!entry.isDirectory && pattern.matches(entry.name)) {
-                        return entry.name
-                    }
-                    zis.closeEntry()
-                    entry = zis.nextEntry
-                }
-            }
-        } catch (_: Exception) {}
-        return null
     }
 
     private suspend fun installPatch(patchFile: File, displayName: String): WebViewInstallResult =
@@ -476,12 +451,13 @@ class WebViewDownloadActivity : AppCompatActivity() {
                         AppRepositories.userHacksRepository(this@WebViewDownloadActivity)
                 val storage = Storage.getInstance(this@WebViewDownloadActivity)
 
-                // Detect format and handle ZIP-wrapped patches that slipped through.
+                // Detect format and handle archive-wrapped patches that slipped through.
                 val format = PatcherFacade.detectPatchFormat(patchFile)
                 if (format == PatcherFacade.PatchFormat.UNKNOWN) {
-                    // Maybe it's a ZIP that wasn't caught earlier (e.g. .bps.zip double extension).
-                    if (displayName.lowercase().endsWith(".zip")) {
-                        val extracted = tryExtractFromZip(patchFile, displayName)
+                    // Maybe it's an archive that wasn't caught earlier (e.g. .bps.zip double
+                    // extension).
+                    if (br.com.redclaw.hylianbox.store.ArchiveExtractor.isArchive(displayName)) {
+                        val extracted = tryExtractFromArchive(patchFile, displayName)
                         if (extracted != null) {
                             val result = installPatch(extracted, extracted.name)
                             extracted.delete()
@@ -600,6 +576,5 @@ class WebViewDownloadActivity : AppCompatActivity() {
     private sealed class WebViewInstallResult {
         data class Success(val title: String) : WebViewInstallResult()
         data class Error(val message: String) : WebViewInstallResult()
-        data object UnsupportedArchive : WebViewInstallResult()
     }
 }

@@ -14,6 +14,7 @@ import android.opengl.GLES30
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import br.com.redclaw.hylianbox.display.RemoteGameDisplayState
 import com.swordfish.libretrodroid.GLRetroView
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
@@ -123,8 +124,10 @@ class WebRtcStreamer(private val context: Context) {
                 setupAudioTrack()
                 startFrameCapture(glRetroView)
                 isStreaming = true
+                RemoteGameDisplayState.setStreaming(true)
                 Log.d(TAG, "Streaming started for peer: $peerId")
             } catch (e: Exception) {
+                RemoteGameDisplayState.setStreaming(false)
                 Log.e(TAG, "Failed to start streaming", e)
             }
         }
@@ -133,6 +136,7 @@ class WebRtcStreamer(private val context: Context) {
     /** Stop the current streaming session. */
     fun stopStreaming() {
         isStreaming = false
+        RemoteGameDisplayState.setStreaming(false)
         videoCapturer?.release()
         videoEncoder?.stop()
         audioCapturer?.stop()

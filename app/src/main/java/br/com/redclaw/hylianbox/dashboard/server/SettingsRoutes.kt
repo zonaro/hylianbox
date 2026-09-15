@@ -27,71 +27,76 @@ import kotlinx.serialization.Serializable
  */
 internal fun Route.settingsRoutes() {
 
-    val context = application.attributes[DashboardManager.CONTEXT_KEY]
+        val context = application.attributes[DashboardManager.CONTEXT_KEY]
 
-    /** GET /api/settings — Retrieve current server and display settings. */
-    get("/settings") {
-        call.respond(
-                DashboardSettingsResponse(
-                        port = CorePrefs.getDashboardPort(context),
-                        hasPassword = CorePrefs.getDashboardPassword(context).isNotBlank(),
-                        displayOutput = CorePrefs.getDisplayOutput(context),
-                        displayId = CorePrefs.getDisplayId(context),
-                        displayTouchControls = CorePrefs.getDisplayTouchControls(context),
-                        connectedClients =
-                                application.attributes.getOrNull(DashboardManager.SERVER_KEY)
-                                        ?.connectedClients
-                                        ?: 0,
-                        address =
-                                application.attributes.getOrNull(DashboardManager.SERVER_KEY)
-                                        ?.address
-                                        ?: "unknown",
-                        preferences = appSettings(context)
+        /** GET /api/settings — Retrieve current server and display settings. */
+        get("/settings") {
+                call.respond(
+                        DashboardSettingsResponse(
+                                port = CorePrefs.getDashboardPort(context),
+                                hasPassword = CorePrefs.getDashboardPassword(context).isNotBlank(),
+                                displayOutput = CorePrefs.getDisplayOutput(context),
+                                displayId = CorePrefs.getDisplayId(context),
+                                displayTouchControls = CorePrefs.getDisplayTouchControls(context),
+                                connectedClients =
+                                        application.attributes.getOrNull(
+                                                        DashboardManager.SERVER_KEY
+                                                )
+                                                ?.connectedClients
+                                                ?: 0,
+                                address =
+                                        application.attributes.getOrNull(
+                                                        DashboardManager.SERVER_KEY
+                                                )
+                                                ?.address
+                                                ?: "unknown",
+                                preferences = appSettings(context)
+                        )
                 )
-        )
-    }
-
-    /**
-     * PUT /api/settings — Update server settings.
-     *
-     * Note: port and password changes require a server restart to take effect. The response
-     * includes a `restartRequired` flag.
-     */
-    put("/settings") {
-        val request = call.receive<DashboardSettingsUpdate>()
-
-        var restartRequired = false
-
-        request.port?.let { newPort ->
-            if (newPort in 1024..65535 && newPort != CorePrefs.getDashboardPort(context)) {
-                CorePrefs.setDashboardPort(context, newPort)
-                restartRequired = true
-            }
         }
 
-        request.password?.let { newPassword ->
-            if (newPassword != CorePrefs.getDashboardPassword(context)) {
-                CorePrefs.setDashboardPassword(context, newPassword)
-                restartRequired = true
-            }
-        }
+        /**
+         * PUT /api/settings — Update server settings.
+         *
+         * Note: port and password changes require a server restart to take effect. The response
+         * includes a `restartRequired` flag.
+         */
+        put("/settings") {
+                val request = call.receive<DashboardSettingsUpdate>()
 
-        request.displayOutput?.let { CorePrefs.setDisplayOutput(context, it) }
-        request.displayId?.let { if (it >= 0) CorePrefs.setDisplayId(context, it) }
-        request.displayTouchControls?.let { CorePrefs.setDisplayTouchControls(context, it) }
-        request.preferences.forEach { (key, value) -> applySetting(context, key, value) }
+                var restartRequired = false
 
-        call.respond(
-                DashboardSettingsUpdateResult(
-                        success = true,
-                        restartRequired = restartRequired,
-                        message =
-                                if (restartRequired)
-                                        "Settings saved. Restart the server for port/password changes to take effect."
-                                else "Settings saved."
+                request.port?.let { newPort ->
+                        if (newPort in 1024..65535 && newPort != CorePrefs.getDashboardPort(context)
+                        ) {
+                                CorePrefs.setDashboardPort(context, newPort)
+                                restartRequired = true
+                        }
+                }
+
+                request.password?.let { newPassword ->
+                        if (newPassword != CorePrefs.getDashboardPassword(context)) {
+                                CorePrefs.setDashboardPassword(context, newPassword)
+                                restartRequired = true
+                        }
+                }
+
+                request.displayOutput?.let { CorePrefs.setDisplayOutput(context, it) }
+                request.displayId?.let { if (it >= 0) CorePrefs.setDisplayId(context, it) }
+                request.displayTouchControls?.let { CorePrefs.setDisplayTouchControls(context, it) }
+                request.preferences.forEach { (key, value) -> applySetting(context, key, value) }
+
+                call.respond(
+                        DashboardSettingsUpdateResult(
+                                success = true,
+                                restartRequired = restartRequired,
+                                message =
+                                        if (restartRequired)
+                                                "Settings saved. Restart the server for port/password changes to take effect."
+                                        else "Settings saved."
+                        )
                 )
-        )
-    }
+        }
 }
 
 @Serializable
@@ -157,6 +162,11 @@ private fun appSettings(context: Context): List<DashboardPreference> =
                 ),
                 bool("switch_sfx", CorePrefs.getSwitchSfxEnabled(context)),
                 choice(
+                        "ui_scale",
+                        CorePrefs.getUiScale(context).toString(),
+                        listOf("1", "2", "3", "4", "5")
+                ),
+                choice(
                         "grid_sort",
                         CorePrefs.getGridSort(context),
                         listOf("alpha", "last_played", "download_date")
@@ -177,14 +187,9 @@ private fun appSettings(context: Context): List<DashboardPreference> =
                 bool("cloud_sync_notifications", CorePrefs.getCloudSyncNotifications(context)),
                 bool("button_stick", CorePrefs.getButtonStickEnabled(context)),
                 choice(
-                        "overlay_scale",
-                        CorePrefs.getOverlayScale(context),
-                        listOf("small", "medium", "large")
-                ),
-                choice(
-                        "right_tap",
-                        CorePrefs.getRightTapAction(context),
-                        listOf("off", "a", "b", "r")
+                        "control_mode",
+                        CorePrefs.getControlMode(context),
+                        listOf(CorePrefs.CONTROL_MODE_STANDARD, CorePrefs.CONTROL_MODE_AREA)
                 )
         )
 
@@ -195,62 +200,75 @@ private fun choice(key: String, value: String, options: List<String>) =
         DashboardPreference(key, "choice", value, options)
 
 private fun applySetting(context: Context, key: String, value: String) {
-    val bool = value.toBooleanStrictOrNull()
-    when (key) {
-        "ra_enabled" -> bool?.let { CorePrefs.setRetroAchievementsEnabled(context, it) }
-        "ra_hardcore" -> bool?.let { CorePrefs.setRaHardcore(context, it) }
-        "ra_system_notifications" -> bool?.let { CorePrefs.setRaSystemNotifications(context, it) }
-        "ra_challenge_indicators" ->
-                bool?.let { CorePrefs.setRaShowChallengeIndicators(context, it) }
-        "ra_progress_indicators" -> bool?.let { CorePrefs.setRaShowProgressIndicators(context, it) }
-        "tracker_auto_tracking" -> bool?.let { CorePrefs.setTrackerAutoTracking(context, it) }
-        "ocarina_auto_open" -> bool?.let { CorePrefs.setOcarinaAutoOpen(context, it) }
-        "language" ->
-                if (value in LanguageManager.CODES) LanguageManager.setLanguage(context, value)
-        "switch_theme" ->
-                if (value in setOf("dark", "light")) CorePrefs.setSwitchTheme(context, value)
-        "switch_accent" ->
-                if (value in
-                                setOf(
-                                        "cyan",
-                                        "green_light",
-                                        "green_dark",
-                                        "blue",
-                                        "yellow",
-                                        "pink",
-                                        "red",
-                                        "violet",
-                                        "teal",
-                                        "orange",
-                                        "purple",
-                                        "indigo"
-                                )
-                )
-                        CorePrefs.setSwitchAccent(context, value)
-        "switch_sfx" -> bool?.let { CorePrefs.setSwitchSfxEnabled(context, it) }
-        "grid_sort" ->
-                if (value in setOf("alpha", "last_played", "download_date"))
-                        CorePrefs.setGridSort(context, value)
-        "capture_microphone" -> bool?.let { CorePrefs.setCaptureIncludeMicrophone(context, it) }
-        "gdrive_enabled" -> bool?.let { CorePrefs.setGdriveEnabled(context, it) }
-        "gdrive_saves" -> bool?.let { CorePrefs.setGdriveBackupSaves(context, it) }
-        "gdrive_images" -> bool?.let { CorePrefs.setGdriveBackupImages(context, it) }
-        "gdrive_videos" -> bool?.let { CorePrefs.setGdriveBackupVideos(context, it) }
-        "gdrive_auto" -> bool?.let { CorePrefs.setGdriveAutoBackup(context, it) }
-        "gdrive_frequency" ->
-                if (value in setOf("daily", "weekly", "manual"))
-                        CorePrefs.setGdriveBackupFrequency(context, value)
-        "cloud_sync" -> bool?.let { CorePrefs.setCloudSyncEnabled(context, it) }
-        "cloud_sync_wifi" -> bool?.let { CorePrefs.setCloudSyncWifiOnly(context, it) }
-        "cloud_sync_notifications" -> bool?.let { CorePrefs.setCloudSyncNotifications(context, it) }
-        "button_stick" -> bool?.let { CorePrefs.setButtonStickEnabled(context, it) }
-        "overlay_scale" ->
-                if (value in setOf("small", "medium", "large"))
-                        CorePrefs.setOverlayScale(context, value)
-        "right_tap" ->
-                if (value in setOf("off", "a", "b", "r"))
-                        CorePrefs.setRightTapAction(context, value)
-    }
+        val bool = value.toBooleanStrictOrNull()
+        when (key) {
+                "ra_enabled" -> bool?.let { CorePrefs.setRetroAchievementsEnabled(context, it) }
+                "ra_hardcore" -> bool?.let { CorePrefs.setRaHardcore(context, it) }
+                "ra_system_notifications" ->
+                        bool?.let { CorePrefs.setRaSystemNotifications(context, it) }
+                "ra_challenge_indicators" ->
+                        bool?.let { CorePrefs.setRaShowChallengeIndicators(context, it) }
+                "ra_progress_indicators" ->
+                        bool?.let { CorePrefs.setRaShowProgressIndicators(context, it) }
+                "tracker_auto_tracking" ->
+                        bool?.let { CorePrefs.setTrackerAutoTracking(context, it) }
+                "ocarina_auto_open" -> bool?.let { CorePrefs.setOcarinaAutoOpen(context, it) }
+                "language" ->
+                        if (value in LanguageManager.CODES)
+                                LanguageManager.setLanguage(context, value)
+                "switch_theme" ->
+                        if (value in setOf("dark", "light"))
+                                CorePrefs.setSwitchTheme(context, value)
+                "switch_accent" ->
+                        if (value in
+                                        setOf(
+                                                "cyan",
+                                                "green_light",
+                                                "green_dark",
+                                                "blue",
+                                                "yellow",
+                                                "pink",
+                                                "red",
+                                                "violet",
+                                                "teal",
+                                                "orange",
+                                                "purple",
+                                                "indigo"
+                                        )
+                        )
+                                CorePrefs.setSwitchAccent(context, value)
+                "switch_sfx" -> bool?.let { CorePrefs.setSwitchSfxEnabled(context, it) }
+                "ui_scale" ->
+                        value.toIntOrNull()?.takeIf { it in 1..5 }?.let {
+                                CorePrefs.setUiScale(context, it)
+                        }
+                "grid_sort" ->
+                        if (value in setOf("alpha", "last_played", "download_date"))
+                                CorePrefs.setGridSort(context, value)
+                "capture_microphone" ->
+                        bool?.let { CorePrefs.setCaptureIncludeMicrophone(context, it) }
+                "gdrive_enabled" -> bool?.let { CorePrefs.setGdriveEnabled(context, it) }
+                "gdrive_saves" -> bool?.let { CorePrefs.setGdriveBackupSaves(context, it) }
+                "gdrive_images" -> bool?.let { CorePrefs.setGdriveBackupImages(context, it) }
+                "gdrive_videos" -> bool?.let { CorePrefs.setGdriveBackupVideos(context, it) }
+                "gdrive_auto" -> bool?.let { CorePrefs.setGdriveAutoBackup(context, it) }
+                "gdrive_frequency" ->
+                        if (value in setOf("daily", "weekly", "manual"))
+                                CorePrefs.setGdriveBackupFrequency(context, value)
+                "cloud_sync" -> bool?.let { CorePrefs.setCloudSyncEnabled(context, it) }
+                "cloud_sync_wifi" -> bool?.let { CorePrefs.setCloudSyncWifiOnly(context, it) }
+                "cloud_sync_notifications" ->
+                        bool?.let { CorePrefs.setCloudSyncNotifications(context, it) }
+                "button_stick" -> bool?.let { CorePrefs.setButtonStickEnabled(context, it) }
+                "control_mode" ->
+                        if (value in
+                                        setOf(
+                                                CorePrefs.CONTROL_MODE_STANDARD,
+                                                CorePrefs.CONTROL_MODE_AREA
+                                        )
+                        )
+                                CorePrefs.setControlMode(context, value)
+        }
 }
 
 @Serializable

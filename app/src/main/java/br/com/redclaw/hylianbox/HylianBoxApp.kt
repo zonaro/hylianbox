@@ -7,10 +7,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import br.com.redclaw.hylianbox.repositories.Storage
 import br.com.redclaw.hylianbox.dashboard.server.DashboardManager
 import br.com.redclaw.hylianbox.drive.GoogleDriveBackupWorker
-import br.com.redclaw.hylianbox.store.DownloadQueueManager
+import br.com.redclaw.hylianbox.repositories.Storage
 import br.com.redclaw.hylianbox.retroachievements.api.RaHttpClient
 import br.com.redclaw.hylianbox.retroachievements.api.RaUserAgent
 import br.com.redclaw.hylianbox.retroachievements.auth.RaAuthService
@@ -21,24 +20,25 @@ import br.com.redclaw.hylianbox.retroachievements.data.RaInstallMetadataStore
 import br.com.redclaw.hylianbox.retroachievements.data.RaUserProfileRepository
 import br.com.redclaw.hylianbox.retroachievements.jni.RcheevosJni
 import br.com.redclaw.hylianbox.shortcuts.GamePlayHistoryStore
-import br.com.redclaw.hylianbox.store.CanonicalIdResolver
 import br.com.redclaw.hylianbox.shortcuts.GameShortcutsManager
+import br.com.redclaw.hylianbox.store.CanonicalIdResolver
+import br.com.redclaw.hylianbox.store.DownloadQueueManager
 import br.com.redclaw.hylianbox.ui.switchui.SfxManager
 import br.com.redclaw.hylianbox.ui.switchui.ThemeManager
-import br.com.redclaw.hylianbox.utils.LanguageManager
 import br.com.redclaw.hylianbox.utils.CorePrefs
+import br.com.redclaw.hylianbox.utils.LanguageManager
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import br.com.redclaw.hylianbox.views.InstalledLibrary
 import br.com.redclaw.hylianbox.work.CatalogRefreshWorker
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-    /**
-     * Application entry point. Schedules the periodic background catalog refresh on
-     * startup so the Library always has reasonably fresh data without requiring the
-     * user to open the Store. The periodic work is unique (KEEP policy) so repeated
-     * process starts never enqueue duplicates.
-     */
-    class HylianBoxApp : Application() {
+/**
+ * Application entry point. Schedules the periodic background catalog refresh on startup so the
+ * Library always has reasonably fresh data without requiring the user to open the Store. The
+ * periodic work is unique (KEEP policy) so repeated process starts never enqueue duplicates.
+ */
+class HylianBoxApp : Application() {
     override fun onCreate() {
         // Apply the persisted Switch UI theme before the first view is inflated
         // to avoid a theme flash on cold start.
@@ -47,6 +47,10 @@ import java.util.concurrent.TimeUnit
         // so the locale is correct on cold start (AppCompatDelegate recreates
         // activities as needed when the choice changes at runtime).
         LanguageManager.applyAtStartup(this)
+        // Apply the persisted interface scale before the first view is inflated
+        // so densities are correct on cold start (activities re-wrap in
+        // attachBaseContext; the emulator touch overlay stays on system density).
+        UiScaleManager.applyAtStartup(this)
         super.onCreate()
         instance = this
         // Load the cross-catalog alias map (catalog/aliases.json) so the same
@@ -69,11 +73,12 @@ import java.util.concurrent.TimeUnit
     }
 
     /**
-     * Debug-only startup log proving the rcheevos native library links and
-     * loads correctly (RetroAchievements foundation smoke test, phase B1).
+     * Debug-only startup log proving the rcheevos native library links and loads correctly
+     * (RetroAchievements foundation smoke test, phase B1).
      */
     private fun logRcheevosVersion() {
-        val isDebugBuild = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val isDebugBuild =
+                (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (!isDebugBuild) return
         try {
             Log.i(TAG, "rcheevos native runtime loaded: ${RcheevosJni.getVersion()}")
@@ -83,9 +88,9 @@ import java.util.concurrent.TimeUnit
     }
 
     /**
-     * Publish dynamic shortcuts for installed games on every cold start so the
-     * launcher's long-press menu reflects the current library (and stale pins
-     * are disabled if a game is missing).
+     * Publish dynamic shortcuts for installed games on every cold start so the launcher's
+     * long-press menu reflects the current library (and stale pins are disabled if a game is
+     * missing).
      */
     private fun syncGameShortcuts() {
         val entries = InstalledLibrary.entries(this)
@@ -95,26 +100,27 @@ import java.util.concurrent.TimeUnit
     }
 
     private fun scheduleCatalogRefresh() {
-        val request = PeriodicWorkRequestBuilder<CatalogRefreshWorker>(12, TimeUnit.HOURS)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            CatalogRefreshWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
+        val request =
+                PeriodicWorkRequestBuilder<CatalogRefreshWorker>(12, TimeUnit.HOURS)
+                        .setConstraints(
+                                Constraints.Builder()
+                                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                                        .build()
+                        )
+                        .build()
+        WorkManager.getInstance(this)
+                .enqueueUniquePeriodicWork(
+                        CatalogRefreshWorker.WORK_NAME,
+                        ExistingPeriodicWorkPolicy.KEEP,
+                        request
+                )
     }
 
     /**
-     * Schedule the periodic Google Drive backup when the user enabled it, turned
-     * on automatic backup, and connected an account. The repeat interval follows
-     * the chosen frequency (daily or weekly); "manual" disables scheduling. The
-     * work is unique (UPDATE policy) so changing the frequency replaces the
-     * existing request instead of stacking duplicates.
+     * Schedule the periodic Google Drive backup when the user enabled it, turned on automatic
+     * backup, and connected an account. The repeat interval follows the chosen frequency (daily or
+     * weekly); "manual" disables scheduling. The work is unique (UPDATE policy) so changing the
+     * frequency replaces the existing request instead of stacking duplicates.
      */
     private fun scheduleDriveBackup() {
         val enabled = CorePrefs.getGdriveEnabled(this)
@@ -127,22 +133,25 @@ import java.util.concurrent.TimeUnit
         val frequency = CorePrefs.getGdriveBackupFrequency(this)
         if (frequency == CorePrefs.GDRIVE_FREQ_MANUAL) return
 
-        val (interval, unit) = when (frequency) {
-            CorePrefs.GDRIVE_FREQ_WEEKLY -> 7L to TimeUnit.DAYS
-            else -> 1L to TimeUnit.DAYS
-        }
-        val request = PeriodicWorkRequestBuilder<GoogleDriveBackupWorker>(interval, unit)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            GoogleDriveBackupWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request
-        )
+        val (interval, unit) =
+                when (frequency) {
+                    CorePrefs.GDRIVE_FREQ_WEEKLY -> 7L to TimeUnit.DAYS
+                    else -> 1L to TimeUnit.DAYS
+                }
+        val request =
+                PeriodicWorkRequestBuilder<GoogleDriveBackupWorker>(interval, unit)
+                        .setConstraints(
+                                Constraints.Builder()
+                                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                                        .build()
+                        )
+                        .build()
+        WorkManager.getInstance(this)
+                .enqueueUniquePeriodicWork(
+                        GoogleDriveBackupWorker.WORK_NAME,
+                        ExistingPeriodicWorkPolicy.UPDATE,
+                        request
+                )
     }
 
     companion object {
@@ -163,13 +172,15 @@ import java.util.concurrent.TimeUnit
 
         /** Encrypted durable recovery of awards emitted by rcheevos before network submission. */
         val raAwardOutbox: br.com.redclaw.hylianbox.retroachievements.sync.RaAwardOutbox by lazy {
-            br.com.redclaw.hylianbox.retroachievements.sync.RaAwardOutbox(instance, raCredentialStore, raHttpClient)
+            br.com.redclaw.hylianbox.retroachievements.sync.RaAwardOutbox(
+                    instance,
+                    raCredentialStore,
+                    raHttpClient
+            )
         }
 
         /** Interactive RA login/logout service (settings screen). */
-        val raAuthService: RaAuthService by lazy {
-            RaAuthService(raCredentialStore, raHttpClient)
-        }
+        val raAuthService: RaAuthService by lazy { RaAuthService(raCredentialStore, raHttpClient) }
 
         /** Per-hack install-time RA identities (hash/gameId/title). */
         val raInstallMetadataStore: RaInstallMetadataStore by lazy {
@@ -177,9 +188,7 @@ import java.util.concurrent.TimeUnit
         }
 
         /** RA catalog fetcher (achievement/leaderboard definitions, unlocks). */
-        val raCatalogRepository: RaCatalogRepository by lazy {
-            RaCatalogRepository(raHttpClient)
-        }
+        val raCatalogRepository: RaCatalogRepository by lazy { RaCatalogRepository(raHttpClient) }
 
         /** Install-time RA hash + game-id resolution service. */
         val raHashService: RaHashService by lazy {
@@ -192,8 +201,6 @@ import java.util.concurrent.TimeUnit
         }
 
         /** Shared Switch UI sound-effects manager (preloaded, respects mute pref). */
-        val sfxManager: SfxManager by lazy {
-            SfxManager(instance.applicationContext)
-        }
+        val sfxManager: SfxManager by lazy { SfxManager(instance.applicationContext) }
     }
 }

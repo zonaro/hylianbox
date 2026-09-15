@@ -20,7 +20,6 @@ package br.com.redclaw.hylianbox.tracker.ui.components
 
 import android.app.AlertDialog
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
@@ -30,6 +29,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
@@ -77,7 +77,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                 Button(context).apply {
                     setText(R.string.tracker_start)
                     isAllCaps = false
-                    background = createAccentButtonBg()
+                    background = AccentManager.createSwitchButtonBackground(context)
                     setTextColor(android.graphics.Color.WHITE)
                     setOnClickListener {
                         sfx?.select()
@@ -92,7 +92,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                 Button(context).apply {
                     setText(R.string.tracker_reset)
                     isAllCaps = false
-                    background = createAccentButtonBg()
+                    background = AccentManager.createSwitchButtonBackground(context)
                     setTextColor(android.graphics.Color.WHITE)
                     setOnClickListener {
                         sfx?.back()
@@ -176,7 +176,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                             }
                     addView(inner)
                 }
-        AlertDialog.Builder(context, R.style.SwitchDialogTheme)
+        val dialog = AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
                 .setView(dialogView)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     val parsed = parseTime(edit.text.toString())
@@ -189,7 +189,8 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                     }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
-                .show()
+                .create()
+        GameplayFullscreenDialog.show(dialog)
     }
 
     private fun parseTime(input: String): Long? {
@@ -208,13 +209,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
             null
         }
     }
-
-    private fun createAccentButtonBg(): GradientDrawable =
-            GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(AccentManager.getAccentColor(context))
-                cornerRadius = 4f * resources.displayMetrics.density
-            }
 
     fun stop() {
         handler.removeCallbacks(tick)

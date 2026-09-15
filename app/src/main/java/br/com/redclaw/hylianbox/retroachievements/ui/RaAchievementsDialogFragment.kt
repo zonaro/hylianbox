@@ -19,7 +19,6 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
 import android.app.Dialog
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -43,6 +42,7 @@ import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.retroachievements.data.RaGameData
 import br.com.redclaw.hylianbox.retroachievements.data.liveUnlocks
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.views.InstalledLibrary
@@ -89,31 +89,10 @@ class RaAchievementsDialogFragment : DialogFragment() {
     private var isSingleGame: Boolean = true
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = AppCompatDialog(requireContext(), R.style.SwitchDialogTheme)
+        val dialog = AppCompatDialog(requireContext(), R.style.GameplayFullscreenDialogTheme)
         val view = LayoutInflater.from(dialog.context).inflate(R.layout.dialog_achievements, null)
         dialog.setContentView(view)
-        dialog.window?.setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT
-        )
-
-        // Scrim tap dismisses; box consumes taps.
-        view.setOnClickListener { dismiss() }
-        val box = view.findViewById<View>(R.id.achievements_box)
-        box?.let {
-            it.isClickable = true
-            val dm = resources.displayMetrics
-            val minW = resources.getDimensionPixelSize(R.dimen.switch_side_panel_min_width)
-            val maxW = resources.getDimensionPixelSize(R.dimen.dialog_menu_max_width)
-            val target = (dm.widthPixels * 0.94f).toInt().coerceIn(minW, maxW)
-            val lp = it.layoutParams as? FrameLayout.LayoutParams
-            if (lp != null) {
-                lp.width = target
-                // Limit height to ~85% of screen so list scrolls instead of overflowing.
-                lp.height = (dm.heightPixels * 0.85f).toInt()
-                it.layoutParams = lp
-            }
-        }
+        dialog.setCanceledOnTouchOutside(false)
 
         headerView = view.findViewById(R.id.dialog_achievements_header)
         messageView = view.findViewById(R.id.dialog_achievements_message)
@@ -169,9 +148,8 @@ class RaAchievementsDialogFragment : DialogFragment() {
                 else RaViewMode.LIST
         applyViewMode()
 
-        val accent = AccentManager.getAccentColor(requireContext())
         val closeBtn = view.findViewById<Button>(R.id.dialog_achievements_close)
-        closeBtn.background = createSwitchButtonBg(accent)
+        closeBtn.background = AccentManager.createSwitchButtonBackground(requireContext())
         closeBtn.setOnClickListener {
             sfx?.back()
             dismiss()
@@ -181,6 +159,11 @@ class RaAchievementsDialogFragment : DialogFragment() {
         view.post { if (hackId.isNullOrBlank()) loadAllGames() else loadSingle(hackId) }
 
         return dialog
+    }
+
+    override fun onStart() {
+        super.onStart()
+        GameplayFullscreenDialog.apply(requireDialog())
     }
 
     // --- Single game mode -------------------------------------------------
@@ -459,13 +442,6 @@ class RaAchievementsDialogFragment : DialogFragment() {
         messageView?.setText(resId)
         messageView?.visibility = View.VISIBLE
     }
-
-    private fun createSwitchButtonBg(accent: Int): GradientDrawable =
-            GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(accent)
-                cornerRadius = 4f
-            }
 
     companion object {
         private const val ARG_HACK_ID = "hack_id"

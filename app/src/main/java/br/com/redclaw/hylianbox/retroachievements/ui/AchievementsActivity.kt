@@ -1,5 +1,6 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -9,8 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityAchievementsBinding
 import br.com.redclaw.hylianbox.retroachievements.data.RaGameData
 import br.com.redclaw.hylianbox.retroachievements.data.RaGameIdentity
@@ -18,6 +19,7 @@ import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
 import br.com.redclaw.hylianbox.utils.CorePrefs
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import br.com.redclaw.hylianbox.views.InstalledLibrary
 import coil.load
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +49,10 @@ import kotlinx.coroutines.withContext
  * fetch-user-unlocks (only when credentials exist). All network/parse work runs on Dispatchers.IO.
  */
 class AchievementsActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivityAchievementsBinding
     private val adapter = RaAchievementAdapter()
@@ -128,10 +134,7 @@ class AchievementsActivity : AppCompatActivity() {
             // is present.
             val identity =
                     withContext(Dispatchers.IO) {
-                        HylianBoxApp.raHashService.ensureIdentity(
-                                this@AchievementsActivity,
-                                hackId
-                        )
+                        HylianBoxApp.raHashService.ensureIdentity(this@AchievementsActivity, hackId)
                     }
             if (identity == null || !identity.isResolved) {
                 showMessage(R.string.ra_error_untracked)

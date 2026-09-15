@@ -1,8 +1,16 @@
 package br.com.redclaw.hylianbox.gamepad
 
 import android.content.Context
+import android.content.res.Resources
+import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -13,283 +21,342 @@ import kotlin.math.hypot
 import kotlin.math.min
 
 /**
- * Overlay de controles do modo Área Mapeada.
+ * Invisible mapped controls for Pro / Touch Areas mode.
  *
- * Desenha apenas glows radiais (sem bordas, botões ou letras) para cada zona definida em
- * [AreaControlLayout]. O brilho intensifica ao pressionar.
- *
- * Trata todos os tipos de toque:
- * - [ZoneType.BUTTON_STICK]: toque puro + arraste analógico com bolinha de feedback
- * - [ZoneType.TOUCH]: pressiona/solta via KeyEvent
- * - [ZoneType.DPAD_SWIPE]: deslize direcional (4 direções)
- * - [ZoneType.ANALOG]: analógico flutuante (origem onde o dedo toca) + duplo-toque para auto-Z
- *
- * Suporta multitouch real: cada pointerId tem seu próprio estado, permitindo que o analógico, A e R
- * sejam pressionados simultaneamente.
+ * It renders no borders, labels or button shapes. The only idle chrome is the set of colored edge
+ * glows measured from the reference. Active gestures intensify their glow; the relative analog and
+ * Button Stick gestures add a small movable feedback dot.
  */
 class AreaOverlayView(context: Context) : View(context) {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    /** Referência ao RetroView para enviar eventos de input. */
     var retroView: GLRetroView? = null
-
-    /** Sensibilidade do analógico N64 (0f..1f+). */
     var analogSensitivity: Float = 1f
-
-    /** Sensibilidade do ButtonStick arraste (0f..1f). */
     var stickSensitivity: Float = 0.5f
-
-    /** Se o Auto-Z está habilitado (duplo-toque no analógico alterna Z). */
+    var stickEnabled: Boolean = true
     var autoZEnabled: Boolean = true
+    var onControlDown: ((Int) -> Unit)? = null
+    var onAnalogDoubleTap: (() -> Unit)? = null
 
-    /** Callback para rastrear pressionamento de C-buttons (Auto-Z). */
-    var onCButtonDown: ((Int) -> Unit)? = null
+    // Kept in parity with the Standard buttons' existing long-press Ocarina shortcut.
+    var onOcarinaHold: (() -> Unit)? = null
+    var isOcarinaEquipped: ((Int) -> Boolean)? = null
 
-    // ---- Analog stick state ----
-    private var analogActive = false
+    // Equipped-item icons for Pro mode: icon only, no button/background/border/label.
+    private var equippedIcons: Map<AreaControl, Bitmap?> = emptyMap()
+    private var equippedBadges: Map<AreaControl, Int?> = emptyMap()
+
+    private data class StickState(
+            val zone: AreaZone,
+            val downX: Float,
+            val downY: Float,
+            var dragging: Boolean = false,
+            var lockedOut: Boolean = false,
+            var offsetX: Float = 0f,
+            var offsetY: Float = 0f
+    )
+
+    private data class TouchState(val zone: AreaZone, val downX: Float, val downY: Float)
+
+    private val stickStates = mutableMapOf<Int, StickState>()
+    private val touchStates = mutableMapOf<Int, TouchState>()
+
     private var analogPointerId = -1
     private var analogCenterX = 0f
     private var analogCenterY = 0f
-    private var analogKnobX = 0f
-    private var analogKnobY = 0f
-    private var analogMaxReachPx = 0f
+    private var analogOffsetX = 0f
+    private var analogOffsetY = 0f
+    private var analogMoved = false
 
-    // ---- DPAD swipe state ----
-    private var dpadActive = false
     private var dpadPointerId = -1
     private var dpadStartX = 0f
     private var dpadStartY = 0f
-    private var dpadLastX = 0f
-    private var dpadLastY = 0f
 
-    // ---- ButtonStick states per pointerId ----
-    private data class StickState(
-            var active: Boolean = false,
-            var pressed: Boolean = false,
-            var dragging: Boolean = false,
-            var downX: Float = 0f,
-            var downY: Float = 0f,
-            var thumbOffsetX: Float = 0f,
-            var thumbOffsetY: Float = 0f,
-            var keyCode: Int = 0,
-            var stickLockedOut: Boolean = false
-    )
-    private val stickStates = mutableMapOf<Int, StickState>()
+    private var lastAnalogTapAt = 0L
+    private var lastAnalogTapX = 0f
+    private var lastAnalogTapY = 0f
 
-    // ---- Touch states per pointerId ----
-    private data class TouchState(var active: Boolean = false, var keyCode: Int = 0)
-    private val touchStates = mutableMapOf<Int, TouchState>()
-
-    // ---- Auto-Z double-tap ----
-    private var zHeldViaDoubleTap = false
-    private var lastTapTime = 0L
-    private var lastTapZone: AreaZone? = null
-
-    private val density = resources.displayMetrics.density
+    private val handler = Handler(Looper.getMainLooper())
+    private val ocarinaHolds = mutableMapOf<Int, Runnable>()
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { alpha = 140 }
+    private val badgeBgPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xCC000000.toInt()
+                style = Paint.Style.FILL
+            }
+    private val badgeBorderPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.STROKE
+            }
+    private val badgeTextPaint =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textAlign = Paint.Align.CENTER
+                isFakeBoldText = true
+                color = Color.WHITE
+            }
+    // Overlay uses physical pixels and the system density so the global UI
+    // scale (UiScaleManager) never affects the emulator controls.
+    private val density = Resources.getSystem().displayMetrics.density
     private val dragThresholdPx = AreaControlLayout.DRAG_THRESHOLD_DP * density
+    private val dpadThresholdPx = AreaControlLayout.DPAD_SWIPE_THRESHOLD_DP * density
+
+    /** Shows equipped-item icons centered in the mapped zones (icon only, no button chrome). */
+    fun setEquippedIcons(icons: Map<AreaControl, Bitmap?>, badges: Map<AreaControl, Int?>) {
+        equippedIcons = icons
+        equippedBadges = badges
+        invalidate()
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val w = width.toFloat()
-        val h = height.toFloat()
-        val minDim = min(w, h)
-        val radius = minDim * AreaControlLayout.GLOW_RADIUS_FRACTION
+        drawEdgeGlows(canvas)
+        drawEquippedIcons(canvas)
+        drawGestureFeedback(canvas)
+    }
 
-        // Draw glows for all zones
-        for (zone in AreaControlLayout.allZones) {
-            val cx = (zone.rect.left + zone.rect.right) / 2f * w
-            val cy = (zone.rect.top + zone.rect.bottom) / 2f * h
-            val isPressed = isZonePressed(zone)
-            paint.color = if (isPressed) zone.pressedColor else zone.idleColor
-            paint.alpha =
-                    if (isPressed) {
-                        (AreaControlLayout.GLOW_PRESSED_ALPHA * 255).toInt()
-                    } else {
-                        (AreaControlLayout.GLOW_IDLE_ALPHA * 255).toInt()
+    private fun drawEquippedIcons(canvas: Canvas) {
+        if (equippedIcons.isEmpty() || width <= 0 || height <= 0) return
+        badgeBorderPaint.strokeWidth = 1.5f * density
+        equippedIcons.forEach { (control, bitmap) ->
+            if (bitmap == null || bitmap.isRecycled) return@forEach
+            val zone =
+                    try {
+                        AreaControlLayout.zone(control)
+                    } catch (e: NoSuchElementException) {
+                        return@forEach
                     }
-            canvas.drawCircle(cx, cy, radius, paint)
+            val left = zone.rect.left * width
+            val top = zone.rect.top * height
+            val right = zone.rect.right * width
+            val bottom = zone.rect.bottom * height
+            val zoneW = right - left
+            val zoneH = bottom - top
+            if (zoneW <= 0f || zoneH <= 0f) return@forEach
+            val cx = (left + right) / 2f
+            val cy = (top + bottom) / 2f
+            val half = min(zoneW, zoneH) * 0.55f / 2f
+            if (half <= 0f) return@forEach
+            canvas.drawBitmap(
+                    bitmap,
+                    null,
+                    RectF(cx - half, cy - half, cx + half, cy + half),
+                    iconPaint
+            )
+            drawEquippedBadge(canvas, control, cx, cy, half)
         }
+    }
 
-        // Draw analog stick knob if active
-        if (analogActive) {
-            val cx = analogCenterX
-            val cy = analogCenterY
-            val knobRadius = radius * 0.4f
-            paint.color = AreaControlLayout.COLOR_BLUE
-            paint.alpha = (AreaControlLayout.GLOW_PRESSED_ALPHA * 255).toInt()
-            canvas.drawCircle(cx + analogKnobX, cy + analogKnobY, knobRadius, paint)
-        }
+    private fun drawEquippedBadge(
+            canvas: Canvas,
+            control: AreaControl,
+            cx: Float,
+            cy: Float,
+            radius: Float
+    ) {
+        val count = equippedBadges[control] ?: return
+        val text = count.toString()
+        badgeTextPaint.textSize = radius * 0.38f
+        val textWidth = badgeTextPaint.measureText(text)
+        val padH = radius * 0.16f
+        val padV = radius * 0.10f
+        val halfW = textWidth / 2f + padH
+        val halfH = badgeTextPaint.textSize / 2f + padV
+        val badgeCx = cx + radius * 0.62f
+        val badgeCy = cy + radius * 0.62f
+        val rect = RectF(badgeCx - halfW, badgeCy - halfH, badgeCx + halfW, badgeCy + halfH)
+        val corner = halfH
+        canvas.drawRoundRect(rect, corner, corner, badgeBgPaint)
+        canvas.drawRoundRect(rect, corner, corner, badgeBorderPaint)
+        canvas.drawText(
+                text,
+                badgeCx,
+                badgeCy - (badgeTextPaint.ascent() + badgeTextPaint.descent()) / 2,
+                badgeTextPaint
+        )
+    }
 
-        // Draw ButtonStick thumb offsets
-        for ((_, state) in stickStates) {
-            if (state.dragging) {
-                val zone =
-                        AreaControlLayout.hitTest(
-                                (state.downX + state.thumbOffsetX) / w,
-                                (state.downY + state.thumbOffsetY) / h
-                        )
-                if (zone != null) {
-                    val cx = (zone.rect.left + zone.rect.right) / 2f * w
-                    val cy = (zone.rect.top + zone.rect.bottom) / 2f * h
-                    paint.color = zone.pressedColor
-                    paint.alpha = (AreaControlLayout.GLOW_PRESSED_ALPHA * 255).toInt()
-                    canvas.drawCircle(
-                            cx + state.thumbOffsetX,
-                            cy + state.thumbOffsetY,
-                            radius * 0.4f,
-                            paint
-                    )
+    private fun drawEdgeGlows(canvas: Canvas) {
+        val depth = min(width, height) * AreaControlLayout.GLOW_DEPTH_FRACTION
+        AreaControlLayout.glows.forEach { glow ->
+            val pressed = isControlPressed(glow.control)
+            val alpha =
+                    if (pressed) AreaControlLayout.GLOW_PRESSED_ALPHA
+                    else AreaControlLayout.GLOW_IDLE_ALPHA
+            val solid = withAlpha(glow.color, alpha)
+            val clear = withAlpha(glow.color, 0f)
+            when (glow.edge) {
+                GlowEdge.TOP -> {
+                    val left = glow.start * width
+                    val right = glow.end * width
+                    paint.shader =
+                            LinearGradient(0f, 0f, 0f, depth, solid, clear, Shader.TileMode.CLAMP)
+                    canvas.drawRect(left, 0f, right, depth, paint)
+                }
+                GlowEdge.RIGHT -> {
+                    val top = glow.start * height
+                    val bottom = glow.end * height
+                    paint.shader =
+                            LinearGradient(
+                                    width.toFloat(),
+                                    0f,
+                                    width - depth,
+                                    0f,
+                                    solid,
+                                    clear,
+                                    Shader.TileMode.CLAMP
+                            )
+                    canvas.drawRect(width - depth, top, width.toFloat(), bottom, paint)
+                }
+                GlowEdge.BOTTOM -> {
+                    val left = glow.start * width
+                    val right = glow.end * width
+                    paint.shader =
+                            LinearGradient(
+                                    0f,
+                                    height.toFloat(),
+                                    0f,
+                                    height - depth,
+                                    solid,
+                                    clear,
+                                    Shader.TileMode.CLAMP
+                            )
+                    canvas.drawRect(left, height - depth, right, height.toFloat(), paint)
                 }
             }
         }
+        paint.shader = null
     }
 
-    private fun isZonePressed(zone: AreaZone): Boolean {
-        for ((_, state) in stickStates) {
-            if (state.active && state.keyCode == zone.keyCode) return true
+    private fun drawGestureFeedback(canvas: Canvas) {
+        val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
+        val dotRadius = min(width, height) * AreaControlLayout.FEEDBACK_RADIUS_FRACTION
+
+        if (analogPointerId != -1) {
+            paint.color = withAlpha(AreaControlLayout.COLOR_BLUE, 0.22f)
+            canvas.drawCircle(analogCenterX, analogCenterY, reach, paint)
+            paint.color = withAlpha(AreaControlLayout.COLOR_BLUE, AreaControlLayout.FEEDBACK_ALPHA)
+            canvas.drawCircle(
+                    analogCenterX + analogOffsetX,
+                    analogCenterY + analogOffsetY,
+                    dotRadius,
+                    paint
+            )
         }
-        for ((_, state) in touchStates) {
-            if (state.active && state.keyCode == zone.keyCode) return true
+
+        stickStates.values.filter { it.dragging }.forEach { state ->
+            paint.color = withAlpha(colorFor(state.zone.control), AreaControlLayout.FEEDBACK_ALPHA)
+            canvas.drawCircle(
+                    state.downX + state.offsetX,
+                    state.downY + state.offsetY,
+                    dotRadius,
+                    paint
+            )
         }
-        if (analogActive && zone.zoneType == ZoneType.ANALOG) return true
-        if (dpadActive && zone.zoneType == ZoneType.DPAD_SWIPE) return true
-        return false
+
+        // C-Up has no outer-edge glow in the supplied reference; give it press feedback without
+        // inventing a persistent boundary or label.
+        touchStates.values.filter { it.zone.control == AreaControl.C_UP }.forEach { state ->
+            paint.color = withAlpha(AreaControlLayout.COLOR_YELLOW, 0.36f)
+            canvas.drawCircle(state.downX, state.downY, dotRadius * 1.35f, paint)
+        }
     }
+
+    private fun isControlPressed(control: AreaControl): Boolean =
+            stickStates.values.any { it.zone.control == control } ||
+                    touchStates.values.any { it.zone.control == control } ||
+                    (control == AreaControl.ANALOG && analogPointerId != -1) ||
+                    (control == AreaControl.DPAD_SWIPE && dpadPointerId != -1)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (width <= 0 || height <= 0) return false
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                val pointerId = event.getPointerId(0)
-                val x = event.getX(0)
-                val y = event.getY(0)
-                val nx = x / width
-                val ny = y / height
-                handleDown(pointerId, x, y, nx, ny)
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                val idx = event.actionIndex
-                val pointerId = event.getPointerId(idx)
-                val x = event.getX(idx)
-                val y = event.getY(idx)
-                val nx = x / width
-                val ny = y / height
-                handleDown(pointerId, x, y, nx, ny)
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                val index = event.actionIndex
+                handleDown(event.getPointerId(index), event.getX(index), event.getY(index))
+                if (event.pointerCount > 1) lockOutButtonSticks()
             }
             MotionEvent.ACTION_MOVE -> {
-                for (i in 0 until event.pointerCount) {
-                    val pointerId = event.getPointerId(i)
-                    val x = event.getX(i)
-                    val y = event.getY(i)
-                    val nx = x / width
-                    val ny = y / height
-                    handleMove(pointerId, x, y, nx, ny)
+                if (event.pointerCount > 1) lockOutButtonSticks()
+                for (index in 0 until event.pointerCount) {
+                    handleMove(event.getPointerId(index), event.getX(index), event.getY(index))
                 }
             }
             MotionEvent.ACTION_POINTER_UP -> {
-                val idx = event.actionIndex
-                val pointerId = event.getPointerId(idx)
-                val x = event.getX(idx)
-                val y = event.getY(idx)
-                handleUp(pointerId, x, y)
+                val index = event.actionIndex
+                handleUp(event.getPointerId(index), event.getX(index), event.getY(index))
             }
             MotionEvent.ACTION_UP -> {
-                val pointerId = event.getPointerId(0)
-                val x = event.getX(0)
-                val y = event.getY(0)
-                handleUp(pointerId, x, y)
+                handleUp(event.getPointerId(0), event.getX(0), event.getY(0))
+                performClick()
             }
-            MotionEvent.ACTION_CANCEL -> {
-                for (i in 0 until event.pointerCount) {
-                    val pointerId = event.getPointerId(i)
-                    handleUp(pointerId, event.getX(i), event.getY(i))
-                }
-            }
+            MotionEvent.ACTION_CANCEL -> cancelActiveTouches(keepAutoZ = true)
         }
         return true
     }
 
-    private fun handleDown(pointerId: Int, x: Float, y: Float, nx: Float, ny: Float) {
-        val zone = AreaControlLayout.hitTest(nx, ny)
-        if (zone == null) return
-
-        when (zone.zoneType) {
-            ZoneType.BUTTON_STICK -> {
-                val state =
-                        StickState(
-                                active = true,
-                                pressed = true,
-                                dragging = false,
-                                downX = x,
-                                downY = y,
-                                keyCode = zone.keyCode ?: 0
-                        )
-                stickStates[pointerId] = state
-                retroView?.sendKeyEvent(
-                        KeyEvent.ACTION_DOWN,
-                        InputMapper.mapKeyCode(zone.keyCode!!)
-                )
-                invalidate()
-            }
-            ZoneType.TOUCH -> {
-                val state = TouchState(active = true, keyCode = zone.keyCode ?: 0)
-                touchStates[pointerId] = state
-                retroView?.sendKeyEvent(
-                        KeyEvent.ACTION_DOWN,
-                        InputMapper.mapKeyCode(zone.keyCode!!)
-                )
-                invalidate()
-            }
-            ZoneType.DPAD_SWIPE -> {
-                dpadActive = true
-                dpadPointerId = pointerId
-                dpadStartX = x
-                dpadStartY = y
-                dpadLastX = x
-                dpadLastY = y
-                invalidate()
-            }
-            ZoneType.ANALOG -> {
-                analogActive = true
-                analogPointerId = pointerId
-                analogCenterX = x
-                analogCenterY = y
-                analogKnobX = 0f
-                analogKnobY = 0f
-                analogMaxReachPx = min(width, height) * 0.075f
-                invalidate()
-            }
-        }
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
 
-    private fun handleMove(pointerId: Int, x: Float, y: Float, nx: Float, ny: Float) {
-        // ButtonStick drag
-        val stickState = stickStates[pointerId]
-        if (stickState != null && stickState.active) {
-            if (!stickState.stickLockedOut) {
-                val dx = x - stickState.downX
-                val dy = y - stickState.downY
-                val dist = hypot(dx, dy)
-                if (!stickState.dragging && dist > dragThresholdPx) stickState.dragging = true
-                if (stickState.dragging) {
-                    val maxRadius =
-                            min(
-                                    (stickState.downX -
-                                                    AreaControlLayout.buttonStickZones[0].rect
-                                                            .left * width)
-                                            .coerceAtLeast(0f),
-                                    (AreaControlLayout.buttonStickZones[0].rect.right * width -
-                                            stickState.downX)
-                            )
-                    val clampedDist = min(dist, maxRadius)
-                    val magnitude = clampedDist / maxRadius * stickSensitivity
-                    val nxDir = if (dist > 0) dx / dist else 0f
-                    val nyDir = if (dist > 0) dy / dist else 0f
-                    stickState.thumbOffsetX = nxDir * clampedDist
-                    stickState.thumbOffsetY = nyDir * clampedDist
+    private fun handleDown(pointerId: Int, x: Float, y: Float) {
+        val zone = AreaControlLayout.hitTest(x / width, y / height) ?: return
+        when (zone.zoneType) {
+            ZoneType.BUTTON_STICK -> {
+                val keyCode = zone.keyCode ?: return
+                stickStates[pointerId] = StickState(zone, x, y)
+                sendKey(KeyEvent.ACTION_DOWN, keyCode)
+                onControlDown?.invoke(keyCode)
+                scheduleOcarinaHold(pointerId, keyCode)
+            }
+            ZoneType.TOUCH -> {
+                val keyCode = zone.keyCode ?: return
+                touchStates[pointerId] = TouchState(zone, x, y)
+                sendKey(KeyEvent.ACTION_DOWN, keyCode)
+                onControlDown?.invoke(keyCode)
+                scheduleOcarinaHold(pointerId, keyCode)
+            }
+            ZoneType.DPAD_SWIPE ->
+                    if (dpadPointerId == -1) {
+                        dpadPointerId = pointerId
+                        dpadStartX = x
+                        dpadStartY = y
+                    }
+            ZoneType.ANALOG ->
+                    if (analogPointerId == -1) {
+                        analogPointerId = pointerId
+                        analogCenterX = x
+                        analogCenterY = y
+                        analogOffsetX = 0f
+                        analogOffsetY = 0f
+                        analogMoved = false
+                    }
+        }
+        invalidate()
+    }
+
+    private fun handleMove(pointerId: Int, x: Float, y: Float) {
+        stickStates[pointerId]?.let { state ->
+            if (stickEnabled && !state.lockedOut) {
+                val dx = x - state.downX
+                val dy = y - state.downY
+                val distance = hypot(dx, dy)
+                if (!state.dragging && distance > dragThresholdPx) {
+                    state.dragging = true
+                    cancelOcarinaHold(pointerId)
+                }
+                if (state.dragging) {
+                    val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
+                    val clamped = min(distance, reach)
+                    val unitX = if (distance > 0f) dx / distance else 0f
+                    val unitY = if (distance > 0f) dy / distance else 0f
+                    state.offsetX = unitX * clamped
+                    state.offsetY = unitY * clamped
+                    val magnitude = if (reach > 0f) clamped / reach * stickSensitivity else 0f
                     retroView?.sendMotionEvent(
                             GLRetroView.MOTION_SOURCE_ANALOG_LEFT,
-                            nxDir * magnitude,
-                            -nyDir * magnitude
+                            unitX * magnitude,
+                            -unitY * magnitude
                     )
                 }
             }
@@ -297,155 +364,175 @@ class AreaOverlayView(context: Context) : View(context) {
             return
         }
 
-        // DPAD swipe
-        if (dpadActive && pointerId == dpadPointerId) {
+        if (pointerId == dpadPointerId) {
             val dx = x - dpadStartX
             val dy = y - dpadStartY
-            val dist = hypot(dx, dy)
-            val threshold = 20f
-            if (dist > threshold) {
-                val nxDir = dx / dist
-                val nyDir = dy / dist
-                // Determine dominant direction
-                if (abs(nxDir) > abs(nyDir)) {
+            if (hypot(dx, dy) >= dpadThresholdPx) {
+                if (abs(dx) >= abs(dy)) {
                     retroView?.sendMotionEvent(
                             GLRetroView.MOTION_SOURCE_DPAD,
-                            if (nxDir > 0) 1f else -1f,
+                            if (dx > 0f) 1f else -1f,
                             0f
                     )
                 } else {
                     retroView?.sendMotionEvent(
                             GLRetroView.MOTION_SOURCE_DPAD,
                             0f,
-                            if (nyDir > 0) 1f else -1f
+                            if (dy > 0f) 1f else -1f
                     )
                 }
+            } else {
+                retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f)
             }
             invalidate()
             return
         }
 
-        // Analog stick
-        if (analogActive && pointerId == analogPointerId) {
+        if (pointerId == analogPointerId) {
             val dx = x - analogCenterX
             val dy = y - analogCenterY
-            val dist = hypot(dx, dy)
-            val clampedDist = min(dist, analogMaxReachPx)
-            val magnitude =
-                    if (analogMaxReachPx > 0) clampedDist / analogMaxReachPx * analogSensitivity
-                    else 0f
-            val nxDir = if (dist > 0) dx / dist else 0f
-            val nyDir = if (dist > 0) dy / dist else 0f
-            analogKnobX = nxDir * clampedDist
-            analogKnobY = nyDir * clampedDist
+            val distance = hypot(dx, dy)
+            if (distance > dragThresholdPx) analogMoved = true
+            val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
+            val clamped = min(distance, reach)
+            val unitX = if (distance > 0f) dx / distance else 0f
+            val unitY = if (distance > 0f) dy / distance else 0f
+            analogOffsetX = unitX * clamped
+            analogOffsetY = unitY * clamped
+            val magnitude = if (reach > 0f) clamped / reach * analogSensitivity else 0f
             retroView?.sendMotionEvent(
                     GLRetroView.MOTION_SOURCE_ANALOG_LEFT,
-                    nxDir * magnitude,
-                    nyDir * magnitude
+                    unitX * magnitude,
+                    unitY * magnitude
             )
             invalidate()
-            return
         }
     }
 
     private fun handleUp(pointerId: Int, x: Float, y: Float) {
-        // ButtonStick
-        val stickState = stickStates[pointerId]
-        if (stickState != null && stickState.active) {
-            if (stickState.dragging) {
-                retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
-            }
-            retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(stickState.keyCode))
-            stickStates.remove(pointerId)
+        stickStates.remove(pointerId)?.let { state ->
+            cancelOcarinaHold(pointerId)
+            if (state.dragging) releaseAnalog()
+            sendKey(KeyEvent.ACTION_UP, state.zone.keyCode ?: return@let)
             invalidate()
             return
         }
-
-        // Touch
-        val touchState = touchStates[pointerId]
-        if (touchState != null && touchState.active) {
-            retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(touchState.keyCode))
-            touchStates.remove(pointerId)
+        touchStates.remove(pointerId)?.let { state ->
+            cancelOcarinaHold(pointerId)
+            sendKey(KeyEvent.ACTION_UP, state.zone.keyCode ?: return@let)
             invalidate()
             return
         }
-
-        // DPAD
-        if (dpadActive && pointerId == dpadPointerId) {
-            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f)
-            dpadActive = false
+        if (pointerId == dpadPointerId) {
+            releaseDpad()
             dpadPointerId = -1
             invalidate()
             return
         }
-
-        // Analog
-        if (analogActive && pointerId == analogPointerId) {
-            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
-            analogActive = false
+        if (pointerId == analogPointerId) {
+            releaseAnalog()
+            if (!analogMoved) registerAnalogTap(x, y)
             analogPointerId = -1
+            analogOffsetX = 0f
+            analogOffsetY = 0f
             invalidate()
-            return
         }
     }
 
-    /**
-     * Handle double-tap on the analog zone to toggle auto-Z. Returns true if a double-tap was
-     * detected.
-     */
-    fun handleDoubleTap(x: Float, y: Float): Boolean {
-        val nx = x / width
-        val ny = y / height
-        val zone = AreaControlLayout.hitTest(nx, ny)
-        if (zone?.zoneType != ZoneType.ANALOG) return false
-
-        val now = System.currentTimeMillis()
-        if (now - lastTapTime < 300 && lastTapZone?.zoneType == ZoneType.ANALOG) {
-            if (!autoZEnabled) return false
-            zHeldViaDoubleTap = !zHeldViaDoubleTap
-            val action = if (zHeldViaDoubleTap) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP
-            retroView?.sendKeyEvent(action, InputMapper.mapKeyCode(KeyEvent.KEYCODE_BUTTON_L2))
-            onCButtonDown?.invoke(KeyEvent.KEYCODE_BUTTON_L2)
-            return true
+    private fun registerAnalogTap(x: Float, y: Float) {
+        val now = android.os.SystemClock.uptimeMillis()
+        val closeEnough = hypot(x - lastAnalogTapX, y - lastAnalogTapY) <= 48f * density
+        if (autoZEnabled && now - lastAnalogTapAt in 1..300 && closeEnough) {
+            onAnalogDoubleTap?.invoke()
+            lastAnalogTapAt = 0L
+        } else {
+            lastAnalogTapAt = now
+            lastAnalogTapX = x
+            lastAnalogTapY = y
         }
-        lastTapTime = now
-        lastTapZone = zone
-        return false
     }
 
-    /** Cancel any active gesture (called when switching modes). */
-    fun cancelAll() {
-        // Release all held keys
-        for ((_, state) in stickStates) {
-            if (state.active) {
-                retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(state.keyCode))
-                if (state.dragging) {
-                    retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
-                }
+    private fun lockOutButtonSticks() {
+        var released = false
+        stickStates.values.forEach { state ->
+            state.lockedOut = true
+            if (state.dragging) {
+                state.dragging = false
+                state.offsetX = 0f
+                state.offsetY = 0f
+                released = true
             }
         }
-        for ((_, state) in touchStates) {
-            if (state.active) {
-                retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(state.keyCode))
-            }
+        if (released) releaseAnalog()
+    }
+
+    private fun sendKey(action: Int, keyCode: Int) {
+        retroView?.sendKeyEvent(action, InputMapper.mapKeyCode(keyCode))
+    }
+
+    private fun releaseAnalog() {
+        retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
+    }
+
+    private fun releaseDpad() {
+        retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f)
+    }
+
+    private fun scheduleOcarinaHold(pointerId: Int, keyCode: Int) {
+        if (onOcarinaHold == null || isOcarinaEquipped?.invoke(keyCode) != true) return
+        cancelOcarinaHold(pointerId)
+        val runnable = Runnable {
+            val held =
+                    stickStates[pointerId]?.let { !it.dragging && !it.lockedOut } == true ||
+                            touchStates.containsKey(pointerId)
+            if (held) onOcarinaHold?.invoke()
         }
-        if (dpadActive) {
-            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f)
+        ocarinaHolds[pointerId] = runnable
+        handler.postDelayed(runnable, 600L)
+    }
+
+    private fun cancelOcarinaHold(pointerId: Int) {
+        ocarinaHolds.remove(pointerId)?.let(handler::removeCallbacks)
+    }
+
+    /** Releases every transient input before the overlay is detached. */
+    fun cancelAll() = cancelActiveTouches(keepAutoZ = true)
+
+    private fun cancelActiveTouches(keepAutoZ: Boolean) {
+        stickStates.values.forEach { state ->
+            state.zone.keyCode?.let { sendKey(KeyEvent.ACTION_UP, it) }
         }
-        if (analogActive) {
-            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
+        touchStates.values.forEach { state ->
+            state.zone.keyCode?.let { sendKey(KeyEvent.ACTION_UP, it) }
         }
-        if (zHeldViaDoubleTap) {
-            retroView?.sendKeyEvent(
-                    KeyEvent.ACTION_UP,
-                    InputMapper.mapKeyCode(KeyEvent.KEYCODE_BUTTON_L2)
-            )
-        }
+        if (stickStates.values.any { it.dragging } || analogPointerId != -1) releaseAnalog()
+        if (dpadPointerId != -1) releaseDpad()
+        ocarinaHolds.values.forEach(handler::removeCallbacks)
+        ocarinaHolds.clear()
         stickStates.clear()
         touchStates.clear()
-        dpadActive = false
-        analogActive = false
-        zHeldViaDoubleTap = false
+        analogPointerId = -1
+        dpadPointerId = -1
+        if (!keepAutoZ) lastAnalogTapAt = 0L
         invalidate()
     }
+
+    override fun onDetachedFromWindow() {
+        cancelActiveTouches(keepAutoZ = false)
+        super.onDetachedFromWindow()
+    }
+
+    private fun colorFor(control: AreaControl): Int =
+            when (control) {
+                AreaControl.A -> AreaControlLayout.COLOR_BLUE
+                AreaControl.B -> AreaControlLayout.COLOR_GREEN
+                AreaControl.C_LEFT, AreaControl.C_UP, AreaControl.C_DOWN, AreaControl.C_RIGHT ->
+                        AreaControlLayout.COLOR_YELLOW
+                AreaControl.START -> AreaControlLayout.COLOR_RED
+                AreaControl.Z, AreaControl.R -> AreaControlLayout.COLOR_PURPLE
+                else -> AreaControlLayout.COLOR_GRAY
+            }
+
+    private fun withAlpha(color: Int, alpha: Float): Int =
+            (color and 0x00FFFFFF) or ((alpha.coerceIn(0f, 1f) * 255).toInt() shl 24)
 }

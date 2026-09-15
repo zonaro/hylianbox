@@ -2,6 +2,7 @@ package br.com.redclaw.hylianbox.tracker.autotracker
 
 import br.com.redclaw.hylianbox.tracker.autotracker.mapper.AutoTrackerMapper
 import br.com.redclaw.hylianbox.tracker.autotracker.model.AutoTrackerSnapshot
+import br.com.redclaw.hylianbox.tracker.autotracker.parser.SaveContextLocator
 import br.com.redclaw.hylianbox.tracker.autotracker.parser.SaveContextParser
 import br.com.redclaw.hylianbox.tracker.data.OotItemDatabase
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
@@ -208,5 +209,83 @@ class AutoTrackerTest {
         assertTrue(progress.isEmpty())
         assertEquals(2, equipment.size)
         assertEquals(3, equipment.last().cLeft)
+    }
+
+    @Test fun locatesRelocatedVanillaLayoutForOotAndMmAcrossByteLanes() {
+        for (game in TrackerGame.values()) {
+            for (lane in listOf(0, 1, 3)) {
+                val preferred = SaveContextParser.base(game)
+                val relocated = preferred + 0x200
+                val ram = ByteBuffer.allocate(relocated + 0x4000)
+                val source = fixture(game, lane)
+                repeat(source.capacity()) { ram.put(relocated + it, source.get(it)) }
+                val locator = SaveContextLocator(game, preferred, candidatesPerPass = 0x200)
+
+                val snapshot = locator.parse(ram)
+
+                assertNotNull("$game lane=$lane", snapshot)
+                assertEquals(relocated, locator.resolvedBase)
+                assertEquals(game, snapshot!!.game)
+            }
+        }
+    }
+
+    @Test fun locatorRejectsSignatureDecoyBeforeRelocatedContext() {
+        val game = TrackerGame.OOT
+        val preferred = SaveContextParser.base(game)
+        val decoy = preferred + 0x100
+        val relocated = preferred + 0x200
+        val ram = ByteBuffer.allocate(relocated + 0x4000)
+        "ZELDAZ".forEachIndexed { index, char ->
+            ram.put(decoy + 0x1C + index, char.code.toByte())
+        }
+        val source = fixture(game)
+        repeat(source.capacity()) { ram.put(relocated + it, source.get(it)) }
+        val locator = SaveContextLocator(game, preferred, candidatesPerPass = 0x200)
+
+        assertNotNull(locator.parse(ram))
+        assertEquals(relocated, locator.resolvedBase)
+    }
+
+    @Test fun locatorRetriesShiftedSignatureFoundBeforeGameplayStarts() {
+        val game = TrackerGame.MM
+        val preferred = SaveContextParser.base(game)
+        val relocated = preferred + 0x100
+        val ram = ByteBuffer.allocate(relocated + 0x4000)
+        val source = fixture(game)
+        source.putInt(0x3CA8, 1)
+        repeat(source.capacity()) { ram.put(relocated + it, source.get(it)) }
+        val locator = SaveContextLocator(game, preferred, candidatesPerPass = 0x100)
+
+        assertNull(locator.parse(ram))
+        ram.putInt(relocated + 0x3CA8, 0)
+
+        assertNotNull(locator.parse(ram))
+        assertEquals(relocated, locator.resolvedBase)
+    }
+
+    @Test fun pollerEmitsEquipmentFromRelocatedSaveContext() {
+        val game = TrackerGame.OOT
+        val preferred = SaveContextParser.base(game)
+        val relocated = preferred + 0x100
+        val ram = ByteBuffer.allocate(relocated + 0x4000)
+        val source = fixture(game)
+        source.put(0x69, 3)
+        repeat(source.capacity()) { ram.put(relocated + it, source.get(it)) }
+        val equipment = mutableListOf<br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot>()
+        val poller =
+                AutoTrackerPoller(
+                        memory = ram,
+                        game = game,
+                        enabled = { false },
+                        onSnapshot = {},
+                        nanoTime = { 0L },
+                        onEquipment = equipment::add
+                )
+
+        poller.onFrame()
+
+        assertEquals(1, equipment.size)
+        assertEquals(3, equipment.single().cLeft)
     }
 }

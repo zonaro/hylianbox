@@ -322,4 +322,9 @@ dependencies {
     // WebRTC native Android SDK for peer-to-peer streaming.
     // Published on JitPack (org.webrtc:google-webrtc is not on Maven Central/Google Maven).
     implementation("com.github.webrtc-sdk:android:v104.5112.10")
+
+    // Archive extraction for Hylian Modding downloads (.7z via commons-compress + xz, .rar via junrar).
+    implementation("org.apache.commons:commons-compress:1.26.2")
+    implementation("org.tukaani:xz:1.9")
+    implementation("com.github.junrar:junrar:7.5.5")
 }

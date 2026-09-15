@@ -1,6 +1,7 @@
 package br.com.redclaw.hylianbox.settings.ui
 
 import android.accounts.AccountManager
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -21,8 +22,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.dashboard.server.DashboardManager
 import br.com.redclaw.hylianbox.data.local.InstalledHacksRepository
 import br.com.redclaw.hylianbox.data.local.SaveBackupManager
@@ -45,6 +46,7 @@ import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.utils.LanguageManager
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import br.com.redclaw.hylianbox.views.InstalledLibrary
 import com.google.android.gms.auth.UserRecoverableAuthException
 import java.io.File
@@ -57,6 +59,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SettingsActivity : AppCompatActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
+
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var viewModel: SettingsViewModel
 
@@ -142,6 +148,7 @@ class SettingsActivity : AppCompatActivity() {
         setupAboutSection()
         setupCaptureSection()
         setupDashboardSection()
+        setupAppearanceSection()
         setupDisplaySection()
         wireSettingsSfx()
         observeImport()
@@ -183,6 +190,7 @@ class SettingsActivity : AppCompatActivity() {
                         binding.settingsNavAbout to binding.settingsSectionAbout,
                         binding.settingsNavCapture to binding.settingsSectionCapture,
                         binding.settingsNavDashboard to binding.settingsSectionDashboard,
+                        binding.settingsNavAppearance to binding.settingsSectionAppearance,
                         binding.settingsNavDisplay to binding.settingsSectionDisplay
                 )
 
@@ -231,6 +239,7 @@ class SettingsActivity : AppCompatActivity() {
                         binding.settingsNavAbout,
                         binding.settingsNavCapture,
                         binding.settingsNavDashboard,
+                        binding.settingsNavAppearance,
                         binding.settingsNavDisplay
                 )
         val accentColor = AccentManager.getAccentColor(this)
@@ -275,7 +284,6 @@ class SettingsActivity : AppCompatActivity() {
 
     /** Applies the dynamic accent color to all Switch widgets in the settings. */
     private fun applyDynamicAccentToSwitches() {
-        val accentColor = AccentManager.getAccentColor(this)
         val switches =
                 listOf(
                         binding.settingsRaEnabledSwitch,
@@ -287,28 +295,12 @@ class SettingsActivity : AppCompatActivity() {
                         binding.settingsCloudsyncEnabled,
                         binding.settingsCloudsyncWifi,
                         binding.settingsCloudsyncNotify,
-                        binding.settingsCaptureIncludeMicrophone
+                        binding.settingsCaptureIncludeMicrophone,
+                        binding.settingsAppearanceSfx
                 )
         switches.forEach { switch ->
-            // Create dynamic thumb and track color state lists
-            val thumbStateList =
-                    android.content.res.ColorStateList(
-                            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                            intArrayOf(
-                                    accentColor,
-                                    ContextCompat.getColor(this, R.color.switch_text_primary)
-                            )
-                    )
-            val trackStateList =
-                    android.content.res.ColorStateList(
-                            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                            intArrayOf(
-                                    accentColor,
-                                    ContextCompat.getColor(this, R.color.switch_text_secondary)
-                            )
-                    )
-            switch.thumbTintList = thumbStateList
-            switch.trackTintList = trackStateList
+            switch.thumbTintList = AccentManager.createSwitchThumbStateList(this)
+            switch.trackTintList = AccentManager.createSwitchTrackStateList(this)
         }
     }
 
@@ -415,7 +407,7 @@ class SettingsActivity : AppCompatActivity() {
 
     /**
      * Wires the Switch UI sound effects to the primary Settings controls so the screen stays
-     * consistent with the other Switch-style surfaces (home row, dock, grid, side panel). Focus
+     * consistent with the other Switch-style surfaces (home row, dock, grid, dialogs). Focus
      * traversal plays the focus-move "toc" and activation plays the select blip. This is additive
      * only — no control flow is changed.
      */
@@ -434,7 +426,9 @@ class SettingsActivity : AppCompatActivity() {
                         binding.settingsGdriveFrequency,
                         binding.settingsLanguageButton,
                         binding.settingsAboutRepo,
-                        binding.settingsAboutCatalog
+                        binding.settingsAboutCatalog,
+                        binding.settingsAppearanceTheme,
+                        binding.settingsAppearanceAccent
                 )
         for (view in focusViews) {
             view.onFocusChangeListener =
@@ -1209,6 +1203,106 @@ class SettingsActivity : AppCompatActivity() {
 
     private companion object {
         const val DASHBOARD_STATUS_REFRESH_DELAY_MS = 250L
+    }
+
+    // ---- Appearance (theme, interface sounds, accent color) section ----
+
+    private fun setupAppearanceSection() {
+        updateAppearanceThemeLabel()
+        binding.settingsAppearanceTheme.setOnClickListener {
+            sfx?.select()
+            br.com.redclaw.hylianbox.ui.switchui.ThemeManager.toggle(this)
+            updateAppearanceThemeLabel()
+        }
+
+        binding.settingsAppearanceSfx.setOnCheckedChangeListener(null)
+        binding.settingsAppearanceSfx.isChecked = CorePrefs.getSwitchSfxEnabled(this)
+        binding.settingsAppearanceSfx.setOnCheckedChangeListener { _, checked ->
+            CorePrefs.setSwitchSfxEnabled(this, checked)
+            runCatching { HylianBoxApp.sfxManager }.getOrNull()?.setEnabled(checked)
+            if (checked) sfx?.select()
+        }
+
+        updateAppearanceAccentLabel()
+        binding.settingsAppearanceAccent.setOnClickListener {
+            sfx?.select()
+            showAccentColorDialog()
+        }
+
+        setupAppearanceScale()
+    }
+
+    private fun setupAppearanceScale() {
+        val initial = CorePrefs.getUiScale(this)
+        binding.settingsAppearanceScale.progress = initial - CorePrefs.UI_SCALE_MIN
+        updateAppearanceScaleLabel(initial)
+        binding.settingsAppearanceScale.setOnSeekBarChangeListener(
+                object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: android.widget.SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        if (fromUser) sfx?.select()
+                        val scale =
+                                (progress + CorePrefs.UI_SCALE_MIN).coerceIn(
+                                        CorePrefs.UI_SCALE_MIN,
+                                        CorePrefs.UI_SCALE_MAX
+                                )
+                        updateAppearanceScaleLabel(scale)
+                    }
+
+                    override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
+
+                    override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
+                        val scale =
+                                ((seekBar?.progress ?: 0) + CorePrefs.UI_SCALE_MIN).coerceIn(
+                                        CorePrefs.UI_SCALE_MIN,
+                                        CorePrefs.UI_SCALE_MAX
+                                )
+                        if (scale == CorePrefs.getUiScale(this@SettingsActivity)) return
+                        CorePrefs.setUiScale(this@SettingsActivity, scale)
+                        UiScaleManager.recreateToApply(this@SettingsActivity)
+                    }
+                }
+        )
+    }
+
+    private fun updateAppearanceScaleLabel(scale: Int) {
+        binding.settingsAppearanceScaleValue.text =
+                getString(R.string.settings_appearance_scale_value, scale)
+    }
+
+    private fun updateAppearanceThemeLabel() {
+        val isLight = br.com.redclaw.hylianbox.ui.switchui.ThemeManager.isLight(this)
+        binding.settingsAppearanceTheme.text =
+                getString(
+                        if (isLight) R.string.settings_appearance_theme_to_dark
+                        else R.string.settings_appearance_theme_to_light
+                )
+    }
+
+    private fun updateAppearanceAccentLabel() {
+        binding.settingsAppearanceAccentCurrent.text = AccentManager.getCurrentAccentLabel(this)
+    }
+
+    private fun showAccentColorDialog() {
+        val options = AccentManager.options
+        val labels = options.map { getString(it.labelRes) }
+        val currentKey = AccentManager.getCurrentAccentKey(this)
+        val checkedIndex = options.indexOfFirst { it.key == currentKey }.coerceAtLeast(0)
+        SwitchDialog(this)
+                .title(getString(R.string.settings_appearance_accent_label))
+                .singleChoice(labels, checkedIndex) { index ->
+                    val chosen = options[index]
+                    AccentManager.setAccent(this, chosen.key)
+                    updateAppearanceAccentLabel()
+                    applyDynamicAccentToSwitches()
+                    selectSettingsSection(binding.settingsNavAppearance)
+                    recreate()
+                }
+                .negativeButton(getString(android.R.string.cancel))
+                .show()
     }
 
     // ---- Display (Multi-Monitor) section ----

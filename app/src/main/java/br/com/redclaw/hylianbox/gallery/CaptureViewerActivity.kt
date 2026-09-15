@@ -26,23 +26,28 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityCaptureViewerBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import coil.load
 import java.io.File
 
 /**
  * Fullscreen, internal viewer for one gallery capture.
  *
- * Images are shown fit-to-screen. Recordings use the platform [android.widget.VideoView]
- * with Switch-style play/pause controls so neither media type delegates viewing to an
- * external app. The activity accepts only files named like a gallery capture and checks
- * that the supplied type matches the extension before rendering it.
+ * Images are shown fit-to-screen. Recordings use the platform [android.widget.VideoView] with
+ * Switch-style play/pause controls so neither media type delegates viewing to an external app. The
+ * activity accepts only files named like a gallery capture and checks that the supplied type
+ * matches the extension before rendering it.
  */
 class CaptureViewerActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivityCaptureViewerBinding
     private val backHelper = SwitchBackButton()
@@ -58,8 +63,10 @@ class CaptureViewerActivity : AppCompatActivity() {
         binding.captureViewerPlayback.setOnClickListener { togglePlayback() }
 
         val file = intent.getStringExtra(EXTRA_CAPTURE_PATH)?.let(::File)
-        val type = intent.getStringExtra(EXTRA_MEDIA_TYPE)
-            ?.let { runCatching { MediaType.valueOf(it) }.getOrNull() }
+        val type =
+                intent.getStringExtra(EXTRA_MEDIA_TYPE)?.let {
+                    runCatching { MediaType.valueOf(it) }.getOrNull()
+                }
         if (!isValidCapture(file, type)) {
             showError()
             return
@@ -101,33 +108,35 @@ class CaptureViewerActivity : AppCompatActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    private fun showImage(file: File) = with(binding) {
-        captureViewerTitle.setText(R.string.gallery_image_viewer_title)
-        captureViewerLoading.visibility = View.GONE
-        captureViewerImage.visibility = View.VISIBLE
-        captureViewerImage.load(file) {
-            crossfade(true)
-            placeholder(R.drawable.ic_screenshot)
-            error(R.drawable.ic_screenshot)
-        }
-    }
+    private fun showImage(file: File) =
+            with(binding) {
+                captureViewerTitle.setText(R.string.gallery_image_viewer_title)
+                captureViewerLoading.visibility = View.GONE
+                captureViewerImage.visibility = View.VISIBLE
+                captureViewerImage.load(file) {
+                    crossfade(true)
+                    placeholder(R.drawable.ic_screenshot)
+                    error(R.drawable.ic_screenshot)
+                }
+            }
 
-    private fun showVideo(file: File) = with(binding) {
-        captureViewerTitle.setText(R.string.gallery_video_player_title)
-        captureViewerVideo.visibility = View.VISIBLE
-        captureViewerPlayback.visibility = View.VISIBLE
-        captureViewerVideo.setVideoPath(file.absolutePath)
-        captureViewerVideo.setOnPreparedListener { player -> onVideoPrepared(player) }
-        captureViewerVideo.setOnCompletionListener {
-            updatePlaybackButton(isPlaying = false)
-            captureViewerVideo.seekTo(0)
-        }
-        captureViewerVideo.setOnErrorListener { _, _, _ ->
-            showError()
-            true
-        }
-        captureViewerVideo.requestFocus()
-    }
+    private fun showVideo(file: File) =
+            with(binding) {
+                captureViewerTitle.setText(R.string.gallery_video_player_title)
+                captureViewerVideo.visibility = View.VISIBLE
+                captureViewerPlayback.visibility = View.VISIBLE
+                captureViewerVideo.setVideoPath(file.absolutePath)
+                captureViewerVideo.setOnPreparedListener { player -> onVideoPrepared(player) }
+                captureViewerVideo.setOnCompletionListener {
+                    updatePlaybackButton(isPlaying = false)
+                    captureViewerVideo.seekTo(0)
+                }
+                captureViewerVideo.setOnErrorListener { _, _, _ ->
+                    showError()
+                    true
+                }
+                captureViewerVideo.requestFocus()
+            }
 
     private fun onVideoPrepared(player: MediaPlayer) {
         binding.captureViewerLoading.visibility = View.GONE
@@ -150,25 +159,31 @@ class CaptureViewerActivity : AppCompatActivity() {
         }
     }
 
-    private fun updatePlaybackButton(isPlaying: Boolean) = with(binding.captureViewerPlayback) {
-        setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
-        contentDescription = getString(
-            if (isPlaying) R.string.gallery_pause_video else R.string.gallery_play_video
-        )
-    }
+    private fun updatePlaybackButton(isPlaying: Boolean) =
+            with(binding.captureViewerPlayback) {
+                setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
+                contentDescription =
+                        getString(
+                                if (isPlaying) R.string.gallery_pause_video
+                                else R.string.gallery_play_video
+                        )
+            }
 
-    private fun showError() = with(binding) {
-        captureViewerLoading.visibility = View.GONE
-        captureViewerVideo.visibility = View.GONE
-        captureViewerPlayback.visibility = View.GONE
-        captureViewerError.visibility = View.VISIBLE
-    }
+    private fun showError() =
+            with(binding) {
+                captureViewerLoading.visibility = View.GONE
+                captureViewerVideo.visibility = View.GONE
+                captureViewerPlayback.visibility = View.GONE
+                captureViewerError.visibility = View.VISIBLE
+            }
 
     private fun isValidCapture(file: File?, type: MediaType?): Boolean {
         if (file == null || type == null || !file.isFile) return false
         return when (type) {
-            MediaType.IMAGE -> file.name.startsWith("screenshot_") && file.extension.equals("png", true)
-            MediaType.VIDEO -> file.name.startsWith("recording_") && file.extension.equals("mp4", true)
+            MediaType.IMAGE ->
+                    file.name.startsWith("screenshot_") && file.extension.equals("png", true)
+            MediaType.VIDEO ->
+                    file.name.startsWith("recording_") && file.extension.equals("mp4", true)
         }
     }
 
@@ -178,9 +193,9 @@ class CaptureViewerActivity : AppCompatActivity() {
 
         /** Creates an explicit intent for the in-app viewer of [item]. */
         fun intent(context: Context, item: GalleryItem): Intent =
-            Intent(context, CaptureViewerActivity::class.java).apply {
-                putExtra(EXTRA_CAPTURE_PATH, item.path.absolutePath)
-                putExtra(EXTRA_MEDIA_TYPE, item.type.name)
-            }
+                Intent(context, CaptureViewerActivity::class.java).apply {
+                    putExtra(EXTRA_CAPTURE_PATH, item.path.absolutePath)
+                    putExtra(EXTRA_MEDIA_TYPE, item.type.name)
+                }
     }
 }

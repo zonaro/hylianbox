@@ -34,9 +34,19 @@ Every valid record supplies the regular identity and base-ROM fields plus
 either `patch` or `downloadTarget`:
 
 - A direct `patch` / `downloadTarget.type = "direct"` enters the normal
-  download and patch queue.
-- `downloadTarget.type = "github"` **always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). This guarantees hacks distributed via GitHub Releases (e.g. Ocarina of Time DX, Ultimate Trial, Demon's Quest) always download the newest patch even when the catalog's pinned URL/version is stale. If resolution fails, the release page opens in a browser.
-- `downloadTarget.type = "external"` opens the publisher page in a browser.
+  download and patch queue. Archives (`.zip`/`.7z`/`.rar`) are extracted
+  automatically via `ArchiveExtractor` (JDK ZIP, commons-compress + xz for
+  7Z/LZMA2, junrar for RAR incl. RAR5); the catalog `filename` names the
+  expected inner patch, or the first `*.bps`/`*.ips`/`*.xdelta` inside is
+  used. Every patch URL must point at its original upstream source (Hylian
+  Modding, romhacking.net, developer site) — never a private mirror.
+- `downloadTarget.type = "github"` **always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`/`*.7z`/`*.rar`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). This guarantees hacks distributed via GitHub Releases (e.g. Ocarina of Time DX, Ultimate Trial, Demon's Quest) always download the newest patch even when the catalog's pinned URL/version is stale. If resolution fails, the release page opens in a browser.
+- `downloadTarget.type = "external"` opens the publisher page in the embedded
+  WebView (`WebViewDownloadActivity`), which intercepts `.bps`/`.ips`/
+  `.xdelta`/`.zip`/`.7z`/`.rar`/ROM downloads and installs them through the
+  same pipeline. Use it when the publisher offers no direct file URL
+  (e.g. romhacking.net pages, the Newer Team web patcher is the exception:
+  it serves a direct `.xdelta`).
 
 Do not fabricate patch size or checksum data for a source that does not publish
 them. Imported direct links can use `size: 0` and an empty checksum; page-based

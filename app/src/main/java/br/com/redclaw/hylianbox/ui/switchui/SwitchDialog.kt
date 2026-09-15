@@ -106,12 +106,16 @@ class SwitchDialog(private val context: Context) {
 
     /** Builds and shows the dialog. */
     fun show(): SwitchDialog {
+        val fullscreenGameplay = GameplayFullscreenDialog.isGameplayContext(context)
         val view = LayoutInflater.from(context)
             .inflate(R.layout.switch_dialog, null) as FrameLayout
-        val dialog = AppCompatDialog(context, R.style.SwitchDialogTheme)
+        val theme =
+                if (fullscreenGameplay) R.style.GameplayFullscreenDialogTheme
+                else R.style.SwitchDialogTheme
+        val dialog = AppCompatDialog(context, theme)
         dialog.setContentView(view)
         dialog.setCancelable(true)
-        dialog.setCanceledOnTouchOutside(true)
+        dialog.setCanceledOnTouchOutside(!fullscreenGameplay)
         this.dialog = dialog
 
         // Size the window to fill (the scrim) so the box can be centered.
@@ -135,12 +139,12 @@ class SwitchDialog(private val context: Context) {
 
         // Tapping the scrim (outside the box) dismisses; the box is made
         // clickable below so taps inside it are consumed and do not dismiss.
-        view.setOnClickListener { dismiss() }
+        if (!fullscreenGameplay) view.setOnClickListener { dismiss() }
 
-        dialog.show()
+        if (fullscreenGameplay) GameplayFullscreenDialog.show(dialog) else dialog.show()
         // After show, constrain the box width (window is MATCH_PARENT for the
         // scrim; the box itself is centered and width-bounded via its layout).
-        sizeBox(view)
+        sizeBox(view, fullscreenGameplay)
 
         // Request focus on the first list item so D-pad navigation works immediately.
         // This is essential for controller/DPad navigation in single-choice dialogs.
@@ -215,12 +219,10 @@ class SwitchDialog(private val context: Context) {
             return
         }
         buttonRow.visibility = View.VISIBLE
-        val accentColor = AccentManager.getAccentColor(context)
         if (hasPositive) {
             positive.visibility = View.VISIBLE
             positive.text = positiveText
-            // Apply dynamic accent color to button background
-            positive.background = createButtonBackground(context, accentColor)
+            positive.background = AccentManager.createSwitchButtonBackground(context)
             positive.setOnClickListener {
                 sfx?.select()
                 val action = positiveAction
@@ -233,8 +235,7 @@ class SwitchDialog(private val context: Context) {
         if (hasNegative) {
             negative.visibility = View.VISIBLE
             negative.text = negativeText
-            // Apply dynamic accent color to button background
-            negative.background = createButtonBackground(context, accentColor)
+            negative.background = AccentManager.createSwitchButtonBackground(context)
             negative.setOnClickListener {
                 sfx?.select()
                 val action = negativeAction
@@ -246,17 +247,19 @@ class SwitchDialog(private val context: Context) {
         }
     }
 
-    /** Creates a button background drawable with the dynamic accent color. */
-    private fun createButtonBackground(context: Context, accentColor: Int): GradientDrawable {
-        val drawable = GradientDrawable()
-        drawable.shape = GradientDrawable.RECTANGLE
-        drawable.setColor(accentColor)
-        drawable.setCornerRadius(4f)
-        return drawable
-    }
-
-    private fun sizeBox(view: View) {
+    private fun sizeBox(view: View, fullscreenGameplay: Boolean) {
         val box = view.findViewById<View>(R.id.dialog_box) ?: return
+        if (fullscreenGameplay) {
+            view.setBackgroundColor(ContextCompat.getColor(context, R.color.switch_bg))
+            box.setBackgroundColor(ContextCompat.getColor(context, R.color.switch_bg))
+            box.layoutParams =
+                    FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+            box.isClickable = true
+            return
+        }
         val metrics = context.resources.displayMetrics
         val minW = context.resources.getDimensionPixelSize(R.dimen.switch_side_panel_min_width)
         val maxW = context.resources.getDimensionPixelSize(R.dimen.dialog_menu_max_width)

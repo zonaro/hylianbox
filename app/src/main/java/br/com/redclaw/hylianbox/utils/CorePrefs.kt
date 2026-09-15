@@ -47,6 +47,12 @@ object CorePrefs {
         private const val PREF_SWITCH_SFX_ENABLED = "pref_switch_sfx_enabled"
         private const val PREF_SWITCH_ACCENT = "pref_switch_accent"
 
+        // Global interface scale (1..5, default 3 = current 1.0x scale).
+        const val PREF_UI_SCALE = "pref_ui_scale"
+        const val UI_SCALE_MIN = 1
+        const val UI_SCALE_MAX = 5
+        const val UI_SCALE_DEFAULT = 3
+
         // Automatic cloud sync (incremental, per-save) preference keys.
         private const val PREF_CLOUD_SYNC_ENABLED = "pref_cloud_sync_enabled"
         private const val PREF_CLOUD_SYNC_WIFI_ONLY = "pref_cloud_sync_wifi_only"
@@ -74,7 +80,7 @@ object CorePrefs {
 
         // ---- Gamepad Overlay ----
         private const val PREF_BUTTON_STICK_ENABLED = "button_stick_enabled"
-        private const val PREF_OVERLAY_SCALE = "overlay_scale"
+        private const val PREF_HIDE_HUD_BUTTONS = "hide_hud_buttons"
         private const val PREF_CONTROL_MODE = "control_mode"
         @Deprecated("Replaced by ControlOverlayMode.AREA", ReplaceWith("PREF_CONTROL_MODE"))
         private const val PREF_RIGHT_TAP_ACTION = "right_tap_action"
@@ -275,6 +281,22 @@ object CorePrefs {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .edit()
                         .putString(PREF_SWITCH_ACCENT, accentKey)
+                        .apply()
+        }
+
+        /**
+         * Global interface scale (1..5, default 3 = current 1.0x scale). Affects the whole app
+         * except the emulator touch overlay, which uses physical pixels and the system density.
+         */
+        fun getUiScale(context: Context): Int =
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getInt(PREF_UI_SCALE, UI_SCALE_DEFAULT)
+                        .coerceIn(UI_SCALE_MIN, UI_SCALE_MAX)
+
+        fun setUiScale(context: Context, scale: Int) {
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putInt(PREF_UI_SCALE, scale.coerceIn(UI_SCALE_MIN, UI_SCALE_MAX))
                         .apply()
         }
 
@@ -599,29 +621,44 @@ object CorePrefs {
                         .apply()
         }
 
-        /** Overlay button scale: "small" (1.0x), "medium" (1.25x), "large" (1.5x). */
-        fun getOverlayScale(context: Context): String =
+        /**
+         * Hide C and B gameplay buttons on the N64 HUD when no physical controller is connected
+         * (default true). Disabled automatically when hardcore mode is active; the toggle is locked
+         * in that state.
+         */
+        fun getHideHudButtons(context: Context): Boolean =
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .getString(PREF_OVERLAY_SCALE, OVERLAY_SCALE_SMALL)
-                        ?: OVERLAY_SCALE_SMALL
+                        .getBoolean(PREF_HIDE_HUD_BUTTONS, true)
 
-        fun setOverlayScale(context: Context, scale: String) {
+        fun setHideHudButtons(context: Context, enabled: Boolean) {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .edit()
-                        .putString(PREF_OVERLAY_SCALE, scale)
+                        .putBoolean(PREF_HIDE_HUD_BUTTONS, enabled)
                         .apply()
         }
 
-        fun getOverlayScaleFactor(context: Context): Float =
-                when (getOverlayScale(context)) {
-                        OVERLAY_SCALE_MEDIUM -> 1.25f
-                        OVERLAY_SCALE_LARGE -> 1.5f
-                        else -> 1f
-                }
+        // ---- Equipped-item icons (per game) ----
+        private const val PREF_SHOW_EQUIPPED_ICONS_PREFIX = "show_equipped_icons_"
 
-        const val OVERLAY_SCALE_SMALL = "small"
-        const val OVERLAY_SCALE_MEDIUM = "medium"
-        const val OVERLAY_SCALE_LARGE = "large"
+        /**
+         * Whether equipped-item icons are shown on the touch controls (Standard buttons or Pro
+         * areas). Stored per game ([hackId]); when never set, [default] applies — callers pass true
+         * for vanilla ROMs and false for hacks.
+         */
+        fun getShowEquippedIcons(context: Context, hackId: String?, default: Boolean): Boolean {
+                if (hackId == null) return default
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val key = PREF_SHOW_EQUIPPED_ICONS_PREFIX + hackId
+                return if (prefs.contains(key)) prefs.getBoolean(key, default) else default
+        }
+
+        fun setShowEquippedIcons(context: Context, hackId: String?, enabled: Boolean) {
+                if (hackId == null) return
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putBoolean(PREF_SHOW_EQUIPPED_ICONS_PREFIX + hackId, enabled)
+                        .apply()
+        }
 
         /**
          * Control overlay mode: "standard" (frozen RadialGamePad layout) or "area" (mapped touch
@@ -630,9 +667,13 @@ object CorePrefs {
         fun getControlMode(context: Context): String =
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getString(PREF_CONTROL_MODE, CONTROL_MODE_STANDARD)
+                        .takeIf { it == CONTROL_MODE_STANDARD || it == CONTROL_MODE_AREA }
                         ?: CONTROL_MODE_STANDARD
 
         fun setControlMode(context: Context, mode: String) {
+                require(mode == CONTROL_MODE_STANDARD || mode == CONTROL_MODE_AREA) {
+                        "Unsupported control overlay mode"
+                }
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .edit()
                         .putString(PREF_CONTROL_MODE, mode)

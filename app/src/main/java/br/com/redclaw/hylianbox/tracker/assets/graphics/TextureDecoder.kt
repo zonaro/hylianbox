@@ -13,7 +13,7 @@ package br.com.redclaw.hylianbox.tracker.assets.graphics
 import java.io.File
 
 /**
- * Decodes N64 texture formats (RGBA16, CI8+TLUT) to 32-bit ARGB_8888.
+ * Decodes N64 texture formats (RGBA32, RGBA16, CI8+TLUT, IA8, I8) to 32-bit ARGB_8888.
  *
  * Pure Kotlin for the decode logic; [saveAsPng] uses Android Bitmap (call on Android only).
  */
@@ -91,6 +91,43 @@ object TextureDecoder {
         return IntArray(count) { i ->
             val index = pixelData[pixelOffset + i].toInt() and 0xFF
             palette[index]
+        }
+    }
+
+    /**
+     * Decode an IA8 texture (1 byte/pixel) to ARGB_8888.
+     *
+     * N64 IA8 packs 4 bits intensity + 4 bits alpha per byte (high nibble intensity, low nibble
+     * alpha). The song-note texture (`gSongNoteTex` / `gItemIconSongNoteTex`, IA8 16x24) is a white
+     * glyph tinted at runtime via PrimColor, so the extracted PNG must stay bright white for
+     * [android.widget.ImageView.setColorFilter] tinting.
+     *
+     * Simplification: the full byte is used as both luminance and alpha (`I = A = byte`), i.e.
+     * grayscale white where bright = opaque and dark = transparent. For the canonical values this
+     * matches the nibble expansion (0xFF -> opaque white, 0x00 -> transparent) while keeping
+     * mid-tones bright enough to tint vividly. Documented here so the approximation is explicit and
+     * testable.
+     */
+    fun decodeIA8(data: ByteArray, offset: Int, width: Int, height: Int): IntArray {
+        val count = width * height
+        require(offset + count <= data.size) {
+            "IA8: not enough data (need $count, have ${data.size - offset})"
+        }
+        return IntArray(count) { i ->
+            val v = data[offset + i].toInt() and 0xFF
+            (v shl 24) or (v shl 16) or (v shl 8) or v
+        }
+    }
+
+    /** Decode an I8 texture (1 byte/pixel grayscale, opaque) to ARGB_8888. */
+    fun decodeI8(data: ByteArray, offset: Int, width: Int, height: Int): IntArray {
+        val count = width * height
+        require(offset + count <= data.size) {
+            "I8: not enough data (need $count, have ${data.size - offset})"
+        }
+        return IntArray(count) { i ->
+            val v = data[offset + i].toInt() and 0xFF
+            (0xFF shl 24) or (v shl 16) or (v shl 8) or v
         }
     }
 

@@ -22,6 +22,16 @@ enum class OcarinaGame { OOT, MM }
 object OcarinaSongCatalog {
 
     /**
+     * Resolves the running game for a catalog hack or a directly imported ROM.
+     *
+     * Catalog metadata describes the required base game and therefore wins over a patched ROM
+     * header, which ROM hacks are free to rewrite. Direct imports have no declaration and retain
+     * the existing header-based detection.
+     */
+    fun detectGame(header: RomHeader?, declaredGame: OcarinaGame?): OcarinaGame? =
+        declaredGame ?: header?.let(::detectGame)
+
+    /**
      * Detect the Ocarina game from a parsed [RomHeader].
      *
      * Canonical game codes are authoritative and checked first, in order:

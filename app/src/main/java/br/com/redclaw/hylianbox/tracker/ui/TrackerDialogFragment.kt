@@ -21,7 +21,6 @@ package br.com.redclaw.hylianbox.tracker.ui
 import android.app.Dialog
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.res.ColorStateList
 import android.widget.Switch
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -50,6 +49,7 @@ import br.com.redclaw.hylianbox.tracker.ui.tabs.ItemsTab
 import br.com.redclaw.hylianbox.tracker.ui.tabs.LocationsTab
 import br.com.redclaw.hylianbox.tracker.ui.tabs.SongsTab
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 
 /**
@@ -60,6 +60,7 @@ import br.com.redclaw.hylianbox.utils.CorePrefs
 class TrackerDialogFragment : DialogFragment() {
 
     private var contentView: View? = null
+    private var dualScreenPinned = false
     lateinit var viewModel: TrackerViewModel
     private val autoTrackingPreferenceListener =
             SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -113,44 +114,24 @@ class TrackerDialogFragment : DialogFragment() {
             }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        dualScreenPinned = requireArguments().getBoolean(ARG_DUAL_SCREEN_PINNED)
         val game = TrackerGame.valueOf(requireArguments().getString(ARG_GAME)!!)
         val hackId = arguments?.getString(ARG_HACK_ID)
         viewModel = TrackerViewModel(requireContext(), game, hackId)
 
-        val dialog = AppCompatDialog(requireContext(), R.style.SwitchDialogTheme)
+        val dialog = AppCompatDialog(requireContext(), R.style.GameplayFullscreenDialogTheme)
         val view = LayoutInflater.from(dialog.context).inflate(R.layout.tracker_dialog, null)
         contentView = view
         tabButtons.clear()
         dialog.setContentView(view)
-        dialog.window?.setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT
-        )
-        // Scrim tap dismisses; box consumes taps.
-        view.setOnClickListener { dismiss() }
-        view.findViewById<View>(R.id.tracker_box)?.let { box ->
-            box.isClickable = true
-            // Constrain box width like SwitchDialog (40% width, 320..560dp).
-            val dm = resources.displayMetrics
-            val minW = resources.getDimensionPixelSize(R.dimen.switch_side_panel_min_width)
-            val maxW = resources.getDimensionPixelSize(R.dimen.dialog_menu_max_width)
-            val target = (dm.widthPixels * 0.94f).toInt().coerceIn(minW, maxW)
-            // Bound the weighted tab content to the visible window in either orientation.
-            val lp = box.layoutParams as? FrameLayout.LayoutParams
-            if (lp != null) {
-                lp.width = target.coerceAtMost(dm.widthPixels)
-                lp.height = (dm.heightPixels * 0.9f).toInt()
-                box.layoutParams = lp
-            }
-        }
+        dialog.setCanceledOnTouchOutside(false)
+        isCancelable = !dualScreenPinned
+        applyPinnedInputMode(dialog)
 
         val accent = AccentManager.getAccentColor(requireContext())
         view.findViewById<Switch>(R.id.tracker_auto_tracking).apply {
-            val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-            thumbTintList = ColorStateList(states, intArrayOf(accent,
-                    requireContext().getColor(R.color.switch_text_primary)))
-            trackTintList = ColorStateList(states, intArrayOf(accent,
-                    requireContext().getColor(R.color.switch_text_secondary)))
+            thumbTintList = AccentManager.createSwitchThumbStateList(requireContext())
+            trackTintList = AccentManager.createSwitchTrackStateList(requireContext())
             isChecked = CorePrefs.getTrackerAutoTracking(requireContext())
             setOnCheckedChangeListener { _, checked ->
                 if (checked != CorePrefs.getTrackerAutoTracking(requireContext())) {
@@ -160,16 +141,25 @@ class TrackerDialogFragment : DialogFragment() {
             }
         }
         view.findViewById<ImageView>(R.id.tracker_icon)?.setColorFilter(accent)
+        // Tint the 3 circular action icons with accent
+        view.findViewById<ImageView>(R.id.tracker_clear)?.setColorFilter(accent)
+        view.findViewById<ImageView>(R.id.tracker_export)?.setColorFilter(accent)
+        view.findViewById<ImageView>(R.id.tracker_import)?.setColorFilter(accent)
+        // Also tint via ImageButton tint if needed
+        (view.findViewById<ImageButton>(R.id.tracker_clear).drawable)?.setTint(accent)
+        (view.findViewById<ImageButton>(R.id.tracker_export).drawable)?.setTint(accent)
+        (view.findViewById<ImageButton>(R.id.tracker_import).drawable)?.setTint(accent)
         val titleRes =
                 if (game == TrackerGame.OOT) R.string.tracker_title_oot
                 else R.string.tracker_title_mm
         view.findViewById<TextView>(R.id.tracker_title).setText(titleRes)
         val closeBtn = view.findViewById<Button>(R.id.tracker_close)
-        closeBtn.background = createSwitchButtonBg(accent)
+        closeBtn.background = AccentManager.createSwitchButtonBackground(requireContext())
         closeBtn.setOnClickListener {
             sfx?.back()
             dismiss()
         }
+        closeBtn.visibility = if (dualScreenPinned) View.GONE else View.VISIBLE
 
         val tabStrip = view.findViewById<LinearLayout>(R.id.tracker_tabs)
         tabFactories.forEachIndexed { index, (labelRes, _) ->
@@ -218,6 +208,35 @@ class TrackerDialogFragment : DialogFragment() {
     }
 
     /**
+     * Converts an already-open manual tracker into the persistent dual-screen surface, or restores
+     * it when dual-screen mode ends. A tracker created automatically is dismissed on restore.
+     */
+    fun setPinnedByDualScreen(pinned: Boolean) {
+        dualScreenPinned = pinned
+        isCancelable = !pinned
+        dialog?.let(::applyPinnedInputMode)
+        contentView?.findViewById<Button>(R.id.tracker_close)?.visibility =
+                if (pinned) View.GONE else View.VISIBLE
+        if (!pinned && arguments?.getBoolean(ARG_DUAL_SCREEN_PINNED) == true) {
+            dismissAllowingStateLoss()
+        }
+    }
+
+    /**
+     * A pinned tracker remains touchable but never becomes the key/joystick target. Android routes
+     * physical-controller input to GameActivity behind this window, so gameplay continues normally
+     * and its global menu shortcut can still place the emulator menu above the tracker.
+     */
+    private fun applyPinnedInputMode(dialog: Dialog) {
+        val window = dialog.window ?: return
+        if (dualScreenPinned) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        }
+    }
+
+    /**
      * Deferred initial tab selection.
      *
      * Previously [selectTab] was called at the end of [onCreateDialog], but
@@ -227,10 +246,10 @@ class TrackerDialogFragment : DialogFragment() {
      */
     override fun onStart() {
         super.onStart()
+        GameplayFullscreenDialog.apply(requireDialog())
         requireContext().getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
                 .registerOnSharedPreferenceChangeListener(autoTrackingPreferenceListener)
         syncAutoTrackingSwitch()
-        // Window is MATCH_PARENT for scrim; box is sized in onCreateDialog.
         // Defer the first tab selection to after onStart() fully completes.
         // Calling childFragmentManager.commitNow() inside onStart() triggers
         // nested FragmentManager execution (the parent is still mid-dispatch),
@@ -256,10 +275,9 @@ class TrackerDialogFragment : DialogFragment() {
         if (!isAdded || childFragmentManager.isStateSaved) return
         selected = index
         sfx?.select()
-        val accent = AccentManager.getAccentColor(requireContext())
         tabButtons.forEachIndexed { i, btn ->
             btn.isSelected = i == index
-            btn.background = if (i == index) createSwitchButtonBg(accent) else createTabIdleBg()
+            btn.background = if (i == index) AccentManager.createSwitchButtonBackground(requireContext()) else createTabIdleBg()
             btn.setTextColor(
                     if (i == index) android.graphics.Color.WHITE
                     else requireContext().getColor(R.color.switch_text_primary)
@@ -276,20 +294,13 @@ class TrackerDialogFragment : DialogFragment() {
     private fun applyTabStyles(accent: Int) {
         tabButtons.forEachIndexed { i, btn ->
             val selectedTab = i == selected
-            btn.background = if (selectedTab) createSwitchButtonBg(accent) else createTabIdleBg()
+            btn.background = if (selectedTab) AccentManager.createSwitchButtonBackground(requireContext()) else createTabIdleBg()
             btn.setTextColor(
                     if (selectedTab) android.graphics.Color.WHITE
                     else requireContext().getColor(R.color.switch_text_primary)
             )
         }
     }
-
-    private fun createSwitchButtonBg(accent: Int): GradientDrawable =
-            GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(accent)
-                cornerRadius = 4f
-            }
 
     private fun createTabIdleBg(): GradientDrawable =
             GradientDrawable().apply {
@@ -318,12 +329,20 @@ class TrackerDialogFragment : DialogFragment() {
     companion object {
         private const val ARG_GAME = "tracker_game"
         private const val ARG_HACK_ID = "tracker_hack_id"
-        fun newInstance(game: TrackerGame, hackId: String? = null): TrackerDialogFragment =
+        private const val ARG_DUAL_SCREEN_PINNED = "tracker_dual_screen_pinned"
+        const val TAG = "item_tracker"
+
+        fun newInstance(
+                game: TrackerGame,
+                hackId: String? = null,
+                dualScreenPinned: Boolean = false
+        ): TrackerDialogFragment =
                 TrackerDialogFragment().apply {
                     arguments =
                             Bundle().apply {
                                 putString(ARG_GAME, game.name)
                                 if (!hackId.isNullOrBlank()) putString(ARG_HACK_ID, hackId)
+                                putBoolean(ARG_DUAL_SCREEN_PINNED, dualScreenPinned)
                             }
                 }
     }

@@ -3,6 +3,7 @@ package br.com.redclaw.hylianbox.tracker.autotracker
 
 import br.com.redclaw.hylianbox.tracker.autotracker.model.AutoTrackerSnapshot
 import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
+import br.com.redclaw.hylianbox.tracker.autotracker.parser.SaveContextLocator
 import br.com.redclaw.hylianbox.tracker.autotracker.parser.SaveContextParser
 import br.com.redclaw.hylianbox.tracker.equipment.SaveContextWriter
 import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipCommand
@@ -26,9 +27,14 @@ class AutoTrackerPoller(
     private var lastPoll: Long? = null
     private var lastSnapshot: AutoTrackerSnapshot? = null
     private var lastEquipment: EquippedItemsSnapshot? = null
+    private val saveContextLocator = SaveContextLocator(game)
 
     @Volatile private var invalidated = false
     private val equipCommands = ConcurrentLinkedQueue<TrackerEquipCommand>()
+
+    /** Resolved compatible SaveContext base, including supported relocated hack layouts. */
+    val resolvedSaveContextBase: Int?
+        get() = saveContextLocator.resolvedBase
 
     fun enqueueEquip(command: TrackerEquipCommand): Boolean {
         if (command.game != game) return false
@@ -44,7 +50,13 @@ class AutoTrackerPoller(
     fun onFrame() {
         while (true) {
             val command = equipCommands.poll() ?: break
-            runCatching { SaveContextWriter.apply(memory, command) }
+            runCatching {
+                SaveContextWriter.apply(
+                        memory,
+                        command,
+                        saveContextLocator.resolvedBase ?: SaveContextParser.base(game)
+                )
+            }
         }
         if (invalidated) {
             lastSnapshot = null
@@ -54,7 +66,7 @@ class AutoTrackerPoller(
         val now = nanoTime()
         if (lastPoll?.let { now - it < 100_000_000L } == true) return
         lastPoll = now
-        val snapshot = SaveContextParser.parse(memory, game) ?: return
+        val snapshot = saveContextLocator.parse(memory) ?: return
         val equippedChanged = snapshot.equippedItems != lastEquipment
         if (equippedChanged) {
             lastEquipment = snapshot.equippedItems

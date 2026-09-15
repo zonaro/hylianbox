@@ -8,6 +8,25 @@ import org.junit.Test
 class OcarinaSongCatalogTest {
 
     @Test
+    fun catalogFamilyOverridesHeaderRewrittenByHack() {
+        val misleadingHeader = RomHeader("NZLE", 0, "CUSTOM HACK")
+
+        assertEquals(
+                OcarinaGame.OOT,
+                OcarinaSongCatalog.detectGame(misleadingHeader, OcarinaGame.OOT)
+        )
+    }
+
+    @Test
+    fun directImportFallsBackToPatchedRomHeader() {
+        assertEquals(
+                OcarinaGame.MM,
+                OcarinaSongCatalog.detectGame(RomHeader("NSME", 0, "CUSTOM HACK"), null)
+        )
+        assertNull(OcarinaSongCatalog.detectGame(RomHeader("XXXX", 0, "CUSTOM HACK"), null))
+    }
+
+    @Test
     fun detectGame_ootFamily() {
         assertEquals(OcarinaGame.OOT, OcarinaSongCatalog.detectGame(RomHeader("CZLE", 0, "T")))
         assertEquals(OcarinaGame.OOT, OcarinaSongCatalog.detectGame(RomHeader("CZLJ", 0, "T")))

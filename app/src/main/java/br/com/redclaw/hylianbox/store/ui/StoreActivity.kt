@@ -1,5 +1,6 @@
 package br.com.redclaw.hylianbox.store.ui
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -22,8 +23,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.data.model.HackEntry
 import br.com.redclaw.hylianbox.databinding.ActivityStoreBinding
 import br.com.redclaw.hylianbox.ocarina.OcarinaGame
@@ -37,14 +38,19 @@ import br.com.redclaw.hylianbox.store.ImportPatchUnsupported
 import br.com.redclaw.hylianbox.store.ImportRomDuplicate
 import br.com.redclaw.hylianbox.store.ImportRomInvalid
 import br.com.redclaw.hylianbox.store.ImportRomSuccess
-import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
+import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.utils.UiScaleManager
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 
 class StoreActivity : AppCompatActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
+
     private lateinit var binding: ActivityStoreBinding
     internal lateinit var viewModel: StoreViewModel
     private lateinit var adapter: StoreAdapter
@@ -59,34 +65,34 @@ class StoreActivity : AppCompatActivity() {
     private var currentPageHacks: List<HackEntry> = emptyList()
 
     /** Picks a BPS/IPS patch or .n64/.z64/.z.64 base ROM from the document provider. */
-    private val importLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@registerForActivityResult
-        val rawName = queryDisplayName(uri) ?: "hack"
-        val extension = rawName.substringAfterLast('.', "bin").lowercase()
-        val temp = File(cacheDir, "import_${System.currentTimeMillis()}.$extension.tmp")
-        try {
-            contentResolver.openInputStream(uri)?.use { input ->
-                temp.outputStream().use { out -> input.copyTo(out) }
-            } ?: run {
-                temp.delete()
-                return@registerForActivityResult
-            }
-        } catch (_: Exception) {
-            temp.delete()
-            return@registerForActivityResult
-        }
+    private val importLauncher =
+            registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri == null) return@registerForActivityResult
+                val rawName = queryDisplayName(uri) ?: "hack"
+                val extension = rawName.substringAfterLast('.', "bin").lowercase()
+                val temp = File(cacheDir, "import_${System.currentTimeMillis()}.$extension.tmp")
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        temp.outputStream().use { out -> input.copyTo(out) }
+                    }
+                            ?: run {
+                                temp.delete()
+                                return@registerForActivityResult
+                            }
+                } catch (_: Exception) {
+                    temp.delete()
+                    return@registerForActivityResult
+                }
 
-        val progress = showProgressDialog(isDirectRomFile(rawName))
-        progress.show()
-        lifecycleScope.launch(Dispatchers.Main) {
-            val result = viewModel.importFile(temp, rawName)
-            temp.delete()
-            progress.dismiss()
-            showResultDialog(result)
-        }
-    }
+                val progress = showProgressDialog(isDirectRomFile(rawName))
+                progress.show()
+                lifecycleScope.launch(Dispatchers.Main) {
+                    val result = viewModel.importFile(temp, rawName)
+                    temp.delete()
+                    progress.dismiss()
+                    showResultDialog(result)
+                }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,13 +111,25 @@ class StoreActivity : AppCompatActivity() {
         adapter = StoreAdapter { hack -> openDetail(hack) }
         binding.storeGrid.adapter = adapter
 
-        binding.storeSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                viewModel.setQuery(s?.toString().orEmpty())
-            }
-        })
+        binding.storeSearch.addTextChangedListener(
+                object : TextWatcher {
+                    override fun beforeTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            count: Int,
+                            after: Int
+                    ) = Unit
+                    override fun onTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) = Unit
+                    override fun afterTextChanged(s: Editable?) {
+                        viewModel.setQuery(s?.toString().orEmpty())
+                    }
+                }
+        )
 
         buildCategoryRows()
         binding.storeSearchIcon.setOnClickListener { toggleSearch() }
@@ -203,11 +221,12 @@ class StoreActivity : AppCompatActivity() {
                 renderItems()
                 if (state.totalPages > 1) {
                     binding.storePagination.visibility = View.VISIBLE
-                    binding.storePageIndicator.text = getString(
-                        R.string.store_page_indicator,
-                        state.pageIndex + 1,
-                        state.totalPages
-                    )
+                    binding.storePageIndicator.text =
+                            getString(
+                                    R.string.store_page_indicator,
+                                    state.pageIndex + 1,
+                                    state.totalPages
+                            )
                     val atStart = state.pageIndex <= 0
                     val atEnd = state.pageIndex >= state.totalPages - 1
                     binding.storePrev.isEnabled = !atStart
@@ -222,28 +241,27 @@ class StoreActivity : AppCompatActivity() {
     }
 
     private fun renderItems() {
-        val phaseByHack = DownloadQueueManager.queue.value
-            ?.associate { it.hackId to it.phase }
-            .orEmpty()
-        val items = currentPageHacks.map { hack ->
-            val phase = phaseByHack[hack.id]
-            val downloadPhase = if (phase != null && phase != DownloadPhase.SUCCESS) phase else null
-            StoreItem(hack, viewModel.statusFor(hack), downloadPhase)
-        }
+        val phaseByHack =
+                DownloadQueueManager.queue.value?.associate { it.hackId to it.phase }.orEmpty()
+        val items =
+                currentPageHacks.map { hack ->
+                    val phase = phaseByHack[hack.id]
+                    val downloadPhase =
+                            if (phase != null && phase != DownloadPhase.SUCCESS) phase else null
+                    StoreItem(hack, viewModel.statusFor(hack), downloadPhase)
+                }
         adapter.update(items)
     }
 
     private fun openDetail(hack: HackEntry) {
-        HackDetailDialog.newInstance(hack)
-            .show(supportFragmentManager, "hack_detail")
+        HackDetailDialog.newInstance(hack).show(supportFragmentManager, "hack_detail")
     }
 
     /**
-     * Responsive column count for the main-content grid: at least 4 columns,
-     * more on wider screens (capped so ultra-wide layouts don't shrink cards to
-     * an unreadable size). Derived from the content area width (screen minus the
-     * fixed sidebar) divided by a ~170dp target card width. This keeps Store
-     * thumbnails compact when the activity has a wide content area.
+     * Responsive column count for the main-content grid: at least 4 columns, more on wider screens
+     * (capped so ultra-wide layouts don't shrink cards to an unreadable size). Derived from the
+     * content area width (screen minus the fixed sidebar) divided by a ~170dp target card width.
+     * This keeps Store thumbnails compact when the activity has a wide content area.
      */
     private fun computeStoreSpanCount(): Int {
         val density = resources.displayMetrics.density
@@ -259,43 +277,61 @@ class StoreActivity : AppCompatActivity() {
         categoryRows.clear()
         binding.storeCategoryList.removeAllViews()
         StoreCategory.ALL.forEach { cat ->
-            val accent = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    (4 * density).toInt(),
-                    LinearLayout.LayoutParams.MATCH_PARENT
-                ).apply { marginEnd = (12 * density).toInt() }
-                setBackgroundColor(AccentManager.getAccentColor(this@StoreActivity))
-                visibility = View.GONE
-            }
-            val label = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = getString(cat.labelRes)
-                setTextColor(ContextCompat.getColor(this@StoreActivity, R.color.switch_text_primary))
-                textSize = 16f
-            }
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                isFocusable = true
-                isFocusableInTouchMode = true
-                isClickable = true
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = (8 * density).toInt() }
-                setPadding(
-                    (16 * density).toInt(),
-                    (12 * density).toInt(),
-                    (16 * density).toInt(),
-                    (12 * density).toInt()
-                )
-                addView(accent)
-                addView(label)
-                setOnClickListener { onCategorySelected(cat) }
-                onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
-                    if (hasFocus) sfx?.focusMove()
-                }
-            }
+            val accent =
+                    View(this).apply {
+                        layoutParams =
+                                LinearLayout.LayoutParams(
+                                                (4 * density).toInt(),
+                                                LinearLayout.LayoutParams.MATCH_PARENT
+                                        )
+                                        .apply { marginEnd = (12 * density).toInt() }
+                        setBackgroundColor(AccentManager.getAccentColor(this@StoreActivity))
+                        visibility = View.GONE
+                    }
+            val label =
+                    TextView(this).apply {
+                        layoutParams =
+                                LinearLayout.LayoutParams(
+                                        0,
+                                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                                        1f
+                                )
+                        text = getString(cat.labelRes)
+                        setTextColor(
+                                ContextCompat.getColor(
+                                        this@StoreActivity,
+                                        R.color.switch_text_primary
+                                )
+                        )
+                        textSize = 16f
+                    }
+            val row =
+                    LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        isClickable = true
+                        layoutParams =
+                                LinearLayout.LayoutParams(
+                                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                                LinearLayout.LayoutParams.WRAP_CONTENT
+                                        )
+                                        .apply { bottomMargin = (8 * density).toInt() }
+                        setPadding(
+                                (16 * density).toInt(),
+                                (12 * density).toInt(),
+                                (16 * density).toInt(),
+                                (12 * density).toInt()
+                        )
+                        addView(accent)
+                        addView(label)
+                        setOnClickListener { onCategorySelected(cat) }
+                        onFocusChangeListener =
+                                View.OnFocusChangeListener { _, hasFocus ->
+                                    if (hasFocus) sfx?.focusMove()
+                                }
+                    }
             binding.storeCategoryList.addView(row)
             categoryRows.add(CategoryRowUi(cat, row, accent, label))
         }
@@ -309,13 +345,14 @@ class StoreActivity : AppCompatActivity() {
             val isActive = cat == active
             accent.visibility = if (isActive) View.VISIBLE else View.GONE
             row.setBackgroundColor(
-                ContextCompat.getColor(
-                    this,
-                    if (isActive) R.color.switch_bg else android.R.color.transparent
-                )
+                    ContextCompat.getColor(
+                            this,
+                            if (isActive) R.color.switch_bg else android.R.color.transparent
+                    )
             )
             label.setTextColor(
-                if (isActive) accentColor else ContextCompat.getColor(this, R.color.switch_text_primary)
+                    if (isActive) accentColor
+                    else ContextCompat.getColor(this, R.color.switch_text_primary)
             )
         }
     }
@@ -342,10 +379,10 @@ class StoreActivity : AppCompatActivity() {
 
     /** Small tuple holding the views of a single sidebar category row. */
     private data class CategoryRowUi(
-        val category: StoreCategory,
-        val row: LinearLayout,
-        val accent: View,
-        val label: TextView
+            val category: StoreCategory,
+            val row: LinearLayout,
+            val accent: View,
+            val label: TextView
     )
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -374,16 +411,20 @@ class StoreActivity : AppCompatActivity() {
     /** Indeterminate spinner shown while a patch is applied or a ROM is normalized. */
     private fun showProgressDialog(importingRom: Boolean): AlertDialog {
         val size = (48 * resources.displayMetrics.density).toInt()
-        val progressBar = ProgressBar(this).apply {
-            isIndeterminate = true
-            layoutParams = LinearLayout.LayoutParams(size, size)
-        }
+        val progressBar =
+                ProgressBar(this).apply {
+                    isIndeterminate = true
+                    layoutParams = LinearLayout.LayoutParams(size, size)
+                }
         return AlertDialog.Builder(this)
-            .setTitle(R.string.store_import_bps)
-            .setMessage(if (importingRom) R.string.import_rom_progress else R.string.import_patch_progress)
-            .setView(progressBar)
-            .setCancelable(false)
-            .create()
+                .setTitle(R.string.store_import_bps)
+                .setMessage(
+                        if (importingRom) R.string.import_rom_progress
+                        else R.string.import_patch_progress
+                )
+                .setView(progressBar)
+                .setCancelable(false)
+                .create()
     }
 
     /** Present the result of an import to the user. */
@@ -393,23 +434,25 @@ class StoreActivity : AppCompatActivity() {
         when (result) {
             is ImportPatchSuccess -> {
                 titleRes = R.string.import_success_title
-                message = getString(
-                    R.string.import_success_message,
-                    result.title,
-                    gameName(result.family)
-                )
+                message =
+                        getString(
+                                R.string.import_success_message,
+                                result.title,
+                                gameName(result.family)
+                        )
             }
             is ImportPatchNoCompatibleRom -> {
                 titleRes = R.string.import_no_rom_title
-                message = if (result.targetDescription != null) {
-                    getString(
-                        R.string.import_no_rom_message,
-                        result.targetDescription,
-                        result.expectedCrc32
-                    )
-                } else {
-                    getString(R.string.import_no_rom_unknown_message, result.expectedCrc32)
-                }
+                message =
+                        if (result.targetDescription != null) {
+                            getString(
+                                    R.string.import_no_rom_message,
+                                    result.targetDescription,
+                                    result.expectedCrc32
+                            )
+                        } else {
+                            getString(R.string.import_no_rom_unknown_message, result.expectedCrc32)
+                        }
             }
             is ImportPatchInvalid -> {
                 titleRes = R.string.import_invalid_title
@@ -433,35 +476,31 @@ class StoreActivity : AppCompatActivity() {
             }
         }
         AlertDialog.Builder(this)
-            .setTitle(titleRes)
-            .setMessage(message)
-            .setPositiveButton(R.string.dialog_ok, null)
-            .show()
+                .setTitle(titleRes)
+                .setMessage(message)
+                .setPositiveButton(R.string.dialog_ok, null)
+                .show()
     }
 
     /** Human-readable game family name for success messages. */
-    private fun gameName(family: OcarinaGame?): String = when (family) {
-        OcarinaGame.OOT -> getString(R.string.game_oot)
-        OcarinaGame.MM -> getString(R.string.game_mm)
-        null -> getString(R.string.game_unknown)
-    }
+    private fun gameName(family: OcarinaGame?): String =
+            when (family) {
+                OcarinaGame.OOT -> getString(R.string.game_oot)
+                OcarinaGame.MM -> getString(R.string.game_mm)
+                null -> getString(R.string.game_unknown)
+            }
 
     /** Best-effort display name of a content URI (falls back to "hack"). */
     private fun queryDisplayName(uri: Uri): String? {
         var name: String? = null
         try {
-            contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (index >= 0) name = cursor.getString(index)
-                }
-            }
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (index >= 0) name = cursor.getString(index)
+                        }
+                    }
         } catch (_: Exception) {
             // Ignore; fall back to the default name below.
         }

@@ -21,15 +21,15 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * Streaming download + apply of a hack's patch (BPS, possibly inside a `.zip`) with checksum
- * validation. On success the patched ROM is written to [Storage.rom] and the installed state is
- * recorded in [installedRepository]; the intermediate patch file is then discarded (the ROM is the
- * artifact, and a re-download is how the user updates). If patching fails (bad patch or missing
- * base ROM) the hack is NOT installed and any previous working ROM is left untouched: the new ROM
- * is built in a `.tmp` file and only renamed on success.
+ * Streaming download + apply of a hack's patch (BPS, possibly inside a `.zip`/`.7z`/`.rar` archive)
+ * with checksum validation. On success the patched ROM is written to [Storage.rom] and the
+ * installed state is recorded in [installedRepository]; the intermediate patch file is then
+ * discarded (the ROM is the artifact, and a re-download is how the user updates). If patching fails
+ * (bad patch or missing base ROM) the hack is NOT installed and any previous working ROM is left
+ * untouched: the new ROM is built in a `.tmp` file and only renamed on success.
  *
  * The network layer is thin and the [OkHttpClient] is injected for testability; the
- * validation/extraction logic lives in [PatchValidator] and [ZipExtractor].
+ * validation/extraction logic lives in [PatchValidator] and [ArchiveExtractor].
  */
 class DownloadManager(
         private val context: Context,
@@ -116,46 +116,40 @@ class DownloadManager(
                                                         }
                                                 }
 
-                                                // 2. Resolve the actual BPS bytes (extract from the
-                                                // zip if needed).
+                                                // 2. Resolve the actual patch bytes (extract from
+                                                // the
+                                                // archive when the catalog URL points at one:
+                                                // .zip/.7z/.rar — see ArchiveExtractor). The
+                                                // format is detected from the catalog URL because
+                                                // the temp file itself carries a `.tmp` extension.
+                                                val archiveFormat =
+                                                        ArchiveExtractor.formatOf(patch.url)
                                                 val bpsBytes =
-                                                        if (patch.url.endsWith(
-                                                                        ".zip",
-                                                                        ignoreCase = true
-                                                                )
-                                                        ) {
+                                                        if (ArchiveExtractor.isArchive(patch.url)) {
                                                                 val innerIsPatch =
-                                                                        patch.filename.endsWith(
-                                                                                ".bps",
-                                                                                ignoreCase = true
-                                                                        ) ||
-                                                                                patch.filename
-                                                                                        .endsWith(
-                                                                                                ".ips",
-                                                                                                ignoreCase =
-                                                                                                        true
-                                                                                        ) ||
-                                                                                patch.filename
-                                                                                        .endsWith(
-                                                                                                ".xdelta",
-                                                                                                ignoreCase =
-                                                                                                        true
-                                                                                        )
+                                                                        ArchiveExtractor
+                                                                                .isPatchName(
+                                                                                        patch.filename
+                                                                                )
                                                                 if (innerIsPatch) {
-                                                                        ZipExtractor.extractEntry(
-                                                                                tempArchive,
-                                                                                patch.filename
-                                                                        )
+                                                                        ArchiveExtractor
+                                                                                .extractEntry(
+                                                                                        tempArchive,
+                                                                                        patch.filename,
+                                                                                        archiveFormat
+                                                                                )
                                                                 } else {
                                                                         // Archive declared without
                                                                         // an inner patch name: pick
                                                                         // the
                                                                         // first patch-like entry
                                                                         // inside it.
-                                                                        ZipExtractor
+                                                                        ArchiveExtractor
                                                                                 .extractFirstMatching(
                                                                                         tempArchive,
-                                                                                        ".*\\.(bps|ips|xdelta)$"
+                                                                                        ArchiveExtractor
+                                                                                                .PATCH_ENTRY_REGEX,
+                                                                                        archiveFormat
                                                                                 )
                                                                 }
                                                         } else {

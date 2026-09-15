@@ -18,6 +18,7 @@
 
 package br.com.redclaw.hylianbox.ui.switchui
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -36,8 +37,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.databinding.ActivitySwitchGridBinding
 import br.com.redclaw.hylianbox.ocarina.OcarinaGame
 import br.com.redclaw.hylianbox.store.ImportPatchInvalid
 import br.com.redclaw.hylianbox.store.ImportPatchNoCompatibleRom
@@ -48,45 +50,43 @@ import br.com.redclaw.hylianbox.store.ImportRomDuplicate
 import br.com.redclaw.hylianbox.store.ImportRomInvalid
 import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.store.ui.StoreViewModel
-import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
-import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.ui.switchui.AccentManager
-import br.com.redclaw.hylianbox.databinding.ActivitySwitchGridBinding
 import br.com.redclaw.hylianbox.utils.CorePrefs
+import br.com.redclaw.hylianbox.utils.UiScaleManager
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuController
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuHostDelegate
 import br.com.redclaw.hylianbox.views.GridSortMode
 import br.com.redclaw.hylianbox.views.HackLibraryEntry
 import br.com.redclaw.hylianbox.views.InstalledLibrary
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
- * Fullscreen "Todos os Jogos" (All Games) grid, opened from the home row's
- * circular card. Mirrors the Nintendo Switch HOME menu's All Software screen:
- * a header (back button + "Todos os Jogos" icon/title + full-width separator),
- * a live search/filter bar with a sort button, and a grid of square
- * [SwitchGameCard]s showing every installed entry with one extra decorative row
- * of ghost placeholders.
+ * Fullscreen "Todos os Jogos" (All Games) grid, opened from the home row's circular card. Mirrors
+ * the Nintendo Switch HOME menu's All Software screen: a header (back button + "Todos os Jogos"
+ * icon/title + full-width separator), a live search/filter bar with a sort button, and a grid of
+ * square [SwitchGameCard]s showing every installed entry with one extra decorative row of ghost
+ * placeholders.
  *
- * Entries are aggregated by [InstalledLibrary.sortedEntries], which reuses the
- * exact same source of truth the home row and shortcut sync use (DRY) and applies
- * the user's chosen sort: alphabetical by default, with "last played" and
- * "download date" alternatives. The chosen sort is persisted in
- * [CorePrefs] (key `pref_grid_sort`) and re-applied whenever the library reloads
- * (e.g. returning from a game). The active search filter is applied on top of the
- * sorted list.
+ * Entries are aggregated by [InstalledLibrary.sortedEntries], which reuses the exact same source of
+ * truth the home row and shortcut sync use (DRY) and applies the user's chosen sort: alphabetical
+ * by default, with "last played" and "download date" alternatives. The chosen sort is persisted in
+ * [CorePrefs] (key `pref_grid_sort`) and re-applied whenever the library reloads (e.g. returning
+ * from a game). The active search filter is applied on top of the sorted list.
  *
- * The per-game context menu reuses [LibraryMenuHostDelegate] + [LibraryMenuController],
- * so the grid's long-press actions (uninstall, delete-seed, export/import saves,
- * pin, achievements) are identical to LibraryActivity's with zero duplicated logic.
+ * The per-game context menu reuses [LibraryMenuHostDelegate] + [LibraryMenuController], so the
+ * grid's long-press actions (uninstall, delete-seed, export/import saves, pin, achievements) are
+ * identical to LibraryActivity's with zero duplicated logic.
  *
- * Click launches the game through the same [LibraryMenuHostDelegate.launchGame]
- * path the home row uses (which ends at [br.com.redclaw.hylianbox.views.GameActivity]
- * and the shared [br.com.redclaw.hylianbox.repositories.GameRomResolver]).
+ * Click launches the game through the same [LibraryMenuHostDelegate.launchGame] path the home row
+ * uses (which ends at [br.com.redclaw.hylianbox.views.GameActivity] and the shared
+ * [br.com.redclaw.hylianbox.repositories.GameRomResolver]).
  */
 class SwitchGridActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(UiScaleManager.wrap(newBase))
+    }
 
     private lateinit var binding: ActivitySwitchGridBinding
     private lateinit var menuHost: LibraryMenuHostDelegate
@@ -96,48 +96,51 @@ class SwitchGridActivity : AppCompatActivity() {
     private val backHelper = SwitchBackButton()
     private val sfx = runCatching { HylianBoxApp.sfxManager }.getOrNull()
 
-    /** Reuses the Store's import pipeline so the grid offers the same
-     *  "Importar jogo ou patch" action as the Loja. */
+    /**
+     * Reuses the Store's import pipeline so the grid offers the same "Importar jogo ou patch"
+     * action as the Loja.
+     */
     private lateinit var storeViewModel: StoreViewModel
 
     /** Picks a BPS/IPS patch or .n64/.z64/.z.64 base ROM from the document provider. */
-    private val importLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@registerForActivityResult
-        val rawName = queryDisplayName(uri) ?: "hack"
-        val extension = rawName.substringAfterLast('.', "bin").lowercase()
-        val temp = File(cacheDir, "import_${System.currentTimeMillis()}.$extension.tmp")
-        try {
-            contentResolver.openInputStream(uri)?.use { input ->
-                temp.outputStream().use { out -> input.copyTo(out) }
-            } ?: run {
-                temp.delete()
-                return@registerForActivityResult
-            }
-        } catch (_: Exception) {
-            temp.delete()
-            return@registerForActivityResult
-        }
+    private val importLauncher =
+            registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri == null) return@registerForActivityResult
+                val rawName = queryDisplayName(uri) ?: "hack"
+                val extension = rawName.substringAfterLast('.', "bin").lowercase()
+                val temp = File(cacheDir, "import_${System.currentTimeMillis()}.$extension.tmp")
+                try {
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        temp.outputStream().use { out -> input.copyTo(out) }
+                    }
+                            ?: run {
+                                temp.delete()
+                                return@registerForActivityResult
+                            }
+                } catch (_: Exception) {
+                    temp.delete()
+                    return@registerForActivityResult
+                }
 
-        val progress = showProgressDialog(isDirectRomFile(rawName))
-        progress.show()
-        lifecycleScope.launch(Dispatchers.Main) {
-            val result = storeViewModel.importFile(temp, rawName)
-            temp.delete()
-            progress.dismiss()
-            showResultDialog(result)
-            // The grid IS the installed-games catalog, so surface a freshly
-            // imported entry immediately instead of waiting for a re-open.
-            if (result is ImportPatchSuccess ||
-                result is ImportRomSuccess ||
-                result is ImportRomDuplicate
-            ) {
-                allEntries = InstalledLibrary.sortedEntries(this@SwitchGridActivity, sortMode)
-                refreshGrid()
+                val progress = showProgressDialog(isDirectRomFile(rawName))
+                progress.show()
+                lifecycleScope.launch(Dispatchers.Main) {
+                    val result = storeViewModel.importFile(temp, rawName)
+                    temp.delete()
+                    progress.dismiss()
+                    showResultDialog(result)
+                    // The grid IS the installed-games catalog, so surface a freshly
+                    // imported entry immediately instead of waiting for a re-open.
+                    if (result is ImportPatchSuccess ||
+                                    result is ImportRomSuccess ||
+                                    result is ImportRomDuplicate
+                    ) {
+                        allEntries =
+                                InstalledLibrary.sortedEntries(this@SwitchGridActivity, sortMode)
+                        refreshGrid()
+                    }
+                }
             }
-        }
-    }
 
     /** All installed entries (unfiltered), the source for live search filtering. */
     private var allEntries: List<HackLibraryEntry> = emptyList()
@@ -149,14 +152,11 @@ class SwitchGridActivity : AppCompatActivity() {
     private var sortMode: GridSortMode = GridSortMode.ALPHA
 
     /**
-     * Sort options shown in the sort dialog, in display order. The dialog's
-     * checked index maps 1:1 to this list's indices.
+     * Sort options shown in the sort dialog, in display order. The dialog's checked index maps 1:1
+     * to this list's indices.
      */
-    private val sortOptions = listOf(
-        GridSortMode.LAST_PLAYED,
-        GridSortMode.DOWNLOAD_DATE,
-        GridSortMode.ALPHA
-    )
+    private val sortOptions =
+            listOf(GridSortMode.LAST_PLAYED, GridSortMode.DOWNLOAD_DATE, GridSortMode.ALPHA)
 
     /** Computed grid metrics (responsive: cards stay ~170dp, columns fill width). */
     private var cardSizePx = 0
@@ -192,11 +192,23 @@ class SwitchGridActivity : AppCompatActivity() {
 
         backHelper.attach(this, binding.gridBack.root, onBack = { finish() })
         binding.gridSort.setOnClickListener { openSortMenu() }
-        binding.gridSearch.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) = refreshGrid()
-        })
+        binding.gridSearch.addTextChangedListener(
+                object : TextWatcher {
+                    override fun beforeTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) = Unit
+                    override fun onTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) = Unit
+                    override fun afterTextChanged(s: Editable?) = refreshGrid()
+                }
+        )
 
         setupGrid()
         refreshGrid()
@@ -205,8 +217,7 @@ class SwitchGridActivity : AppCompatActivity() {
         // focus back while the user is typing in the search field.
         binding.gridRecycler.post {
             if (allEntries.isNotEmpty()) {
-                binding.gridRecycler.findViewHolderForAdapterPosition(0)
-                    ?.itemView?.requestFocus()
+                binding.gridRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
         }
     }
@@ -234,25 +245,27 @@ class SwitchGridActivity : AppCompatActivity() {
 
     private fun setupGrid() {
         binding.gridRecycler.layoutManager = GridLayoutManager(this, spanCount)
-        adapter = GridAdapter(
-            onActivate = { menuHost.launchGame(it) },
-            onMenu = { menuController.openMenu(it) }
-        )
+        adapter =
+                GridAdapter(
+                        onActivate = { menuHost.launchGame(it) },
+                        onMenu = { menuController.openMenu(it) }
+                )
         binding.gridRecycler.adapter = adapter
     }
 
     /**
-     * Re-applies the current search filter, pushes the result to the adapter and
-     * toggles the empty / no-results / grid visibility. Called on search input
-     * and after a library mutation reported by [menuHost].
+     * Re-applies the current search filter, pushes the result to the adapter and toggles the empty
+     * / no-results / grid visibility. Called on search input and after a library mutation reported
+     * by [menuHost].
      */
     private fun refreshGrid() {
         val query = binding.gridSearch.text?.toString().orEmpty().lowercase().trim()
-        filtered = if (query.isEmpty()) {
-            allEntries
-        } else {
-            allEntries.filter { it.title.lowercase().contains(query) }
-        }
+        filtered =
+                if (query.isEmpty()) {
+                    allEntries
+                } else {
+                    allEntries.filter { it.title.lowercase().contains(query) }
+                }
         // One extra decorative row of ghosts, only when there is something to show.
         val ghostCount = if (allEntries.isEmpty()) 0 else spanCount
         adapter.submit(filtered, ghostCount)
@@ -264,38 +277,39 @@ class SwitchGridActivity : AppCompatActivity() {
         val hasResults = filtered.isNotEmpty()
         binding.gridRecycler.visibility = if (hasResults) View.VISIBLE else View.GONE
         binding.gridEmpty.visibility = if (!hasEntries) View.VISIBLE else View.GONE
-        binding.gridNoResults.visibility = if (hasEntries && !hasResults) View.VISIBLE else View.GONE
+        binding.gridNoResults.visibility =
+                if (hasEntries && !hasResults) View.VISIBLE else View.GONE
     }
 
     /**
-     * Open the reusable [SwitchDialog] single-choice list to pick the grid sort
-     * order. The active option shows a check mark; selecting an option persists
-     * the choice in [CorePrefs], re-sorts the list live (respecting the active
-     * search filter) and closes the dialog. The select SFX is played by the
-     * dialog itself, matching every other single-choice dialog in the app.
+     * Open the reusable [SwitchDialog] single-choice list to pick the grid sort order. The active
+     * option shows a check mark; selecting an option persists the choice in [CorePrefs], re-sorts
+     * the list live (respecting the active search filter) and closes the dialog. The select SFX is
+     * played by the dialog itself, matching every other single-choice dialog in the app.
      */
     private fun openSortMenu() {
         val labels = sortOptions.map { labelForSort(it) }
         val checkedIndex = sortOptions.indexOf(sortMode).coerceAtLeast(0)
         SwitchDialog(this)
-            .title(getString(R.string.grid_sort_button))
-            .icon(R.drawable.ic_tune)
-            .singleChoice(labels, checkedIndex) { index ->
-                val chosen = sortOptions[index]
-                sortMode = chosen
-                CorePrefs.setGridSort(this, chosen.prefValue)
-                allEntries = InstalledLibrary.sortedEntries(this, sortMode)
-                refreshGrid()
-            }
-            .show()
+                .title(getString(R.string.grid_sort_button))
+                .icon(R.drawable.ic_tune)
+                .singleChoice(labels, checkedIndex) { index ->
+                    val chosen = sortOptions[index]
+                    sortMode = chosen
+                    CorePrefs.setGridSort(this, chosen.prefValue)
+                    allEntries = InstalledLibrary.sortedEntries(this, sortMode)
+                    refreshGrid()
+                }
+                .show()
     }
 
     /** Localized label for a [GridSortMode] option. */
-    private fun labelForSort(mode: GridSortMode): String = when (mode) {
-        GridSortMode.LAST_PLAYED -> getString(R.string.grid_sort_last_played)
-        GridSortMode.DOWNLOAD_DATE -> getString(R.string.grid_sort_download_date)
-        GridSortMode.ALPHA -> getString(R.string.grid_sort_alpha)
-    }
+    private fun labelForSort(mode: GridSortMode): String =
+            when (mode) {
+                GridSortMode.LAST_PLAYED -> getString(R.string.grid_sort_last_played)
+                GridSortMode.DOWNLOAD_DATE -> getString(R.string.grid_sort_download_date)
+                GridSortMode.ALPHA -> getString(R.string.grid_sort_alpha)
+            }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         backHelper.onTouch(ev)
@@ -317,9 +331,9 @@ class SwitchGridActivity : AppCompatActivity() {
     }
 
     /**
-     * Physical-controller key handling (mirrors LibraryActivity): A activates the
-     * focused tile; SELECT/X/Y open its context menu. The search field is left to
-     * handle its own keys (cursor / focus movement) when it holds focus.
+     * Physical-controller key handling (mirrors LibraryActivity): A activates the focused tile;
+     * SELECT/X/Y open its context menu. The search field is left to handle its own keys (cursor /
+     * focus movement) when it holds focus.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (menuController.isMenuShowing()) {
@@ -349,21 +363,25 @@ class SwitchGridActivity : AppCompatActivity() {
     }
 
     /**
-     * Indeterminate spinner shown while a patch is applied or a ROM is normalized.
-     * Mirrors the Loja's import progress dialog for a consistent experience.
+     * Indeterminate spinner shown while a patch is applied or a ROM is normalized. Mirrors the
+     * Loja's import progress dialog for a consistent experience.
      */
     private fun showProgressDialog(importingRom: Boolean): AlertDialog {
         val size = (48 * resources.displayMetrics.density).toInt()
-        val progressBar = ProgressBar(this).apply {
-            isIndeterminate = true
-            layoutParams = ViewGroup.LayoutParams(size, size)
-        }
+        val progressBar =
+                ProgressBar(this).apply {
+                    isIndeterminate = true
+                    layoutParams = ViewGroup.LayoutParams(size, size)
+                }
         return AlertDialog.Builder(this)
-            .setTitle(R.string.store_import_bps)
-            .setMessage(if (importingRom) R.string.import_rom_progress else R.string.import_patch_progress)
-            .setView(progressBar)
-            .setCancelable(false)
-            .create()
+                .setTitle(R.string.store_import_bps)
+                .setMessage(
+                        if (importingRom) R.string.import_rom_progress
+                        else R.string.import_patch_progress
+                )
+                .setView(progressBar)
+                .setCancelable(false)
+                .create()
     }
 
     /** Present the result of an import to the user (same copy as the Loja). */
@@ -373,23 +391,25 @@ class SwitchGridActivity : AppCompatActivity() {
         when (result) {
             is ImportPatchSuccess -> {
                 titleRes = R.string.import_success_title
-                message = getString(
-                    R.string.import_success_message,
-                    result.title,
-                    gameName(result.family)
-                )
+                message =
+                        getString(
+                                R.string.import_success_message,
+                                result.title,
+                                gameName(result.family)
+                        )
             }
             is ImportPatchNoCompatibleRom -> {
                 titleRes = R.string.import_no_rom_title
-                message = if (result.targetDescription != null) {
-                    getString(
-                        R.string.import_no_rom_message,
-                        result.targetDescription,
-                        result.expectedCrc32
-                    )
-                } else {
-                    getString(R.string.import_no_rom_unknown_message, result.expectedCrc32)
-                }
+                message =
+                        if (result.targetDescription != null) {
+                            getString(
+                                    R.string.import_no_rom_message,
+                                    result.targetDescription,
+                                    result.expectedCrc32
+                            )
+                        } else {
+                            getString(R.string.import_no_rom_unknown_message, result.expectedCrc32)
+                        }
             }
             is ImportPatchInvalid -> {
                 titleRes = R.string.import_invalid_title
@@ -413,35 +433,31 @@ class SwitchGridActivity : AppCompatActivity() {
             }
         }
         AlertDialog.Builder(this)
-            .setTitle(titleRes)
-            .setMessage(message)
-            .setPositiveButton(R.string.dialog_ok, null)
-            .show()
+                .setTitle(titleRes)
+                .setMessage(message)
+                .setPositiveButton(R.string.dialog_ok, null)
+                .show()
     }
 
     /** Human-readable game family name for success messages. */
-    private fun gameName(family: OcarinaGame?): String = when (family) {
-        OcarinaGame.OOT -> getString(R.string.game_oot)
-        OcarinaGame.MM -> getString(R.string.game_mm)
-        null -> getString(R.string.game_unknown)
-    }
+    private fun gameName(family: OcarinaGame?): String =
+            when (family) {
+                OcarinaGame.OOT -> getString(R.string.game_oot)
+                OcarinaGame.MM -> getString(R.string.game_mm)
+                null -> getString(R.string.game_unknown)
+            }
 
     /** Best-effort display name of a content URI (falls back to "hack"). */
     private fun queryDisplayName(uri: Uri): String? {
         var name: String? = null
         try {
-            contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (index >= 0) name = cursor.getString(index)
-                }
-            }
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (index >= 0) name = cursor.getString(index)
+                        }
+                    }
         } catch (_: Exception) {
             // Ignore; fall back to the default name below.
         }
@@ -454,13 +470,13 @@ class SwitchGridActivity : AppCompatActivity() {
     }
 
     /**
-     * Grid adapter rendering [SwitchGameCard]s for real entries plus a trailing
-     * row of non-interactive ghost silhouettes. Reuses [SwitchGameCard] so focus
-     * borders, dimming and cover/badge binding are identical to the home row.
+     * Grid adapter rendering [SwitchGameCard]s for real entries plus a trailing row of
+     * non-interactive ghost silhouettes. Reuses [SwitchGameCard] so focus borders, dimming and
+     * cover/badge binding are identical to the home row.
      */
     private inner class GridAdapter(
-        private val onActivate: (HackLibraryEntry) -> Unit,
-        private val onMenu: (HackLibraryEntry) -> Unit
+            private val onActivate: (HackLibraryEntry) -> Unit,
+            private val onMenu: (HackLibraryEntry) -> Unit
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private val VIEW_GAME = 0
@@ -478,24 +494,26 @@ class SwitchGridActivity : AppCompatActivity() {
         override fun getItemCount(): Int = entries.size + ghostCount
 
         override fun getItemViewType(position: Int): Int =
-            if (position < entries.size) VIEW_GAME else VIEW_GHOST
+                if (position < entries.size) VIEW_GAME else VIEW_GHOST
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             val cardH = SwitchGameCard.coverHeight(cardSizePx)
-            val lp = RecyclerView.LayoutParams(cardSizePx, cardH).apply {
-                val g = cardGapPx / 2
-                marginStart = g
-                marginEnd = g
-                topMargin = g
-                bottomMargin = g
-            }
+            val lp =
+                    RecyclerView.LayoutParams(cardSizePx, cardH).apply {
+                        val g = cardGapPx / 2
+                        marginStart = g
+                        marginEnd = g
+                        topMargin = g
+                        bottomMargin = g
+                    }
             return if (viewType == VIEW_GAME) {
                 val card = SwitchGameCard(parent.context)
                 card.layoutParams = lp
                 GameViewHolder(card)
             } else {
-                val ghost = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.switch_grid_ghost, parent, false)
+                val ghost =
+                        LayoutInflater.from(parent.context)
+                                .inflate(R.layout.switch_grid_ghost, parent, false)
                 ghost.layoutParams = lp
                 ghost.isFocusable = false
                 ghost.isClickable = false
@@ -508,9 +526,9 @@ class SwitchGridActivity : AppCompatActivity() {
             if (holder is GameViewHolder) {
                 val entry = entries[position]
                 holder.card.bind(
-                    entry,
-                    onClick = { onActivate(entry) },
-                    onLongClick = { onMenu(entry) }
+                        entry,
+                        onClick = { onActivate(entry) },
+                        onLongClick = { onMenu(entry) }
                 )
                 holder.card.onFocusGained = {
                     if (initialFocusDone) sfx?.focusMove() else initialFocusDone = true
@@ -520,7 +538,7 @@ class SwitchGridActivity : AppCompatActivity() {
         }
 
         private inner class GameViewHolder(val card: SwitchGameCard) :
-            RecyclerView.ViewHolder(card)
+                RecyclerView.ViewHolder(card)
 
         private inner class GhostViewHolder(view: View) : RecyclerView.ViewHolder(view)
     }

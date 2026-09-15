@@ -54,7 +54,7 @@ xdelta3 patches (RFC 3284 VCDIFF) are supported for hacks distributed as `.xdelt
 - Default `config_load_bytes=false` (Rule 9): RetroView uses `gameFilePath` (file), not `gameFileBytes` (heap).
 - `PatcherFacade.applyPatch` is called by `DownloadManager` / `ImportedPatchInstaller` after patch download/validation, writing the patched ROM to `Storage.rom(canonicalId)`.
 - `DownloadManager` resolves the correct base ROM per format: for BPS it reads the source CRC32 from the patch footer; for **XDELTA it uses the catalog-declared base ROM CRC** (the patch carries none); IPS is self-contained.
-- Store resolvers accept `.xdelta` alongside `.bps` / `.ips` / `.zip` (see `GitHubPatchResolver`, `HylianModdingParser`, `ZipExtractor`).
+- Store resolvers accept `.xdelta` alongside `.bps` / `.ips` / `.zip` / `.7z` / `.rar` (see `GitHubPatchResolver`, `ArchiveExtractor` + `ZipExtractor`/`SevenZExtractor`/`RarExtractor`).
 
 ## 6. Validation (Rule 16)
 

@@ -34,7 +34,7 @@
             android:layout_marginBottom="16dp" />
 
         <!-- The thin HOME-menu divider visually separates launcher actions
-             from controller/status and options hints. -->
+             from the controller status bar. -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

@@ -136,6 +136,110 @@ object AccentManager {
         return RippleDrawable(colorStateList, null, null)
     }
 
+    /** Creates a solid accent button background (4dp corners) for SwitchButton / dialogs. */
+    fun createSwitchButtonBackground(context: Context): GradientDrawable {
+        val color = getAccentColor(context)
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+            cornerRadius = 4f * context.resources.displayMetrics.density
+        }
+    }
+
+    /** Creates a selector for SwitchButton: focused = transparent + accent stroke, default = accent solid. */
+    fun createSwitchButtonSelector(context: Context): android.graphics.drawable.StateListDrawable {
+        val accent = getAccentColor(context)
+        val stroke = context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width)
+        val radius = 4f * context.resources.displayMetrics.density
+        val focused = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(android.graphics.Color.TRANSPARENT)
+            setStroke(stroke, accent)
+            cornerRadius = radius
+        }
+        val normal = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(accent)
+            cornerRadius = radius
+        }
+        return android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused, android.R.attr.state_enabled), focused)
+            addState(intArrayOf(), normal)
+        }
+    }
+
+    /** Creates the active background for emulator menu toggles (accent solid, card radius). */
+    fun createMenuItemActiveBackground(context: Context): GradientDrawable {
+        val color = getAccentColor(context)
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+            cornerRadius = context.resources.getDimension(R.dimen.card_radius)
+        }
+    }
+
+    /** Creates the inactive menu cell background (panel solid, card radius). */
+    fun createMenuItemBackground(context: Context): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(ContextCompat.getColor(context, R.color.switch_panel))
+            cornerRadius = context.resources.getDimension(R.dimen.card_radius)
+        }
+    }
+
+    /** Creates a pill selector for Gamepad Tester mode tabs (selected/pressed = accent solid). */
+    fun createGamepadTesterModeSelector(context: Context): android.graphics.drawable.StateListDrawable {
+        val accent = getAccentColor(context)
+        val panel = ContextCompat.getColor(context, R.color.switch_panel)
+        val secondary = ContextCompat.getColor(context, R.color.switch_text_secondary)
+        val stroke = context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width)
+        val radius = 24f * context.resources.displayMetrics.density
+        fun pill(color: Int, strokeColor: Int? = null, strokeW: Int = 0): GradientDrawable =
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(color)
+                cornerRadius = radius
+                if (strokeColor != null) setStroke(strokeW, strokeColor)
+            }
+        val selected = pill(accent)
+        val focused = pill(android.graphics.Color.TRANSPARENT, accent, stroke)
+        val idle = pill(panel, secondary, (1f * context.resources.displayMetrics.density).toInt())
+        return android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_selected), selected)
+            addState(intArrayOf(android.R.attr.state_pressed), selected)
+            addState(intArrayOf(android.R.attr.state_focused), focused)
+            addState(intArrayOf(), idle)
+        }
+    }
+
+    /** Creates a small badge background (4dp corners) with accent solid. */
+    fun createBadgeOverlayBackground(context: Context): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(getAccentColor(context))
+            cornerRadius = 4f * context.resources.displayMetrics.density
+        }
+    }
+
+    /** Returns a ColorStateList for Switch thumb/track where checked = accent. */
+    fun createSwitchThumbStateList(context: Context): ColorStateList {
+        val accent = getAccentColor(context)
+        val unchecked = ContextCompat.getColor(context, R.color.switch_text_primary)
+        return ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(accent, unchecked)
+        )
+    }
+
+    fun createSwitchTrackStateList(context: Context): ColorStateList {
+        val accent = getAccentColor(context)
+        val unchecked = ContextCompat.getColor(context, R.color.switch_text_secondary)
+        return ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(accent, unchecked)
+        )
+    }
+
     /** Data class representing a single accent option. */
     data class AccentOption(
         val key: String,

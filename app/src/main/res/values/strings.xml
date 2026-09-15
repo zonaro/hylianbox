@@ -15,18 +15,14 @@
     <string name="menu_fast_forward">Acelerar</string>
     <string name="menu_core">Core</string>
     <string name="menu_button_stick">Button Stick</string>
+    <string name="menu_hide_hud_buttons">Esconder Botões C/B</string>
     <string name="menu_auto_z">Auto-Z</string>
+    <string name="menu_show_equipped_icons">Ícones de Itens</string>
     <string name="menu_sensitivity">Sensibilidade</string>
-    <string name="menu_overlay_scale">Tamanho dos Botões</string>
-    <string name="menu_right_tap">Toque Área Direita</string>
-    <string name="overlay_scale_small">Pequeno</string>
-    <string name="overlay_scale_medium">Médio</string>
-    <string name="overlay_scale_large">Grande</string>
-    <string name="overlay_scale_restart_hint">Reinicie o jogo para aplicar o novo tamanho.</string>
-    <string name="right_tap_off">Desligado</string>
-    <string name="right_tap_a">Botão A</string>
-    <string name="right_tap_b">Botão B</string>
-    <string name="right_tap_r">Botão R</string>
+    <string name="menu_control_overlay">Modo de controle</string>
+    <string name="control_overlay_standard">Standard — Controles</string>
+    <string name="control_overlay_area">Pro — Área de Toque</string>
+    <string name="control_overlay_restart_hint">O novo modo será aplicado ao reiniciar o jogo.</string>
     <string name="menu_exit">Sair</string>
     <string name="msg_game_still_loading">Aguarde, o jogo ainda está carregando…</string>
     <string name="sensitivity_n64_stick">Analógico N64</string>
@@ -153,8 +149,6 @@
     <string name="webview_install_failed">Falha ao instalar o arquivo.</string>
     <string name="webview_download_failed">Falha no download: %1$s</string>
     <string name="webview_unsupported_file">Arquivo não suportado: %1$s</string>
-    <string name="webview_unsupported_archive_title">Arquivo não suportado</string>
-    <string name="webview_unsupported_archive_message">O arquivo %1$s está em formato .7z ou .rar, que não pode ser extraído automaticamente. Baixe a versão .zip ou .bps/.ips/.xdelta se disponível.</string>
     <string name="webview_no_patch_in_zip">Nenhum patch ou ROM encontrado dentro de %1$s.</string>
     <string name="webview_no_base_rom">ROM base não encontrada (CRC32 %1$s). Importe a ROM %2$s nas configurações.</string>
     <string name="webview_badge">Navegador</string>
@@ -524,14 +518,9 @@
     <string name="dock_achievements">RetroAchievements</string>
     <string name="dock_settings">Configurações</string>
     <string name="dock_control">Controle</string>
-    <string name="footer_about">(i) Sobre</string>
-    <string name="footer_options">+ Opções</string>
     <string name="footer_gamepad_disconnected">Controle desconectado</string>
     <string name="footer_gamepad_connected">Controle: %1$s</string>
     <string name="footer_gamepad_connected_multiple">Controle: %1$s (+%2$d)</string>
-    <string name="options_coming_soon">Opções em breve</string>
-    <string name="about_dialog_title">Sobre e Licenças</string>
-    <string name="about_dialog_close">Fechar</string>
     <string name="back_button">Voltar</string>
 
     <!-- ===== Gamepad Tester ===== -->
@@ -572,19 +561,6 @@
     <string name="tester_n64_c_down" translatable="false">C↓</string>
     <string name="tester_n64_c_left" translatable="false">C←</string>
     <string name="tester_n64_c_right" translatable="false">C→</string>
-
-    <!-- ===== Nintendo Switch UI - Quick Options side panel (Phase D) ===== -->
-    <string name="options_panel_title">Opções</string>
-    <string name="options_theme_to_light">Alternar para Tema Claro</string>
-    <string name="options_theme_to_dark">Alternar para Tema Escuro</string>
-    <string name="options_sfx">Sons da Interface</string>
-    <string name="options_sfx_on">Ativado</string>
-    <string name="options_sfx_off">Desativado</string>
-    <string name="options_ra_status_connected">RetroAchievements: %1$s</string>
-    <string name="options_ra_status_disconnected">RetroAchievements: Desconectado</string>
-    <string name="options_settings_full">Configurações completas</string>
-    <string name="options_accent_color">Cor de Destaque</string>
-    <string name="options_accent_color_description">Altera a cor de foco e destaque da interface</string>
 
     <!-- Accent color options -->
     <string name="accent_cyan">Ciano</string>
@@ -1027,6 +1003,18 @@
     <string name="dashboard_url_hint">Acesse pelo navegador em %1$s</string>
 
     <!-- ===== Display (Multi-Monitor) ===== -->
+    <string name="settings_appearance_title">Aparência</string>
+    <string name="settings_appearance_description">Tema, sons da interface e cor de destaque.</string>
+    <string name="settings_appearance_theme_label">Tema</string>
+    <string name="settings_appearance_theme_to_light">Alternar para Tema Claro</string>
+    <string name="settings_appearance_theme_to_dark">Alternar para Tema Escuro</string>
+    <string name="settings_appearance_sfx_label">Sons da Interface</string>
+    <string name="settings_appearance_accent_label">Cor de Destaque</string>
+    <string name="settings_appearance_accent_description">Altera a cor de foco e destaque da interface.</string>
+    <string name="settings_appearance_accent_choose">Escolher…</string>
+    <string name="settings_appearance_scale_label">Escala da Interface</string>
+    <string name="settings_appearance_scale_description">Ajusta o tamanho de todos os elementos do app (1 a 5, padrão 3). Não afeta os controles do emulador.</string>
+    <string name="settings_appearance_scale_value">%1$d</string>
     <string name="settings_display_title">Tela</string>
     <string name="settings_display_description">Configurações de tela para telas externas e monitores secundários.</string>
     <string name="settings_display_output_label">Saída do jogo</string>

@@ -36,10 +36,20 @@ object InputDeviceUtils {
      */
     fun isPhysicalController(device: InputDevice?): Boolean {
         val sources = device?.sources ?: return false
-        val controllerSources =
-            InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK or InputDevice.SOURCE_DPAD
-        return (sources and controllerSources) != 0
+        return isControllerSource(sources)
     }
+
+    /**
+     * Tests each complete Android source value. Source constants share class bits, so checking for
+     * any overlap against an OR-ed mask incorrectly treats keyboards and touchscreens as gamepads.
+     */
+    internal fun isControllerSource(sources: Int): Boolean =
+        hasSource(sources, InputDevice.SOURCE_GAMEPAD) ||
+            hasSource(sources, InputDevice.SOURCE_JOYSTICK) ||
+            hasSource(sources, InputDevice.SOURCE_DPAD)
+
+    private fun hasSource(sources: Int, source: Int): Boolean =
+        sources and source == source
 
     /** True when any currently attached [InputDevice] is a physical controller. */
     fun hasConnectedController(): Boolean {

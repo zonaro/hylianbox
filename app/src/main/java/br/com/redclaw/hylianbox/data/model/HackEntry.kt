@@ -123,7 +123,7 @@ data class BaseRomRef(
         }
 }
 
-/** Reference to the patch file (BPS, possibly inside a .zip) for a hack. */
+/** Reference to the patch file (BPS/IPS/XDELTA, possibly inside a .zip/.7z/.rar) for a hack. */
 data class PatchRef(
         val url: String,
         val filename: String,
