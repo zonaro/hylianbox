@@ -13,15 +13,15 @@ it is not a second store, a selectable source, or a separate catalog in the UI.
 
 ## 2. Package
 
-| File | Responsibility |
-|---|---|
-| `store/CatalogFetcher.kt` | OkHttp fetch, conditional GET (ETag/Last-Modified), cache, and merge of the default Picks catalog with optional user-added Picks URLs. |
-| `store/StoreDefinitions.kt` | Defines the single Picks store and optional custom Picks catalog URLs. |
-| `store/DownloadManager.kt` | Download progress, patch/base-ROM validation, patching, and install persistence. |
-| `store/GitHubPatchResolver.kt` | Resolves a GitHub Releases page to a compatible patch asset at install time. |
-| `store/ui/HackDetailDialog.kt` | Displays rich metadata and selects the direct/GitHub/external download behavior. |
-| `work/CatalogRefreshWorker.kt` | Refreshes the catalog every 12 hours when a network is available. |
-| `repositories/Storage.kt` | Per-hack ROM, SRAM, and save-state paths. |
+| File                           | Responsibility                                                                                                                         |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `store/CatalogFetcher.kt`      | OkHttp fetch, conditional GET (ETag/Last-Modified), cache, and merge of the default Picks catalog with optional user-added Picks URLs. |
+| `store/StoreDefinitions.kt`    | Defines the single Picks store and optional custom Picks catalog URLs.                                                                 |
+| `store/DownloadManager.kt`     | Download progress, patch/base-ROM validation, patching, and install persistence.                                                       |
+| `store/GitHubPatchResolver.kt` | Resolves a GitHub Releases page to a compatible patch asset at install time.                                                           |
+| `store/ui/HackDetailDialog.kt` | Displays rich metadata and selects the direct/GitHub/external download behavior.                                                       |
+| `work/CatalogRefreshWorker.kt` | Refreshes the catalog every 12 hours when a network is available.                                                                      |
+| `repositories/Storage.kt`      | Per-hack ROM, SRAM, and save-state paths.                                                                                              |
 
 ## 3. Catalog and download behavior
 
@@ -35,9 +35,7 @@ either `patch` or `downloadTarget`:
 
 - A direct `patch` / `downloadTarget.type = "direct"` enters the normal
   download and patch queue.
-- `downloadTarget.type = "github"` resolves a compatible GitHub Release asset
-  at install time. If that cannot be resolved, the release page opens in a
-  browser.
+- `downloadTarget.type = "github"` **always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). This guarantees hacks distributed via GitHub Releases (e.g. Ocarina of Time DX, Ultimate Trial, Demon's Quest) always download the newest patch even when the catalog's pinned URL/version is stale. If resolution fails, the release page opens in a browser.
 - `downloadTarget.type = "external"` opens the publisher page in a browser.
 
 Do not fabricate patch size or checksum data for a source that does not publish

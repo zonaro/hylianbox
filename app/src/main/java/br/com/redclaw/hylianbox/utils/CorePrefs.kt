@@ -75,6 +75,8 @@ object CorePrefs {
         // ---- Gamepad Overlay ----
         private const val PREF_BUTTON_STICK_ENABLED = "button_stick_enabled"
         private const val PREF_OVERLAY_SCALE = "overlay_scale"
+        private const val PREF_CONTROL_MODE = "control_mode"
+        @Deprecated("Replaced by ControlOverlayMode.AREA", ReplaceWith("PREF_CONTROL_MODE"))
         private const val PREF_RIGHT_TAP_ACTION = "right_tap_action"
 
         // ---- RetroAchievements ----
@@ -281,8 +283,8 @@ object CorePrefs {
 
         /**
          * Selected "Todos os Jogos" grid sort mode, persisted as its [GridSortMode.prefValue]
-         * string. Defaults to [br.com.redclaw.hylianbox.views.GridSortMode.ALPHA]
-         * (alphabetical) for a fresh install.
+         * string. Defaults to [br.com.redclaw.hylianbox.views.GridSortMode.ALPHA] (alphabetical)
+         * for a fresh install.
          */
         fun getGridSort(context: Context): String =
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -621,7 +623,30 @@ object CorePrefs {
         const val OVERLAY_SCALE_MEDIUM = "medium"
         const val OVERLAY_SCALE_LARGE = "large"
 
+        /**
+         * Control overlay mode: "standard" (frozen RadialGamePad layout) or "area" (mapped touch
+         * zones).
+         */
+        fun getControlMode(context: Context): String =
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getString(PREF_CONTROL_MODE, CONTROL_MODE_STANDARD)
+                        ?: CONTROL_MODE_STANDARD
+
+        fun setControlMode(context: Context, mode: String) {
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString(PREF_CONTROL_MODE, mode)
+                        .apply()
+        }
+
+        const val CONTROL_MODE_STANDARD = "standard"
+        const val CONTROL_MODE_AREA = "area"
+
         /** Right-side free-area tap action: "off", "a", "b", "r". */
+        @Deprecated(
+                "Replaced by ControlOverlayMode.AREA — right-tap is no longer a configurable action",
+                ReplaceWith("getControlMode(context)")
+        )
         fun getRightTapAction(context: Context): String =
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .getString(PREF_RIGHT_TAP_ACTION, RIGHT_TAP_OFF)

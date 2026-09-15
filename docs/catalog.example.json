@@ -18,14 +18,10 @@
           "sha1": "ad69c91157f6705e8ab06c79fe08aad47bb57ba7"
         }
       },
-      "patch": {
-        "url": "https://github.com/N64DX/oot-dx/releases/download/release-beta-0.6.0/Ocarina.of.Time.DX.21-9.UWS.Beta.v0.6.0.-.22.August.6.bps",
-        "filename": "Ocarina.of.Time.DX.21-9.UWS.Beta.v0.6.0.-.22.August.6.bps",
-        "size": 12544884,
-        "checksums": {
-          "crc32": "2144df1c",
-          "md5": "34adae84a0d352c23846ee671205d1ac"
-        }
+      "patch": null,
+      "downloadTarget": {
+        "type": "github",
+        "repoUrl": "https://github.com/N64DX/oot-dx/releases"
       },
       "coverImageUrl": "https://example.com/covers/oot_dx.png",
       "tags": [

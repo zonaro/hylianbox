@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Game Mode config — faz o sistema exibir Game Dashboard / Game Mode interventions (Android 12+).
+     Ver: https://developer.android.com/games/develop/game-mode/game-mode-config -->
+<game-mode-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <supportsGameMode gameMode="standard" isSupported="true" />
+    <supportsGameMode gameMode="performance" isSupported="true" />
+    <supportsGameMode gameMode="battery" isSupported="true" />
+</game-mode-config>

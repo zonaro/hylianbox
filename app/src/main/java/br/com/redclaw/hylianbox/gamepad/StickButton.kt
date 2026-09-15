@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Bitmap
+import android.graphics.RectF
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -69,6 +71,13 @@ class StickButton(
                 textAlign = Paint.Align.CENTER
                 isFakeBoldText = true
             }
+    private var icon: Bitmap? = null
+
+    /** Replaces the button label with an equipped-item icon, or restores the label for null. */
+    fun setIcon(bitmap: Bitmap?) {
+        icon = bitmap
+        invalidate()
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -83,14 +92,20 @@ class StickButton(
             thumbPaint.color = theme.pressed
             canvas.drawCircle(cx + thumbOffsetX, cy + thumbOffsetY, radius * 0.4f, thumbPaint)
         } else {
-            textPaint.color = theme.text
-            textPaint.textSize = radius * 0.6f
-            canvas.drawText(
-                    label,
-                    cx,
-                    cy - (textPaint.ascent() + textPaint.descent()) / 2,
-                    textPaint
-            )
+            val currentIcon = icon
+            if (currentIcon != null) {
+                val half = radius * 0.68f
+                canvas.drawBitmap(currentIcon, null, RectF(cx - half, cy - half, cx + half, cy + half), null)
+            } else {
+                textPaint.color = theme.text
+                textPaint.textSize = radius * 0.6f
+                canvas.drawText(
+                        label,
+                        cx,
+                        cy - (textPaint.ascent() + textPaint.descent()) / 2,
+                        textPaint
+                )
+            }
         }
     }
 

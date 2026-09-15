@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # HylianBox — Automated Release Script
 # Generates version at build time, commits, pushes, and creates GitHub release via GH CLI
-# Version format: {yy}.{dayOfYear}.{hhmm} (e.g., 26.238.1430)
+# Version format: {yy}.{dayOfYear}.{minuteOfDay} (e.g., 26.238.0870 = 14:30 -> 14*60+30)
 #
 # By default this script ONLY builds the release APK (no GitHub interaction).
 # Pass --github to also tag, push and publish the GitHub release.
@@ -61,8 +61,15 @@ get_generated_version() {
         echo "$version_name|$version_code"
     else
         # Fallback: compute from current time (should match build time)
-        local now=$(date -u +"%y.%j.%H%M")
-        local code=$(date -u +"%y%j%H%M")
+        # minuteOfDay = hour*60+minute, zero-padded to 4 digits
+        local yy=$(date -u +"%y")
+        local ddd=$(date -u +"%j")
+        local h=$(date -u +"%H")
+        local mi=$(date -u +"%M")
+        local mod=$((10#$h * 60 + 10#$mi))
+        local mod_padded=$(printf "%04d" "$mod")
+        local now="$yy.$ddd.$mod_padded"
+        local code="$yy$ddd$mod_padded"
         echo "$now|$code"
     fi
 }
@@ -132,7 +139,7 @@ create_github_release() {
 
 ### Changes
 - Automated release via build-time version generation
-- Version format: \`{yy}.{dayOfYear}.{hhmm}\`
+- Version format: `{yy}.{dayOfYear}.{minuteOfDay}`
 
 ### Installation
 Download the APK below and install on your Android device (API 24+).

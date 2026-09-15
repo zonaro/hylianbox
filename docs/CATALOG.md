@@ -69,11 +69,11 @@ Use `downloadTarget` as an alternative to `patch` when the public entry points
 to a release page or another non-direct source. This preserves a complete
 catalog record without pretending that checksum or size data is known.
 
-| Type       | Required fields | Behavior in the app                                                                                                              |
-| ---------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `direct`   | `patch`         | Downloads through the normal patch pipeline. Its nested `patch` has the same shape as the direct `patch` above.                  |
-| `github`   | `repoUrl`       | Finds a compatible patch asset from GitHub Releases at install time. If resolution fails, opens the release page in the browser. |
-| `external` | `url`           | Opens the publisher/source page in the browser so the user can obtain the file there.                                            |
+| Type       | Required fields | Behavior in the app                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `direct`   | `patch`         | Downloads through the normal patch pipeline. Its nested `patch` has the same shape as the direct `patch` above.                                                                                                                                                                                                                                                       |
+| `github`   | `repoUrl`       | **Always resolves to the latest release** at install time: queries `https://api.github.com/repos/{owner}/{repo}/releases`, picks the newest non-draft release that has a patch asset (`*.bps`/`*.ips`/`*.xdelta`/`*.zip`), and downloads its best asset (prefers `.bps` and `21-9`/`UWS`/`n64` variants). If resolution fails, opens the release page in the browser. |
+| `external` | `url`           | Opens the publisher/source page in the browser so the user can obtain the file there.                                                                                                                                                                                                                                                                                 |
 
 ```json
 "downloadTarget": {

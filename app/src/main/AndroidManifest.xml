@@ -15,12 +15,16 @@
         android:allowBackup="true"
         android:largeHeap="true"
         android:isGame="true"
+        android:appCategory="game"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/config_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.HylianBox"
         tools:targetApi="lollipop">
+        <meta-data
+            android:name="android.game_mode_config"
+            android:resource="@xml/game_mode_config" />
         <activity
             android:name=".views.SplashActivity"
             android:exported="true"

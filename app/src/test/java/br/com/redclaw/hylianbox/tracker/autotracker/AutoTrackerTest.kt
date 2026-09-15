@@ -41,6 +41,52 @@ class AutoTrackerTest {
         }
     }
 
+    @Test fun parsesOotEquippedCButtonsSwordAndShieldAcrossByteLanes() {
+        for (lane in listOf(0, 1, 3)) {
+            val b = fixture(TrackerGame.OOT, lane)
+            fun put8(offset: Int, value: Int) = b.put(offset xor lane, value.toByte())
+            fun put16(offset: Int, value: Int) {
+                put8(offset, value ushr 8)
+                put8(offset + 1, value)
+            }
+            put8(0x69, 0x03)
+            put8(0x6A, 0x0E)
+            put8(0x6B, 0x12)
+            put16(0x70, 0x0032) // Master Sword + Mirror Shield
+            put16(0x9C, 0x007F) // owned equipment remains the tracker field
+
+            val snapshot = SaveContextParser.parse(b, TrackerGame.OOT, 0)!!
+            assertEquals(0x03, snapshot.equippedItems.cLeft)
+            assertEquals(0x0E, snapshot.equippedItems.cDown)
+            assertEquals(0x12, snapshot.equippedItems.cRight)
+            assertEquals(0x3C, snapshot.equippedItems.sword)
+            assertEquals(0x40, snapshot.equippedItems.shield)
+            assertEquals(0x007F, snapshot.equipment)
+        }
+    }
+
+    @Test fun parsesMmHumanCButtonsAndCurrentSwordShieldIndependentlyOfForm() {
+        val b = fixture(TrackerGame.MM)
+        b.put(0x20, 2) // Zora form; C assignments still come from human/form-zero row
+        b.put(0x4D, 0x01)
+        b.put(0x4E, 0x0F)
+        b.put(0x4F, 0x34)
+        b.putShort(0x6C, 0x21) // Kokiri Sword + Mirror Shield
+
+        val equipped = SaveContextParser.parse(b, TrackerGame.MM, 0)!!.equippedItems
+        assertEquals(0x01, equipped.cLeft)
+        assertEquals(0x0F, equipped.cDown)
+        assertEquals(0x34, equipped.cRight)
+        assertEquals(0x4D, equipped.sword)
+        assertEquals(0x52, equipped.shield)
+
+        b.putShort(0x6C, 0x24) // Deity Sword + Mirror Shield
+        assertEquals(
+            0x50,
+            SaveContextParser.parse(b, TrackerGame.MM, 0)!!.equippedItems.sword
+        )
+    }
+
     @Test fun parsesMmSeparateInventoryMasksEquipmentUpgradesAndMagic() {
         val b = fixture(TrackerGame.MM)
         b.put(0x70, 1)
@@ -134,5 +180,33 @@ class AutoTrackerTest {
         poller.invalidate() // OFF/ON before another emulated frame
         now = 500_000_000; poller.onFrame()
         assertEquals(4, snapshots.size)
+    }
+
+    @Test fun equipmentPollingStaysActiveWhenProgressAutoTrackingIsDisabled() {
+        val base = SaveContextParser.base(TrackerGame.OOT)
+        val ram = ByteBuffer.allocate(base + 0x4000)
+        val fixture = fixture(TrackerGame.OOT)
+        repeat(fixture.capacity()) { ram.put(base + it, fixture.get(it)) }
+        var now = 0L
+        val progress = mutableListOf<AutoTrackerSnapshot>()
+        val equipment = mutableListOf<br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot>()
+        val poller =
+            AutoTrackerPoller(
+                memory = ram,
+                game = TrackerGame.OOT,
+                enabled = { false },
+                onSnapshot = progress::add,
+                nanoTime = { now },
+                onEquipment = equipment::add
+            )
+
+        poller.onFrame()
+        ram.put(base + 0x69, 3)
+        now = 100_000_000L
+        poller.onFrame()
+
+        assertTrue(progress.isEmpty())
+        assertEquals(2, equipment.size)
+        assertEquals(3, equipment.last().cLeft)
     }
 }

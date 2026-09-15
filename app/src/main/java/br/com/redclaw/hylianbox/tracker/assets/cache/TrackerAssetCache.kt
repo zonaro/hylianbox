@@ -23,7 +23,7 @@ import org.json.JSONObject
 class TrackerAssetCache(private val context: Context) {
 
     companion object {
-        const val CACHE_VERSION = 6 // MM now resolves and decompresses its YAR icon archives
+        const val CACHE_VERSION = 7 // includes exact equipped-button icons for the touch overlay
     }
 
     private fun dirFor(crc32: String): File =

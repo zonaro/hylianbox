@@ -28,6 +28,7 @@
     <string name="right_tap_b">Botón B</string>
     <string name="right_tap_r">Botón R</string>
     <string name="menu_exit">Salir</string>
+    <string name="menu_change_name">Cambiar Nombre</string>
     <string name="msg_game_still_loading">Espera, el juego todavía se está cargando…</string>
     <string name="sensitivity_n64_stick">Analógico N64</string>
     <string name="sensitivity_button_stick">Button Stick</string>
@@ -1084,6 +1085,29 @@
     <string name="mm_item_mask_of_truth">Máscara de la Verdad</string>
     <string name="mm_item_mask_of_scents">Máscara de los Aromas</string>
     <string name="mm_item_keaton_mask">Máscara Keaton</string>
+    <!-- Change Name (in-game save slot rename) -->
+    <string name="change_name_title">Cambiar Nombre</string>
+    <string name="change_name_slot_label">Archivo %1$d — %2$s</string>
+    <string name="change_name_slot_empty">Archivo %1$d — vacío</string>
+    <string name="change_name_slot_invalid">Archivo %1$d — inválido</string>
+    <string name="change_name_pick_slot">Elegir archivo</string>
+    <string name="change_name_enter_name">Nuevo nombre (hasta 8 letras)</string>
+    <string name="change_name_hint">Ej.: LINK</string>
+    <string name="change_name_confirm_title">Confirmar cambio</string>
+    <string name="change_name_confirm_message">¿Cambiar el nombre del Archivo %1$d de “%2$s” a “%3$s”? El juego se reiniciará y el estado guardado se borrará.</string>
+    <string name="change_name_success">Nombre cambiado a “%1$s”. Reiniciando…</string>
+    <string name="change_name_no_sram">No se encontró guardado para este juego.</string>
+    <string name="change_name_no_valid_slot">No se encontró ningún archivo válido.</string>
+    <string name="change_name_invalid_name">Nombre inválido. Usa hasta 8 letras (A–Z), números, espacio, guion o punto.</string>
+    <string name="change_name_hardcore_blocked">Cambiar nombre bloqueado en modo Hardcore.</string>
+    <string name="change_name_failed">Error al cambiar el nombre.</string>
+    <string name="change_name_state_cleared">Estado guardado borrado tras cambiar el nombre.</string>
+
     <string name="tracker_auto_tracking">Seguimiento automático</string>
     <string name="tracker_auto_tracking_desc">Global: añade objetos y canciones de juegos compatibles con NTSC 1.0. Nunca elimina progreso; la edición manual sigue disponible.</string>
+    <string name="tracker_equip_title">Equipar %1$s</string>
+    <string name="tracker_c_right">C-derecha</string>
+    <string name="tracker_c_down">C-abajo</string>
+    <string name="tracker_c_left">C-izquierda</string>
+    <string name="tracker_equip_unavailable">No se puede equipar este objeto en la partida actual.</string>
 </resources>

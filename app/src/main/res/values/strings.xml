@@ -1123,6 +1123,30 @@
     <string name="mm_item_mask_of_truth">Máscara da Verdade</string>
     <string name="mm_item_mask_of_scents">Máscara dos Aromas</string>
     <string name="mm_item_keaton_mask">Máscara Keaton</string>
+    <!-- Change Name (in-game save slot rename) -->
+    <string name="menu_change_name">Alterar Nome</string>
+    <string name="change_name_title">Alterar Nome</string>
+    <string name="change_name_slot_label">Arquivo %1$d — %2$s</string>
+    <string name="change_name_slot_empty">Arquivo %1$d — vazio</string>
+    <string name="change_name_slot_invalid">Arquivo %1$d — inválido</string>
+    <string name="change_name_pick_slot">Escolha o arquivo</string>
+    <string name="change_name_enter_name">Novo nome (até 8 letras)</string>
+    <string name="change_name_hint">Ex.: LINK</string>
+    <string name="change_name_confirm_title">Confirmar alteração</string>
+    <string name="change_name_confirm_message">Alterar o nome do Arquivo %1$d de “%2$s” para “%3$s”? O jogo será reiniciado e o estado salvo será apagado.</string>
+    <string name="change_name_success">Nome alterado para “%1$s”. Reiniciando…</string>
+    <string name="change_name_no_sram">Nenhum save encontrado para este jogo.</string>
+    <string name="change_name_no_valid_slot">Nenhum arquivo válido encontrado.</string>
+    <string name="change_name_invalid_name">Nome inválido. Use até 8 letras (A–Z), números, espaço, traço ou ponto.</string>
+    <string name="change_name_hardcore_blocked">Alterar nome bloqueado no modo Hardcore.</string>
+    <string name="change_name_failed">Falha ao alterar nome.</string>
+    <string name="change_name_state_cleared">Estado salvo apagado após alterar nome.</string>
+
     <string name="tracker_auto_tracking">Rastreamento automático</string>
     <string name="tracker_auto_tracking_desc">Global: adiciona itens e músicas de jogos compatíveis com NTSC 1.0. Nunca remove progresso; a edição manual continua disponível.</string>
+    <string name="tracker_equip_title">Equipar %1$s</string>
+    <string name="tracker_c_right">C-direita</string>
+    <string name="tracker_c_down">C-baixo</string>
+    <string name="tracker_c_left">C-esquerda</string>
+    <string name="tracker_equip_unavailable">Não foi possível equipar neste jogo.</string>
 </resources>

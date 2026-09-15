@@ -1,7 +1,7 @@
 {
   "catalogVersion": 3,
   "storeName": "Main Store",
-  "lastUpdated": "2026-09-01T19:00:23Z",
+  "lastUpdated": "2026-09-15T06:24:40Z",
   "hacks": [
     {
       "id": "ocarina_of_time_dx",
@@ -20,15 +20,7 @@
           "sha1": "ad69c91157f6705e8ab06c79fe08aad47bb57ba7"
         }
       },
-      "patch": {
-        "url": "https://github.com/N64DX/oot-dx/releases/download/release-beta-0.6.0/Ocarina.of.Time.DX.21-9.UWS.Beta.v0.6.0.-.31.August.11.bps",
-        "filename": "Ocarina.of.Time.DX.21-9.UWS.Beta.v0.6.0.-.31.August.11.bps",
-        "size": 12503152,
-        "checksums": {
-          "crc32": "2144df1c",
-          "md5": "b144b933930ddd9ea08e798fc61739c0"
-        }
-      },
+      "patch": null,
       "tags": [
         "quality-of-life",
         "restoration",
@@ -42,7 +34,11 @@
         }
       ],
       "videos": [],
-      "screenshots": []
+      "screenshots": [],
+      "downloadTarget": {
+        "type": "github",
+        "repoUrl": "https://github.com/N64DX/oot-dx/releases"
+      }
     },
     {
       "id": "ultimate_trial",
@@ -61,15 +57,7 @@
           "sha1": "ad69c91157f6705e8ab06c79fe08aad47bb57ba7"
         }
       },
-      "patch": {
-        "url": "https://github.com/RichieUltimate/ultimate-trial/releases/download/v1.2.3/ultimate_trial_v1.2.3_n64.bps",
-        "filename": "ultimate_trial_v1.2.3_n64.bps",
-        "size": 30917075,
-        "checksums": {
-          "crc32": "2144df1c",
-          "md5": "db9a3c0d7fc56882e3bfa0a55cbf8617"
-        }
-      },
+      "patch": null,
       "tags": [
         "mod",
         "complete"
@@ -108,7 +96,11 @@
           "label": "GitHub",
           "url": "https://github.com/RichieUltimate/ultimate-trial"
         }
-      ]
+      ],
+      "downloadTarget": {
+        "type": "github",
+        "repoUrl": "https://github.com/RichieUltimate/ultimate-trial/releases"
+      }
     },
     {
       "id": "majoras_mask_redux",
@@ -871,15 +863,7 @@
           "sha1": "ad69c91157f6705e8ab06c79fe08aad47bb57ba7"
         }
       },
-      "patch": {
-        "url": "https://github.com/thinedave/ocarina-demonsquest/releases/download/final9001/demonsquest_9001.bps",
-        "filename": "demonsquest_9001.bps",
-        "size": 5643037,
-        "checksums": {
-          "crc32": "2144df1c",
-          "md5": "49e4ccf9961912c09e2cb1c3adb429fd"
-        }
-      },
+      "patch": null,
       "tags": [
         "difficulty",
         "new-content"
@@ -893,7 +877,11 @@
         }
       ],
       "videos": [],
-      "screenshots": []
+      "screenshots": [],
+      "downloadTarget": {
+        "type": "github",
+        "repoUrl": "https://github.com/thinedave/ocarina-demonsquest/releases"
+      }
     },
     {
       "id": "the_helix_blade",

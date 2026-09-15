@@ -19,6 +19,7 @@ import br.com.redclaw.hylianbox.tracker.assets.compression.Yaz0Decompressor
 import br.com.redclaw.hylianbox.tracker.assets.dma.DmaTableParser
 import br.com.redclaw.hylianbox.tracker.assets.graphics.TextureDecoder
 import br.com.redclaw.hylianbox.tracker.assets.mapping.DmaTableOffsets
+import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
 import br.com.redclaw.hylianbox.tracker.assets.mapping.IconArchiveFormat
 import br.com.redclaw.hylianbox.tracker.assets.mapping.IconMapping
 import br.com.redclaw.hylianbox.tracker.assets.mapping.MmIconMap
@@ -50,8 +51,8 @@ class RomAssetExtractor(
 
                 private fun mappingsFor(game: TrackerGame): List<IconMapping> =
                         when (game) {
-                                TrackerGame.OOT -> OotIconMap.entries
-                                TrackerGame.MM -> MmIconMap.entries
+                                TrackerGame.OOT -> OotIconMap.entries + EquippedItemIconMap.mappings(game)
+                                TrackerGame.MM -> MmIconMap.entries + EquippedItemIconMap.mappings(game)
                         }
         }
 

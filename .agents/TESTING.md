@@ -50,6 +50,10 @@
 
 Current tracker tests use JUnit 4, matching `app/build.gradle.kts`. `AutoTrackerTest` covers both save layouts, all supported byte lanes, bounds/signature/title rejection, empty/unknown inventory, catalog consistency, additive merge, and time-based polling including toggle invalidation. `TrackerRepositoryTest` covers shared gameplay/dialog state, persisted combined fields, and per-hack isolation. Fixtures contain only synthetic RAM.
 
+Equipped-item coverage verifies the exact OoT/MM C-button and current equipment offsets, all supported byte lanes, MM form-independent C assignments, sword/shield item-id conversion, and equipment polling while progress auto-tracking is disabled. `EquippedItemIconMapTest` verifies the complete locally extracted HUD-icon ranges and RAW/YAR archive offsets. The mapped-area/minimal overlay is explicitly excluded from icon extraction/rendering.
+
 `./gradlew :app:testDebugUnitTest :app:assembleRelease --offline` is the delivery check. Android UI and real-ROM pickups remain a separate requirement: the SM-A055M accepted an initial release update, but ADB over Wi-Fi became unavailable (`No route to host`) before final visual/runtime validation. Do not treat those builds/tests as proof of OoT/MM or randomizer pickups on hardware.
 
 Deploy posterior confirmado por USB no SM-A055M: release `26.253.0647` (`262530647`), `adb install -r` com sucesso, versão instalada conferida e processo do app iniciado. Isso confirma build/instalação/startup; não substitui o cenário de coleta real de itens.
+
+`SaveContextWriterTest` covers C-button assignment across byte lanes, vanilla-style slot swapping, MM mask slot order, magic-arrow-to-bow slot normalization, OoT equipment ownership/nibble preservation, invalid layouts, and the OoT/MM long-press action boundary. Real-ROM validation must still confirm immediate HUD/player-model refresh after raw SaveContext writes.

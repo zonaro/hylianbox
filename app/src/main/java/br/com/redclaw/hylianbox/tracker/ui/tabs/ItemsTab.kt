@@ -25,13 +25,21 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.tracker.equipment.SaveContextWriter
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerCButton
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipAction
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipCommand
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipmentHost
 import br.com.redclaw.hylianbox.tracker.model.TrackerItem
 import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
 import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.tracker.ui.components.ItemIconView
+import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import kotlinx.coroutines.launch
 
 /** Manual inventory grid. Tap an item to cycle obtained count (0..maxCount). */
@@ -119,13 +127,55 @@ class ItemsTab : Fragment() {
             cell.setRupeesMode(false)
             cell.setOnMinusClickListener(null)
             cell.setOnPlusClickListener(null)
-            cell.setOnLongClickListener(null)
+            cell.isFocusable = true
             cell.setOnClickListener {
                 sfx?.select()
                 viewModel.cycleItem(item.id, item.maxCount)
                 rebindCell(cell, item)
             }
+            cell.setOnLongClickListener {
+                // A long press never changes tracker progress; only obtained, equipable items act.
+                if (!viewModel.isItemObtained(item.id)) return@setOnLongClickListener true
+                when (SaveContextWriter.action(viewModel.game, item.id)) {
+                    TrackerEquipAction.C_ITEM -> {
+                        showCButtonMenu(item)
+                        true
+                    }
+                    TrackerEquipAction.OOT_EQUIPMENT -> {
+                        enqueueEquip(item, null)
+                        true
+                    }
+                    TrackerEquipAction.NONE -> true
+                }
+            }
             row?.addView(cell)
+        }
+    }
+
+    private fun showCButtonMenu(item: TrackerItem) {
+        val targets = listOf(
+                TrackerCButton.RIGHT to R.string.tracker_c_right,
+                TrackerCButton.DOWN to R.string.tracker_c_down,
+                TrackerCButton.LEFT to R.string.tracker_c_left
+        )
+        SwitchDialog(requireContext())
+                .title(getString(R.string.tracker_equip_title, getString(item.nameRes)))
+                .icon(R.drawable.ic_tracker)
+                .singleChoice(targets.map { getString(it.second) }, -1) { index ->
+                    enqueueEquip(item, targets[index].first)
+                }
+                .negativeButton(getString(android.R.string.cancel))
+                .show()
+    }
+
+    private fun enqueueEquip(item: TrackerItem, button: TrackerCButton?) {
+        val accepted = (activity as? TrackerEquipmentHost)?.enqueueTrackerEquip(
+                TrackerEquipCommand(viewModel.game, item.id, button)
+        ) == true
+        if (!accepted) {
+            sfx?.back()
+            Toast.makeText(requireContext(), R.string.tracker_equip_unavailable, Toast.LENGTH_SHORT)
+                    .show()
         }
     }
 

@@ -28,6 +28,7 @@
     <string name="right_tap_b">Button B</string>
     <string name="right_tap_r">Button R</string>
     <string name="menu_exit">Exit</string>
+    <string name="menu_change_name">Change Name</string>
     <string name="msg_game_still_loading">Please wait, the game is still loading…</string>
     <string name="sensitivity_n64_stick">N64 Stick</string>
     <string name="sensitivity_button_stick">Button Stick</string>
@@ -1084,6 +1085,29 @@
     <string name="mm_item_mask_of_truth">Mask of Truth</string>
     <string name="mm_item_mask_of_scents">Mask of Scents</string>
     <string name="mm_item_keaton_mask">Keaton Mask</string>
+    <!-- Change Name (in-game save slot rename) -->
+    <string name="change_name_title">Change Name</string>
+    <string name="change_name_slot_label">File %1$d — %2$s</string>
+    <string name="change_name_slot_empty">File %1$d — empty</string>
+    <string name="change_name_slot_invalid">File %1$d — invalid</string>
+    <string name="change_name_pick_slot">Choose file</string>
+    <string name="change_name_enter_name">New name (up to 8 letters)</string>
+    <string name="change_name_hint">E.g. LINK</string>
+    <string name="change_name_confirm_title">Confirm change</string>
+    <string name="change_name_confirm_message">Change File %1$d name from “%2$s” to “%3$s”? The game will restart and the save state will be deleted.</string>
+    <string name="change_name_success">Name changed to “%1$s”. Restarting…</string>
+    <string name="change_name_no_sram">No save found for this game.</string>
+    <string name="change_name_no_valid_slot">No valid file found.</string>
+    <string name="change_name_invalid_name">Invalid name. Use up to 8 letters (A–Z), digits, space, dash or period.</string>
+    <string name="change_name_hardcore_blocked">Change Name is blocked in Hardcore mode.</string>
+    <string name="change_name_failed">Failed to change name.</string>
+    <string name="change_name_state_cleared">Save state cleared after name change.</string>
+
     <string name="tracker_auto_tracking">Automatic tracking</string>
     <string name="tracker_auto_tracking_desc">Global: adds items and songs from games compatible with NTSC 1.0. Never removes progress; manual editing remains available.</string>
+    <string name="tracker_equip_title">Equip %1$s</string>
+    <string name="tracker_c_right">C-Right</string>
+    <string name="tracker_c_down">C-Down</string>
+    <string name="tracker_c_left">C-Left</string>
+    <string name="tracker_equip_unavailable">This item cannot be equipped in the current game.</string>
 </resources>

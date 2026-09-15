@@ -11,10 +11,24 @@ data class AutoTrackerSnapshot(
     val upgrades: Int,
     val questFlags: Int,
     val magicLevel: Int,
-    val biggoronOwned: Boolean = false
+    val biggoronOwned: Boolean = false,
+    val equippedItems: EquippedItemsSnapshot = EquippedItemsSnapshot()
 ) {
     /** Whether a game-specific quest bit is set. */
     fun hasQuestFlag(bit: Int): Boolean = questFlags and (1 shl bit) != 0
     /** Extracts a packed upgrade level using its game-specific shift and mask. */
     fun upgrade(shift: Int, mask: Int = 7): Int = (upgrades ushr shift) and mask
+}
+
+/** Read-only copy of the item ids currently assigned to the gameplay buttons. */
+data class EquippedItemsSnapshot(
+    val cLeft: Int = NONE,
+    val cDown: Int = NONE,
+    val cRight: Int = NONE,
+    val sword: Int = NONE,
+    val shield: Int = NONE
+) {
+    companion object {
+        const val NONE = 0xFF
+    }
 }

@@ -21,11 +21,13 @@ import br.com.redclaw.hylianbox.ocarina.ui.OcarinaHudView
 import br.com.redclaw.hylianbox.retroachievements.ui.RaOverlayView
 import br.com.redclaw.hylianbox.shortcuts.GamePlayHistoryStore
 import br.com.redclaw.hylianbox.shortcuts.GameShortcutsManager
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipCommand
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipmentHost
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.viewmodels.GameActivityViewModel
 import java.io.File
 
-class GameActivity : AppCompatActivity() {
+class GameActivity : AppCompatActivity(), TrackerEquipmentHost {
     private lateinit var binding: ActivityGameBinding
     private val viewModel: GameActivityViewModel by viewModels()
 
@@ -57,6 +59,9 @@ class GameActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "GameActivityDisplay"
     }
+
+    override fun enqueueTrackerEquip(command: TrackerEquipCommand): Boolean =
+            viewModel.enqueueTrackerEquip(command)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

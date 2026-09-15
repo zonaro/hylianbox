@@ -3,12 +3,12 @@ package br.com.redclaw.hylianbox.viewmodels
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.content.SharedPreferences
-import br.com.redclaw.hylianbox.tracker.autotracker.AutoTrackerPoller
-import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import android.content.DialogInterface
+import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Log
 import android.view.*
@@ -27,8 +27,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import br.com.redclaw.hylianbox.BuildConfig
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.data.local.MergedCatalogRepository
 import br.com.redclaw.hylianbox.gamepad.DoubleTapContainer
 import br.com.redclaw.hylianbox.gamepad.FloatingJoystick
@@ -64,10 +64,18 @@ import br.com.redclaw.hylianbox.retroachievements.ui.RaAchievementsDialogFragmen
 import br.com.redclaw.hylianbox.retroachievements.ui.RaLeaderboardDialogFragment
 import br.com.redclaw.hylianbox.retroachievements.ui.RaOverlayView
 import br.com.redclaw.hylianbox.retroview.RetroView
+import br.com.redclaw.hylianbox.savename.FileNameTable
+import br.com.redclaw.hylianbox.savename.PlayerNameCodec
+import br.com.redclaw.hylianbox.savename.SaveSlotEditor
+import br.com.redclaw.hylianbox.tracker.autotracker.AutoTrackerPoller
+import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
+import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
 import br.com.redclaw.hylianbox.tracker.data.TrackerRepository
+import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipCommand
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
 import br.com.redclaw.hylianbox.tracker.model.VisibilityMode
 import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
+import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.utils.MenuActionItem
 import br.com.redclaw.hylianbox.utils.MenuEnabledEntry
@@ -128,6 +136,10 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var floatingJoystick: FloatingJoystick? = null
     private var isButtonStickEnabled: Boolean = true
     private var stickButtons: List<StickButton> = emptyList()
+    private var equippedItems: EquippedItemsSnapshot? = null
+    private var equippedItemsGame: TrackerGame? = null
+    private var equippedItemsAssetCrc: String? = null
+    private val equippedIconBitmaps = mutableMapOf<String, Bitmap>()
     private var rightTapZone: RightTapZone? = null
 
     /** True while Z is held from a double-tap on the analog stick (see [onStickDoubleTap]). */
@@ -304,6 +316,12 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                         R.drawable.ic_refresh,
                                         badgeRes = R.string.badge_x
                                 ) { retroView?.view?.reset() },
+                                MenuActionItem(
+                                        "change_name",
+                                        R.string.menu_change_name,
+                                        R.drawable.ic_rename,
+                                        isEnabled = { isChangeNameAvailable() }
+                                ) { showChangeNameFlow() },
                                 MenuActionItem(
                                         "save_state",
                                         R.string.menu_save_state,
@@ -1269,43 +1287,82 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var autoTrackerState: TrackerViewModel? = null
     private var trackerGeneration = 0L
     @Volatile private var autoTrackingEnabled = false
-    private val trackerPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == CorePrefs.PREF_TRACKER_AUTO_TRACKING) {
-            autoTrackingEnabled = CorePrefs.getTrackerAutoTracking(appContext)
-            autoTracker?.invalidate()
-        }
-    }
+    private val trackerPreferenceListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == CorePrefs.PREF_TRACKER_AUTO_TRACKING) {
+                    autoTrackingEnabled = CorePrefs.getTrackerAutoTracking(appContext)
+                    autoTracker?.invalidate()
+                }
+            }
 
     /** Captures the core-owned RAM alias once, outside the non-reentrant frame lock. */
     private fun startFrameTracking(hackId: String) {
-        val game = when (ocarinaGame) {
-            OcarinaGame.OOT -> TrackerGame.OOT
-            OcarinaGame.MM -> TrackerGame.MM
-            else -> null
-        }
+        val game =
+                when (ocarinaGame) {
+                    OcarinaGame.OOT -> TrackerGame.OOT
+                    OcarinaGame.MM -> TrackerGame.MM
+                    else -> null
+                }
         autoTrackingEnabled = CorePrefs.getTrackerAutoTracking(appContext)
-        appContext.getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+        appContext
+                .getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
                 .registerOnSharedPreferenceChangeListener(trackerPreferenceListener)
         val generation = ++trackerGeneration
         val memory = retroView?.view?.getMemoryRegion(LibretroDroid.MEMORY_SYSTEM_RAM)
         if (game != null && memory != null) {
             val tracker = TrackerViewModel(appContext, game, hackId)
+            val usesStandardOverlay =
+                    CorePrefs.getControlMode(appContext) == CorePrefs.CONTROL_MODE_STANDARD
             autoTrackerState = tracker
-            autoTracker = AutoTrackerPoller(memory, game, { autoTrackingEnabled }, { snapshot ->
+            equippedItemsGame = game
+            equippedItemsAssetCrc = tracker.assetCrc.value.takeIf { usesStandardOverlay }
+            val poller =
+                    AutoTrackerPoller(
+                            memory = memory,
+                            game = game,
+                            enabled = { autoTrackingEnabled },
+                            onSnapshot = { snapshot ->
+                                viewModelScope.launch {
+                                    if (generation == trackerGeneration && autoTrackingEnabled) {
+                                        tracker.applyAutoSnapshot(snapshot)
+                                    }
+                                }
+                            },
+                            onEquipment = { snapshot ->
+                                viewModelScope.launch {
+                                    if (generation == trackerGeneration) {
+                                        equippedItems = snapshot
+                                        updateEquippedButtonIcons()
+                                    }
+                                }
+                            }
+                    )
+            autoTracker = poller
+            if (usesStandardOverlay) {
                 viewModelScope.launch {
-                    if (generation == trackerGeneration && autoTrackingEnabled) {
-                        tracker.applyAutoSnapshot(snapshot)
+                    tracker.ensureAssetsExtracted()
+                    if (generation == trackerGeneration) {
+                        equippedItemsAssetCrc = tracker.assetCrc.value
+                        equippedIconBitmaps.clear()
+                        updateEquippedButtonIcons()
+                        poller.invalidate()
                     }
                 }
-            })
+            }
         }
         val session = raSession
         val poller = autoTracker
-        LibretroDroid.setFrameCallback(Runnable {
-            session?.onFrame()
-            poller?.onFrame()
-        })
+        LibretroDroid.setFrameCallback(
+                Runnable {
+                    session?.onFrame()
+                    poller?.onFrame()
+                }
+        )
     }
+
+    /** Queues a tracker equip request for the active game's next core-owned frame. */
+    fun enqueueTrackerEquip(command: TrackerEquipCommand): Boolean =
+            autoTracker?.enqueueEquip(command) == true
 
     /**
      * Starts the RetroAchievements session once the first frame rendered and the core is running.
@@ -1376,9 +1433,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                             is RaSessionState.Failed -> {
                                 val tracked =
                                         runCatching {
-                                                    HylianBoxApp.raInstallMetadataStore.get(
-                                                                    hackId
-                                                            )
+                                                    HylianBoxApp.raInstallMetadataStore.get(hackId)
                                                             ?.isResolved == true
                                                 }
                                                 .getOrDefault(false)
@@ -1395,7 +1450,6 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         session.start(romFile, hackId, hardcoreEnabled = CorePrefs.getRaHardcore(appContext)) {
             view.getMemoryRegion(LibretroDroid.MEMORY_SYSTEM_RAM)
         }
-
 
         // System notifications are opt-in default ON; on API 33+ they need
         // the POST_NOTIFICATIONS runtime permission. Ask once as soon as the
@@ -1651,7 +1705,12 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         ++trackerGeneration
         autoTracker = null
         autoTrackerState = null
-        appContext.getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+        equippedItems = null
+        equippedItemsGame = null
+        equippedItemsAssetCrc = null
+        equippedIconBitmaps.clear()
+        appContext
+                .getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
                 .unregisterOnSharedPreferenceChangeListener(trackerPreferenceListener)
         LibretroDroid.setStateCallback(null)
         raEventCollector?.cancel()
@@ -1955,6 +2014,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                             }
                                 }
 
+                        updateEquippedButtonIcons()
+
                         gamePads =
                                 regularPlacements.map { placement ->
                                     val sizePx =
@@ -1994,6 +2055,49 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     }
                 }
         )
+    }
+
+    /**
+     * Updates only the normal touch overlay's button artwork. The control geometry, key mapping,
+     * touch handling and every alternate/minimal presentation remain unchanged.
+     */
+    private fun updateEquippedButtonIcons() {
+        if (CorePrefs.getControlMode(appContext) != CorePrefs.CONTROL_MODE_STANDARD) return
+        val snapshot = equippedItems ?: return
+        val game = equippedItemsGame ?: return
+        val itemByButton =
+                mapOf(
+                        KeyEvent.KEYCODE_BUTTON_L1 to snapshot.cLeft,
+                        KeyEvent.KEYCODE_BUTTON_X to snapshot.cDown,
+                        KeyEvent.KEYCODE_BUTTON_R1 to snapshot.cRight,
+                        KeyEvent.KEYCODE_BUTTON_B to snapshot.sword,
+                        KeyEvent.KEYCODE_BUTTON_R2 to snapshot.shield
+                )
+        stickButtons.forEach { button ->
+            val itemId = itemByButton[button.targetKeyCode] ?: return@forEach
+            button.setIcon(loadEquippedIcon(game, itemId))
+        }
+    }
+
+    /** Loads a tiny ROM-extracted icon once per game session; missing icons restore the label. */
+    private fun loadEquippedIcon(game: TrackerGame, itemId: Int): Bitmap? {
+        if (itemId == EquippedItemsSnapshot.NONE || !EquippedItemIconMap.supports(game, itemId)) {
+            return null
+        }
+        val crc = equippedItemsAssetCrc ?: return null
+        val cacheKey = "$crc:$itemId"
+        equippedIconBitmaps[cacheKey]?.let { return it }
+        val file =
+                File(
+                        appContext.filesDir,
+                        "tracker_assets/$crc/${EquippedItemIconMap.assetKey(itemId)}.png"
+                )
+        val bitmap =
+                file.takeIf { it.isFile }
+                        ?.let { BitmapFactory.decodeFile(it.absolutePath) }
+                        ?: return null
+        equippedIconBitmaps[cacheKey] = bitmap
+        return bitmap
     }
 
     /** Hide the on-screen GamePads */
@@ -2099,5 +2203,281 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 would just sit black under the gamepad overlay -- close it. */
                 .setOnDismissListener { (context as? Activity)?.finish() }
                 .show()
+    }
+
+    // ---- Change Name (per-slot player name) ----
+
+    private fun isChangeNameAvailable(): Boolean {
+        if (ocarinaGame == null) return false
+        if (RcheevosJni.nativeIsHardcore()) return false
+        val hackId = currentHackId ?: return false
+        val sram = Storage.getInstance(appContext).sram(hackId)
+        return sram.exists() && sram.length() > 0
+    }
+
+    private fun showChangeNameFlow() {
+        val context = activityContext ?: return
+        if (RcheevosJni.nativeIsHardcore()) {
+            Toast.makeText(context, R.string.change_name_hardcore_blocked, Toast.LENGTH_SHORT)
+                    .show()
+            return
+        }
+        val hackId = currentHackId ?: return
+        val game = SaveSlotEditor.fromOcarina(ocarinaGame) ?: return
+        val sramFile = Storage.getInstance(appContext).sram(hackId)
+        if (!sramFile.exists()) {
+            Toast.makeText(context, R.string.change_name_no_sram, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val sramBytes = runCatching { sramFile.readBytes() }.getOrNull()
+        if (sramBytes == null || sramBytes.isEmpty()) {
+            Toast.makeText(context, R.string.change_name_no_sram, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val romFile = GameRomResolver.resolveRomFile(appContext, hackId)
+        val gameCode =
+                runCatching { romFile?.let { RomHeader.fromNormalizedZ64(it).gameCode } }
+                        .getOrNull()
+        val table = SaveSlotEditor.tableFor(game, gameCode)
+        val slots = SaveSlotEditor.readSlots(sramBytes, game, table)
+        val validSlots = slots.filter { it.isValid }
+        if (validSlots.isEmpty()) {
+            Toast.makeText(context, R.string.change_name_no_valid_slot, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels =
+                slots
+                        .map { slot ->
+                            when {
+                                !slot.isValid ->
+                                        context.getString(
+                                                R.string.change_name_slot_invalid,
+                                                slot.index + 1
+                                        )
+                                slot.isBlank ->
+                                        context.getString(
+                                                R.string.change_name_slot_empty,
+                                                slot.index + 1
+                                        )
+                                else ->
+                                        context.getString(
+                                                R.string.change_name_slot_label,
+                                                slot.index + 1,
+                                                slot.displayName
+                                        )
+                            }
+                        }
+                        .toTypedArray()
+        AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.change_name_pick_slot))
+                .setItems(labels) { dialog, which ->
+                    dialog.dismiss()
+                    val chosen = slots[which]
+                    if (!chosen.isValid) {
+                        Toast.makeText(
+                                        context,
+                                        R.string.change_name_no_valid_slot,
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
+                        return@setItems
+                    }
+                    showChangeNameInput(chosen.index, chosen.displayName, game, table)
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+                .window
+                ?.setBackgroundDrawable(
+                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+                )
+    }
+
+    private fun showChangeNameInput(
+            slot: Int,
+            currentName: String,
+            game: SaveSlotEditor.Game,
+            table: FileNameTable
+    ) {
+        val context = activityContext ?: return
+        val input =
+                android.widget.EditText(context).apply {
+                    hint = context.getString(R.string.change_name_hint)
+                    setText(currentName)
+                    selectAll()
+                    filters = arrayOf(android.text.InputFilter.LengthFilter(8))
+                    inputType =
+                            android.text.InputType.TYPE_CLASS_TEXT or
+                                    android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                }
+        val container =
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                    addView(
+                            input,
+                            LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                    )
+                }
+        AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.change_name_enter_name))
+                .setView(container)
+                .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
+                    val raw = input.text?.toString() ?: ""
+                    val normalized = PlayerNameCodec.normalize(raw)
+                    if (normalized == null || PlayerNameCodec.encode(normalized, table) == null) {
+                        Toast.makeText(
+                                        context,
+                                        R.string.change_name_invalid_name,
+                                        Toast.LENGTH_LONG
+                                )
+                                .show()
+                        return@setPositiveButton
+                    }
+                    dialog.dismiss()
+                    showChangeNameConfirm(slot, currentName, normalized, game, table)
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+                .window
+                ?.setBackgroundDrawable(
+                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+                )
+        input.requestFocus()
+        input.post {
+            val imm =
+                    context.getSystemService(Context.INPUT_METHOD_SERVICE) as
+                            android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    private fun showChangeNameConfirm(
+            slot: Int,
+            oldName: String,
+            newName: String,
+            game: SaveSlotEditor.Game,
+            table: FileNameTable
+    ) {
+        val context = activityContext ?: return
+        AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.change_name_confirm_title))
+                .setMessage(
+                        context.getString(
+                                R.string.change_name_confirm_message,
+                                slot + 1,
+                                oldName.ifEmpty { "—" },
+                                newName
+                        )
+                )
+                .setPositiveButton(R.string.dialog_ok) { dialog, _ ->
+                    dialog.dismiss()
+                    applyChangeName(slot, newName, game, table)
+                }
+                .setNegativeButton(R.string.dialog_cancel, null)
+                .show()
+                .window
+                ?.setBackgroundDrawable(
+                        AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)
+                )
+    }
+
+    private fun applyChangeName(
+            slot: Int,
+            newName: String,
+            game: SaveSlotEditor.Game,
+            table: FileNameTable
+    ) {
+        val context = activityContext ?: return
+        val hackId = currentHackId ?: return
+        if (coreReady.value != true && coreFailed.value != true) {
+            Toast.makeText(context, R.string.msg_game_still_loading, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (RcheevosJni.nativeIsHardcore()) {
+            Toast.makeText(context, R.string.change_name_hardcore_blocked, Toast.LENGTH_SHORT)
+                    .show()
+            return
+        }
+        val storage = Storage.getInstance(appContext)
+        val sramFile = storage.sram(hackId)
+        val sramBytes = runCatching { sramFile.readBytes() }.getOrNull()
+        if (sramBytes == null) {
+            Toast.makeText(context, R.string.change_name_failed, Toast.LENGTH_SHORT).show()
+            return
+        }
+        // Preserve live SRAM before overwriting the file, so unsaved progress is not lost.
+        if (coreReady.value == true) {
+            retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
+            // Re-read after preserve, so the edit is applied on top of the freshest SRAM.
+            val fresh = runCatching { sramFile.readBytes() }.getOrNull() ?: sramBytes
+            val result = SaveSlotEditor.writeSlot(fresh, game, slot, newName, table)
+            handleChangeNameResult(result, hackId, newName, sramFile)
+            return
+        }
+        val result = SaveSlotEditor.writeSlot(sramBytes, game, slot, newName, table)
+        handleChangeNameResult(result, hackId, newName, sramFile)
+    }
+
+    private fun handleChangeNameResult(
+            result: SaveSlotEditor.EditResult,
+            hackId: String,
+            newName: String,
+            sramFile: File
+    ) {
+        val context = activityContext ?: return
+        when (result) {
+            is SaveSlotEditor.EditResult.Ok -> {
+                runCatching { sramFile.writeBytes(result.sram) }.onFailure {
+                    Toast.makeText(context, R.string.change_name_failed, Toast.LENGTH_SHORT).show()
+                    return
+                }
+                // Invalidate save state (it contains the old name and would revert on load).
+                val stateFile = Storage.getInstance(appContext).state(hackId)
+                val hadState = stateFile.exists()
+                if (hadState) runCatching { stateFile.delete() }
+                br.com.redclaw.hylianbox.drive.SyncTrigger.markDirtySram(appContext, hackId)
+                Toast.makeText(
+                                context,
+                                context.getString(R.string.change_name_success, newName),
+                                Toast.LENGTH_SHORT
+                        )
+                        .show()
+                if (hadState)
+                        Toast.makeText(
+                                        context,
+                                        R.string.change_name_state_cleared,
+                                        Toast.LENGTH_LONG
+                                )
+                                .show()
+                // Restart the emulator so the core reloads SRAM from disk.
+                val activity = context as? ComponentActivity
+                if (activity != null) {
+                    // Use the same guard as handleBackgroundReturn: only recreate when safe.
+                    if (coreReady.value == true || coreFailed.value == true) {
+                        activity.recreate()
+                    }
+                }
+            }
+            is SaveSlotEditor.EditResult.Err -> {
+                val msg =
+                        when (result.reason) {
+                            SaveSlotEditor.Reason.BAD_NAME ->
+                                    context.getString(R.string.change_name_invalid_name)
+                            SaveSlotEditor.Reason.NO_VALID_SAVE ->
+                                    context.getString(R.string.change_name_no_valid_slot)
+                            SaveSlotEditor.Reason.BAD_SIZE, SaveSlotEditor.Reason.BAD_SLOT ->
+                                    context.getString(R.string.change_name_failed)
+                            SaveSlotEditor.Reason.UNSUPPORTED ->
+                                    context.getString(R.string.change_name_failed)
+                        }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }

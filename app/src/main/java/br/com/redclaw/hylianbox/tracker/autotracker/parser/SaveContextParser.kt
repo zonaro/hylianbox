@@ -2,6 +2,7 @@
 package br.com.redclaw.hylianbox.tracker.autotracker.parser
 
 import br.com.redclaw.hylianbox.tracker.autotracker.model.AutoTrackerSnapshot
+import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
 import java.nio.ByteBuffer
 
@@ -14,19 +15,25 @@ object SaveContextParser {
     /** Fixed physical RDRAM offset for the supported NTSC layout. */
     fun base(game: TrackerGame): Int = if (game == TrackerGame.OOT) 0x11A5D0 else 0x1EF670
 
+    /** Detects the byte-address lane after validating the game signature. */
+    fun detectByteLane(buffer: ByteBuffer, game: TrackerGame, baseOffset: Int = base(game)): Int? {
+        val signatureOffset = if (game == TrackerGame.OOT) 0x1C else 0x24
+        val signature = if (game == TrackerGame.OOT) "ZELDAZ" else "ZELDA3"
+        if (baseOffset < 0 || baseOffset > buffer.limit() - signatureOffset - signature.length) return null
+        return listOf(0, 3, 1).firstOrNull { xor ->
+            signature.indices.all { i ->
+                (buffer.get((baseOffset + signatureOffset + i) xor xor).toInt() and 255) == signature[i].code
+            }
+        }
+    }
+
     /** Returns a scalar snapshot, or null for incompatible, uninitialized or menu RAM. */
     fun parse(buffer: ByteBuffer, game: TrackerGame, baseOffset: Int = base(game)): AutoTrackerSnapshot? {
         val oot = game == TrackerGame.OOT
         val gameModeOffset = if (oot) 0x135C else 0x3CA8
         val required = gameModeOffset + 4
         if (baseOffset < 0 || baseOffset > buffer.limit() - required || baseOffset % 4 != 0) return null
-        val signatureOffset = if (oot) 0x1C else 0x24
-        val signature = if (oot) "ZELDAZ" else "ZELDA3"
-        val lane = listOf(0, 3, 1).firstOrNull { xor ->
-            signature.indices.all { i ->
-                (buffer.get((baseOffset + signatureOffset + i) xor xor).toInt() and 255) == signature[i].code
-            }
-        } ?: return null
+        val lane = detectByteLane(buffer, game, baseOffset) ?: return null
         fun u8(offset: Int): Int = buffer.get((baseOffset + offset) xor lane).toInt() and 255
         fun u16(offset: Int): Int = (u8(offset) shl 8) or u8(offset + 1)
         fun u32(offset: Int): Int = (u16(offset) shl 16) or u16(offset + 2)
@@ -37,12 +44,36 @@ object SaveContextParser {
         // Reject title screens, uninitialized RAM, and incompatible modified save layouts.
         if (health !in 0x10..0x140 || health % 0x10 != 0 || magic !in 0..1 || doubleMagic !in 0..1) return null
         val itemsOffset = if (oot) 0x74 else 0x70
+        val currentEquipment = u16(if (oot) 0x70 else 0x6C)
+        val equipment = u16(if (oot) 0x9C else 0x6C)
+        val buttonsOffset = if (oot) 0x68 else 0x4C
+        val equipped =
+            EquippedItemsSnapshot(
+                cLeft = u8(buttonsOffset + 1),
+                cDown = u8(buttonsOffset + 2),
+                cRight = u8(buttonsOffset + 3),
+                sword = swordItem(game, currentEquipment and 0xF),
+                shield = shieldItem(game, (currentEquipment ushr 4) and 0xF)
+            )
         return AutoTrackerSnapshot(
             game, List(if (oot) 24 else 48) { u8(itemsOffset + it) },
-            u16(if (oot) 0x9C else 0x6C),
+            equipment,
             u32(if (oot) 0xA0 else 0xB8), u32(if (oot) 0xA4 else 0xBC),
             if (magic == 0) 0 else 1 + doubleMagic,
-            oot && u8(0x3E) == 1
+            oot && u8(0x3E) == 1,
+            equipped
         )
     }
+
+    private fun swordItem(game: TrackerGame, level: Int): Int =
+        when (game) {
+            TrackerGame.OOT -> if (level in 1..3) 0x3A + level else EquippedItemsSnapshot.NONE
+            TrackerGame.MM -> if (level in 1..4) 0x4C + level else EquippedItemsSnapshot.NONE
+        }
+
+    private fun shieldItem(game: TrackerGame, level: Int): Int =
+        when (game) {
+            TrackerGame.OOT -> if (level in 1..3) 0x3D + level else EquippedItemsSnapshot.NONE
+            TrackerGame.MM -> if (level in 1..2) 0x50 + level else EquippedItemsSnapshot.NONE
+        }
 }
