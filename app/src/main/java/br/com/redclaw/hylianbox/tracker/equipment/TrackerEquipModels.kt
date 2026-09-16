@@ -15,4 +15,7 @@ data class TrackerEquipCommand(
 
 interface TrackerEquipmentHost {
     fun enqueueTrackerEquip(command: TrackerEquipCommand): Boolean
+    fun getEquippedSnapshot(): br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot? = null
+    fun getEquippedGame(): TrackerGame? = null
+    fun getEquippedAssetCrc(): String? = null
 }

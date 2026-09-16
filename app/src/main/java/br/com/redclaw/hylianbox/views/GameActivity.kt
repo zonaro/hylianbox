@@ -70,6 +70,9 @@ class GameActivity : ScaledAppCompatActivity(), TrackerEquipmentHost, GameplayDi
 
     override fun enqueueTrackerEquip(command: TrackerEquipCommand): Boolean =
             viewModel.enqueueTrackerEquip(command)
+    override fun getEquippedSnapshot() = viewModel.equippedSnapshot
+    override fun getEquippedGame() = viewModel.equippedGame
+    override fun getEquippedAssetCrc() = viewModel.equippedAssetCrc
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

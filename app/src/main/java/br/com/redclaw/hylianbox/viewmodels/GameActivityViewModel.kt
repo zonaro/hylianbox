@@ -147,6 +147,9 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var equippedItemsGame: TrackerGame? = null
     private var equippedItemsAssetCrc: String? = null
     private val equippedIconBitmaps = mutableMapOf<String, Bitmap>()
+    val equippedSnapshot: EquippedItemsSnapshot? get() = equippedItems
+    val equippedGame: TrackerGame? get() = equippedItemsGame
+    val equippedAssetCrc: String? get() = equippedItemsAssetCrc
     private var areaOverlayView: AreaOverlayView? = null
 
     /** True while Z is held from a double-tap on the analog stick (see [onStickDoubleTap]). */

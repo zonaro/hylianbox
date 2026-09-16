@@ -64,8 +64,12 @@ class SwitchDialog(private val context: Context) {
     private var choiceItems: List<String> = emptyList()
     private var choiceChecked: Int = -1
     private var choiceAction: ((Int) -> Unit)? = null
+    private var customContent: View? = null
 
     private var dialog: AppCompatDialog? = null
+
+    /** Replaces the single-choice list with an arbitrary view (e.g. 3 C buttons). */
+    fun customView(view: View): SwitchDialog = apply { customContent = view }
 
     /** Sets the dialog title (localized by the host). */
     fun title(text: String): SwitchDialog = apply { titleText = text }
@@ -189,6 +193,27 @@ class SwitchDialog(private val context: Context) {
     private fun bindList(view: View) {
         val scroll = view.findViewById<View>(R.id.dialog_list_scroll)
         val list = view.findViewById<ViewGroup>(R.id.dialog_list)
+        val custom = customContent
+        if (custom != null) {
+            scroll.visibility = View.VISIBLE
+            list.removeAllViews()
+            list.addView(custom)
+            // Focus first focusable child for D-pad
+            custom.post { custom.findViewById<View>(custom.id)?.requestFocus() ?: run {
+                // find first focusable descendant
+                var first: View? = null
+                fun find(v: ViewGroup) {
+                    for (i in 0 until v.childCount) {
+                        val c = v.getChildAt(i)
+                        if (c.isFocusable && first == null) first = c
+                        if (c is ViewGroup) find(c)
+                    }
+                }
+                if (custom is ViewGroup) find(custom)
+                first?.requestFocus()
+            }}
+            return
+        }
         if (choiceItems.isEmpty()) {
             scroll.visibility = View.GONE
             return
