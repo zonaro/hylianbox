@@ -28,11 +28,11 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import br.com.redclaw.hylianbox.R
-import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
+import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 
 /** Integrated run timer with start/pause/reset, persisted via [TrackerViewModel]. */
 class TrackerTimerView
@@ -176,20 +176,21 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                             }
                     addView(inner)
                 }
-        val dialog = AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
-                .setView(dialogView)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val parsed = parseTime(edit.text.toString())
-                    if (parsed != null) {
-                        sfx?.select()
-                        vm.setElapsedMs(parsed)
-                        updateDisplay()
-                        handler.removeCallbacks(tick)
-                        if (vm.isTimerRunning()) handler.post(tick)
-                    }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .create()
+        val dialog =
+                AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setView(dialogView)
+                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                            val parsed = parseTime(edit.text.toString())
+                            if (parsed != null) {
+                                sfx?.select()
+                                vm.setElapsedMs(parsed)
+                                updateDisplay()
+                                handler.removeCallbacks(tick)
+                                if (vm.isTimerRunning()) handler.post(tick)
+                            }
+                        }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create()
         GameplayFullscreenDialog.show(dialog)
     }
 

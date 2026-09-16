@@ -19,16 +19,14 @@
 package br.com.redclaw.hylianbox.views
 
 import android.app.ActivityOptions
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import androidx.appcompat.app.AppCompatActivity
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivitySplashBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 
 /**
  * Cold-start splash screen. The Zelda-themed artwork is supplied as the window background by
@@ -45,11 +43,7 @@ import br.com.redclaw.hylianbox.utils.UiScaleManager
  * The activity is intentionally theme-light: it performs no emulation, network or disk work, so it
  * is safe to show before [LibraryActivity] rebuilds the library index.
  */
-class SplashActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class SplashActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivitySplashBinding
 

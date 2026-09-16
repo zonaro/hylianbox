@@ -1,17 +1,18 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
-import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityRaCredentialsBinding
+import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyFetchResult
+import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyLoginHelper
 import br.com.redclaw.hylianbox.retroachievements.auth.RaCredentialStore
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
 import kotlinx.coroutines.launch
 
 /**
@@ -22,13 +23,23 @@ import kotlinx.coroutines.launch
  * Isolamento por Window é a única forma de proteger só um elemento — FLAG_SECURE não existe por
  * View.
  */
-class RaCredentialsActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class RaCredentialsActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityRaCredentialsBinding
+
+    /** Last typed credentials, kept in memory only to feed the key capture. */
+    private var lastUsername: String = ""
+    private var lastPassword: String = ""
+
+    private val captureLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            lastPassword = ""
+            if (result.resultCode == RESULT_OK) {
+                binding.settingsRaApiKey.text.clear()
+                binding.settingsRaStatus.setText(R.string.settings_ra_api_key_auto_saved)
+            }
+            updateRaStatus(HylianBoxApp.raCredentialStore)
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +81,9 @@ class RaCredentialsActivity : AppCompatActivity() {
                 binding.settingsRaStatus.setText(R.string.settings_ra_error_missing)
                 return@setOnClickListener
             }
+            // Kept in memory only so the capture fallback can auto-login.
+            lastUsername = username
+            lastPassword = password
             binding.settingsRaLogin.isEnabled = false
             binding.settingsRaStatus.setText(R.string.settings_ra_logging_in)
             lifecycleScope.launch {
@@ -79,6 +93,23 @@ class RaCredentialsActivity : AppCompatActivity() {
                 result.fold(
                         onSuccess = {
                             binding.settingsRaUsername.text.clear()
+                            // Try to fetch the Web API key automatically with
+                            // the credentials just typed; never blocks login.
+                            binding.settingsRaStatus.setText(R.string.settings_ra_fetching_api_key)
+                            when (RaApiKeyLoginHelper.fetchAfterLogin(
+                                            applicationContext,
+                                            credentials,
+                                            username,
+                                            password
+                                    )
+                            ) {
+                                RaApiKeyFetchResult.Fetched ->
+                                        binding.settingsRaStatus.setText(
+                                                R.string.settings_ra_api_key_auto_saved
+                                        )
+                                RaApiKeyFetchResult.AlreadyStored,
+                                RaApiKeyFetchResult.Unavailable -> Unit
+                            }
                             updateRaStatus(credentials)
                         },
                         onFailure = { e ->
@@ -96,6 +127,8 @@ class RaCredentialsActivity : AppCompatActivity() {
 
         binding.settingsRaLogout.setOnClickListener {
             authService.logout()
+            lastUsername = ""
+            lastPassword = ""
             binding.settingsRaUsername.text.clear()
             binding.settingsRaPassword.text.clear()
             binding.settingsRaApiKey.text.clear()
@@ -112,6 +145,19 @@ class RaCredentialsActivity : AppCompatActivity() {
             binding.settingsRaApiKey.text.clear()
             binding.settingsRaStatus.setText(R.string.settings_ra_api_key_saved)
             updateRaStatus(credentials)
+        }
+
+        binding.settingsRaCaptureApiKey.setOnClickListener {
+            val username = lastUsername.ifBlank {
+                credentials.getUsername()?.trim().orEmpty()
+            }
+            if (username.isBlank() || !credentials.hasCredentials()) {
+                binding.settingsRaStatus.setText(R.string.settings_ra_error_missing)
+                return@setOnClickListener
+            }
+            captureLauncher.launch(
+                RaKeyCaptureActivity.intent(this, username, lastPassword)
+            )
         }
 
         updateRaStatus(credentials)

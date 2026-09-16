@@ -8,6 +8,45 @@
 
 set -euo pipefail
 
+# ---- Robustness: always run from the repo root --------------------------------
+# VS Code tasks may start with a different cwd; resolve this script's directory
+# and cd to the repository root so all relative paths (./gradlew, app/...) work.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+cd "$REPO_ROOT"
+
+# ---- Android/Java environment fallback ----------------------------------------
+# Interactive shells usually export ANDROID_HOME/JAVA_HOME, but VS Code task
+# environments may not. Derive the SDK from local.properties or ~/Android/Sdk
+# and prefer a Java 17 runtime (required by AGP) when available.
+setup_android_env() {
+    if [[ -z "${ANDROID_HOME:-}" || -z "${ANDROID_SDK_ROOT:-}" ]]; then
+        local sdk_from_props=""
+        if [[ -f "$REPO_ROOT/local.properties" ]]; then
+            sdk_from_props=$(grep -E '^sdk\.dir=' "$REPO_ROOT/local.properties" | head -n1 | cut -d'=' -f2-)
+        fi
+        local fallback_sdk="${sdk_from_props:-$HOME/Android/Sdk}"
+        if [[ -d "$fallback_sdk" ]]; then
+            export ANDROID_HOME="${ANDROID_HOME:-$fallback_sdk}"
+            export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$fallback_sdk}"
+            export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        fi
+    fi
+    if ! java -version 2>&1 | grep -q 'version "17'; then
+        for candidate in /usr/lib/jvm/*17* /usr/lib/jvm/default; do
+            if [[ -x "$candidate/bin/java" ]]; then
+                export JAVA_HOME="$candidate"
+                export PATH="$JAVA_HOME/bin:$PATH"
+                break
+            fi
+        done
+        if ! java -version 2>&1 | grep -q 'version "17'; then
+            echo "[WARN] Java 17 not detected (java -version: $(java -version 2>&1 | head -n1)). AGP requires Java 17+." >&2
+        fi
+    fi
+}
+setup_android_env
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -45,7 +84,9 @@ check_git_status() {
 # Build the app to generate version
 build_app() {
     log_info "Building app to generate version..."
-    ./gradlew :app:assembleRelease --no-daemon -q
+    log_info "cwd=$(pwd) ANDROID_HOME=${ANDROID_HOME:-<unset>} java=$(java -version 2>&1 | head -n1)"
+    # NOTE: no -q flag on purpose — on failure Gradle must print the real cause.
+    ./gradlew :app:assembleRelease --no-daemon
     log_success "Build completed"
 }
 
@@ -57,7 +98,8 @@ get_generated_version() {
     
     if [[ -f "$build_config_path" ]]; then
         local version_name=$(grep -E 'VERSION_NAME\s*=' "$build_config_path" | sed -E 's/.*"([^"]+)".*/\1/')
-        local version_code=$(grep -E 'VERSION_CODE\s*=' "$build_config_path" | sed -E 's/.*= (\d+);.*/\1/')
+        # NOTE: GNU sed does not understand \d — extract digits with grep -oE.
+        local version_code=$(grep -E 'VERSION_CODE\s*=' "$build_config_path" | grep -oE '[0-9]+' | head -n1)
         echo "$version_name|$version_code"
     else
         # Fallback: compute from current time (should match build time)

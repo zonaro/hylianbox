@@ -25,7 +25,8 @@ object ZipExtractor {
             var entry = zis.nextEntry
             while (entry != null) {
                 if (entry.name == entryName && !entry.isDirectory) {
-                    return zis.readBytes()
+                    rejectOversizedDeclaredEntry(entry.size)
+                    return readArchiveEntryLimited(zis)
                 }
                 zis.closeEntry()
                 entry = zis.nextEntry
@@ -51,12 +52,21 @@ object ZipExtractor {
             var entry = zis.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory && pattern.matches(entry.name)) {
-                    return zis.readBytes()
+                    rejectOversizedDeclaredEntry(entry.size)
+                    return readArchiveEntryLimited(zis)
                 }
                 zis.closeEntry()
                 entry = zis.nextEntry
             }
         }
         throw StoreException.GenericError("No entry matching '$regex' found in archive")
+    }
+
+    private fun rejectOversizedDeclaredEntry(size: Long) {
+        if (size > ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES) {
+            throw StoreException.InvalidPatch(
+                "Archive entry exceeds the safe extraction limit of ${ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES} bytes"
+            )
+        }
     }
 }

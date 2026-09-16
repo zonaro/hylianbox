@@ -1,7 +1,6 @@
 package br.com.redclaw.hylianbox.settings.ui
 
 import android.accounts.AccountManager
-import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -16,9 +15,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -37,7 +34,10 @@ import br.com.redclaw.hylianbox.drive.ConflictStore
 import br.com.redclaw.hylianbox.drive.GoogleDriveAuth
 import br.com.redclaw.hylianbox.drive.GoogleDriveBackup
 import br.com.redclaw.hylianbox.repositories.Storage
+import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyFetchResult
+import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyLoginHelper
 import br.com.redclaw.hylianbox.retroachievements.auth.RaCredentialStore
+import br.com.redclaw.hylianbox.retroachievements.ui.RaKeyCaptureActivity
 import br.com.redclaw.hylianbox.settings.SettingsViewModel
 import br.com.redclaw.hylianbox.store.CatalogFetcher
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
@@ -46,6 +46,7 @@ import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.utils.LanguageManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.utils.UiScaleManager
 import br.com.redclaw.hylianbox.views.InstalledLibrary
 import com.google.android.gms.auth.UserRecoverableAuthException
@@ -58,11 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class SettingsActivity : AppCompatActivity() {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class SettingsActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private lateinit var viewModel: SettingsViewModel
 
@@ -118,6 +115,20 @@ class SettingsActivity : AppCompatActivity() {
             registerForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
             ) { /* User can tap "Back up now" again after granting consent. */}
+
+    /** Last typed RA credentials, kept in memory only to feed the key capture. */
+    private var lastRaUsername: String = ""
+    private var lastRaPassword: String = ""
+
+    private val raKeyCaptureLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                lastRaPassword = ""
+                if (result.resultCode == RESULT_OK) {
+                    binding.settingsRaApiKey.text.clear()
+                    binding.settingsRaStatus.setText(R.string.settings_ra_api_key_auto_saved)
+                }
+                updateRaStatus(HylianBoxApp.raCredentialStore)
+            }
 
     private val installedRepository by lazy {
         InstalledHacksRepository(File(filesDir, "installed_hacks.json"))
@@ -981,8 +992,9 @@ class SettingsActivity : AppCompatActivity() {
     /**
      * RetroAchievements section: master enable switch plus username/password login. The password is
      * used once for the credential exchange and never persisted; only the issued token is stored
-     * (encrypted). A separate Web API key (from the RetroAchievements control panel) is stored for
-     * the profile screen, which reads the public Web API.
+     * (encrypted). A separate Web API key (from RetroAchievements Settings > Applications) is
+     * fetched automatically after login (with an in-app browser fallback) and stored for the
+     * profile screen, which reads the public Web API.
      */
     private fun setupRetroAchievementsSection() {
         val credentials = HylianBoxApp.raCredentialStore
@@ -1007,6 +1019,9 @@ class SettingsActivity : AppCompatActivity() {
                 binding.settingsRaStatus.setText(R.string.settings_ra_error_missing)
                 return@setOnClickListener
             }
+            // Kept in memory only so the capture fallback can auto-login.
+            lastRaUsername = username
+            lastRaPassword = password
             binding.settingsRaLogin.isEnabled = false
             binding.settingsRaStatus.setText(R.string.settings_ra_logging_in)
             lifecycleScope.launch {
@@ -1017,6 +1032,23 @@ class SettingsActivity : AppCompatActivity() {
                 result.fold(
                         onSuccess = {
                             binding.settingsRaUsername.text.clear()
+                            // Try to fetch the Web API key automatically with
+                            // the credentials just typed; never blocks login.
+                            binding.settingsRaStatus.setText(R.string.settings_ra_fetching_api_key)
+                            when (RaApiKeyLoginHelper.fetchAfterLogin(
+                                            applicationContext,
+                                            credentials,
+                                            username,
+                                            password
+                                    )
+                            ) {
+                                RaApiKeyFetchResult.Fetched ->
+                                        binding.settingsRaStatus.setText(
+                                                R.string.settings_ra_api_key_auto_saved
+                                        )
+                                RaApiKeyFetchResult.AlreadyStored,
+                                RaApiKeyFetchResult.Unavailable -> Unit
+                            }
                             updateRaStatus(credentials)
                         },
                         onFailure = { e ->
@@ -1037,6 +1069,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.settingsRaLogout.setOnClickListener {
             sfx?.select()
             authService.logout()
+            lastRaUsername = ""
+            lastRaPassword = ""
             updateRaStatus(credentials)
         }
 
@@ -1050,6 +1084,16 @@ class SettingsActivity : AppCompatActivity() {
             credentials.setApiKey(key)
             binding.settingsRaApiKey.text.clear()
             binding.settingsRaStatus.setText(R.string.settings_ra_api_key_saved)
+        }
+
+        binding.settingsRaCaptureApiKey.setOnClickListener {
+            sfx?.select()
+            val username = lastRaUsername.ifBlank { credentials.getUsername()?.trim().orEmpty() }
+            if (username.isBlank() || !credentials.hasCredentials()) {
+                binding.settingsRaStatus.setText(R.string.settings_ra_error_missing)
+                return@setOnClickListener
+            }
+            raKeyCaptureLauncher.launch(RaKeyCaptureActivity.intent(this, username, lastRaPassword))
         }
 
         updateRaStatus(credentials)

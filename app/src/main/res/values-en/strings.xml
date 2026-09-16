@@ -145,6 +145,8 @@
     <string name="webview_title">Download hack</string>
     <string name="webview_back_desc">Back</string>
     <string name="webview_downloading">Downloading %1$s…</string>
+    <string name="webview_download_queued">Download started. Installation will continue in the background.</string>
+    <string name="webview_download_already_queued">This download is already queued.</string>
     <string name="webview_install_success">Installed: %1$s</string>
     <string name="webview_install_error_title">Installation failed</string>
     <string name="webview_install_failed">Failed to install the file.</string>
@@ -243,8 +245,16 @@
     <string name="settings_ra_status_failed">Sign-in failed. Check your username and password.</string>
     <string name="settings_ra_status_failed_detail">Sign-in failed: %1$s</string>
     <string name="settings_ra_api_key_hint">Web API key</string>
-    <string name="settings_ra_api_key_help">Paste the key generated at retroachievements.org > Control Panel > Keys. Needed to fetch your public profile.</string>
+    <string name="settings_ra_api_key_help">We fetch the key for you after sign-in (retroachievements.org > Settings > Applications). If that fails, use the automatic capture or paste the key here. Needed to fetch your public profile.</string>
     <string name="settings_ra_save_api_key">Save API key</string>
+    <string name="settings_ra_capture_api_key">Capture key in browser</string>
+    <string name="settings_ra_fetching_api_key">Signed in. Fetching Web API key…</string>
+    <string name="settings_ra_api_key_auto_saved">Web API key fetched automatically!</string>
+    <string name="settings_ra_key_capture_title">Capture API key</string>
+    <string name="settings_ra_key_capture_loading">Loading…</string>
+    <string name="settings_ra_key_capture_logging_in">Signing in…</string>
+    <string name="settings_ra_key_capture_scanning">Looking for the key…</string>
+    <string name="settings_ra_key_capture_needs_verification">Verify your e-mail on the RetroAchievements site to unlock the API key.</string>
     <string name="settings_ra_api_key_saved">Key saved!</string>
     <string name="settings_ra_api_key_error_missing">Enter the key before saving.</string>
     <string name="settings_ra_status_logged_in_no_key">Signed in. Add the Web API key above to view your profile.</string>
@@ -287,7 +297,7 @@
     <string name="ra_profile_field_permissions">Permissions</string>
     <string name="ra_profile_field_untracked">Untracked account</string>
     <string name="ra_profile_field_user_wall_active">User wall active</string>
-    <string name="ra_profile_needs_api_key">You\'re signed in, but the Web API key hasn\'t been added yet. Go to Settings > RetroAchievements and paste the key from the Control Panel.</string>
+    <string name="ra_profile_needs_api_key">You\'re signed in, but the Web API key is still missing. Go to Settings > RetroAchievements and use the automatic capture or paste the key.</string>
     <string name="ra_profile_member_since">Community member since %1$s</string>
     <string name="ra_profile_last_game">Last game</string>
     <string name="ra_profile_last_game_image_description">Last game icon</string>

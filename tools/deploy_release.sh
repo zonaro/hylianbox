@@ -28,12 +28,51 @@ set -euo pipefail
 PACKAGE="br.com.redclaw.hylianbox"
 ADB="${ADB:-adb}"
 LAUNCH="${LAUNCH:-1}"            # set LAUNCH=0 to skip launching after install
-APK_DIR="app/build/outputs/apk/release"
 
-# Resolve repo root and the shared release script (no duplicated build logic).
+# Resolve repo root FIRST, then use absolute paths everywhere so this script
+# works regardless of the caller's cwd (e.g. VS Code tasks).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 RELEASE_SCRIPT="$REPO_ROOT/release.sh"
+APK_DIR="$REPO_ROOT/app/build/outputs/apk/release"
+
+# ---- Android/Java environment fallback --------------------------------------
+# VS Code task environments may lack ANDROID_HOME/JAVA_HOME that interactive
+# shells have. Derive the SDK from local.properties or ~/Android/Sdk and
+# prefer a Java 17 runtime (required by AGP) when available.
+setup_android_env() {
+    if [[ -z "${ANDROID_HOME:-}" || -z "${ANDROID_SDK_ROOT:-}" ]]; then
+        local sdk_from_props=""
+        if [[ -f "$REPO_ROOT/local.properties" ]]; then
+            sdk_from_props=$(grep -E '^sdk\.dir=' "$REPO_ROOT/local.properties" | head -n1 | cut -d'=' -f2-)
+        fi
+        local fallback_sdk="${sdk_from_props:-$HOME/Android/Sdk}"
+        if [[ -d "$fallback_sdk" ]]; then
+            export ANDROID_HOME="${ANDROID_HOME:-$fallback_sdk}"
+            export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$fallback_sdk}"
+            export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+        fi
+    fi
+    # If adb is still not on PATH, try the SDK platform-tools directly.
+    if ! command -v "$ADB" >/dev/null 2>&1 && [[ -n "${ANDROID_HOME:-}" && -x "$ANDROID_HOME/platform-tools/adb" ]]; then
+        ADB="$ANDROID_HOME/platform-tools/adb"
+    fi
+    if ! java -version 2>&1 | grep -q 'version "17'; then
+        for candidate in /usr/lib/jvm/*17* /usr/lib/jvm/default; do
+            if [[ -x "$candidate/bin/java" ]]; then
+                export JAVA_HOME="$candidate"
+                export PATH="$JAVA_HOME/bin:$PATH"
+                break
+            fi
+        done
+        if ! java -version 2>&1 | grep -q 'version "17'; then
+            log_warn "Java 17 not detected (java: $(java -version 2>&1 | head -n1)). AGP requires Java 17+."
+        fi
+    fi
+    log_info "cwd=$(pwd) ANDROID_HOME=${ANDROID_HOME:-<unset>} java=$(java -version 2>&1 | head -n1)"
+}
+# NOTE: invoked after the log_* helpers are defined (see below).
 
 # ---- Colors (disabled when not a TTY) --------------------------------------
 if [[ -t 1 ]]; then
@@ -46,6 +85,8 @@ log_info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
 log_ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
+
+setup_android_env
 
 # ---- Steps -----------------------------------------------------------------
 check_device() {
@@ -87,9 +128,13 @@ run_release() {
 
 find_apk() {
     local apk
-    apk=$(find "$APK_DIR" -name "*.apk" 2>/dev/null | head -n1)
+    # Prefer signed APKs over -unsigned ones when both exist.
+    apk=$(find "$APK_DIR" -name "*.apk" 2>/dev/null | grep -v -- "-unsigned" | head -n1)
     if [[ -z "$apk" ]]; then
-        log_error "No APK found in $APK_DIR. Did the build succeed?"
+        apk=$(find "$APK_DIR" -name "*.apk" 2>/dev/null | head -n1)
+    fi
+    if [[ -z "$apk" ]]; then
+        log_error "No APK found in $APK_DIR. Did the build succeed? Check the Gradle output above for the real cause."
         exit 1
     fi
     echo "$apk"
@@ -101,8 +146,13 @@ install_apk() {
         log_warn "APK is UNSIGNED ($apk). adb install will fail on production devices."
         log_warn "Create keystore.properties at the repo root to produce a signed APK."
     fi
-    log_info "Installing $apk ..."
-    "$ADB" install -r "$apk"
+    # ANDROID_SERIAL (exported by check_device or the caller) applies to every
+    # adb invocation below: install, launch and verification.
+    log_info "Installing $apk (device: ${ANDROID_SERIAL:-default}) ..."
+    if ! "$ADB" install -r "$apk"; then
+        log_error "adb install failed for $apk on device ${ANDROID_SERIAL:-default}. Run 'adb devices' and check signing (unsigned APKs are rejected)."
+        exit 1
+    fi
     log_ok "Installed."
 }
 

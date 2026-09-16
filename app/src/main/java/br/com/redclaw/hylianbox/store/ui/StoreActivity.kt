@@ -1,6 +1,5 @@
 package br.com.redclaw.hylianbox.store.ui
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -18,7 +17,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -41,16 +39,12 @@ import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class StoreActivity : AppCompatActivity() {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class StoreActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivityStoreBinding
     internal lateinit var viewModel: StoreViewModel
     private lateinit var adapter: StoreAdapter

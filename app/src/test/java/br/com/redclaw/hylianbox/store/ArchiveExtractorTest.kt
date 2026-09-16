@@ -60,6 +60,31 @@ class ArchiveExtractorTest {
     }
 
     @Test
+    fun archiveSourceUsesContentDispositionFilenameForOpaqueBrowserUrl() {
+        assertEquals(
+                "release.7z",
+                ArchiveExtractor.archiveSource(
+                        "https://example.com/download.php?id=42",
+                        "release.7z"
+                )
+        )
+        assertEquals(
+                "https://example.com/release.zip?token=signed",
+                ArchiveExtractor.archiveSource(
+                        "https://example.com/release.zip?token=signed",
+                        "download"
+                )
+        )
+        assertEquals(null, ArchiveExtractor.archiveSource("https://example.com/file", "patch.bps"))
+    }
+
+    @Test(expected = StoreException.InvalidPatch::class)
+    fun boundedArchiveOutputRejectsOversizedExpandedEntry() {
+        val out = BoundedArchiveOutputStream(2)
+        out.write(byteArrayOf(1, 2, 3))
+    }
+
+    @Test
     fun isPatchNameMatchesPatchExtensions() {
         assertTrue(ArchiveExtractor.isPatchName("hack.bps"))
         assertTrue(ArchiveExtractor.isPatchName("hack.ips"))

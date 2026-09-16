@@ -144,6 +144,8 @@
     <string name="webview_title">Baixar hack</string>
     <string name="webview_back_desc">Voltar</string>
     <string name="webview_downloading">Baixando %1$s…</string>
+    <string name="webview_download_queued">Download iniciado. A instalação continuará em segundo plano.</string>
+    <string name="webview_download_already_queued">Este download já está na fila.</string>
     <string name="webview_install_success">Instalado: %1$s</string>
     <string name="webview_install_error_title">Falha na instalação</string>
     <string name="webview_install_failed">Falha ao instalar o arquivo.</string>
@@ -235,8 +237,16 @@
     <string name="settings_ra_status_failed">Falha no login. Verifique usuário e senha.</string>
     <string name="settings_ra_status_failed_detail">Falha no login: %1$s</string>
     <string name="settings_ra_api_key_hint">Chave da Web API</string>
-    <string name="settings_ra_api_key_help">Cole aqui a chave gerada em retroachievements.org > Control Panel > Keys. Necessária para buscar seu perfil público.</string>
+    <string name="settings_ra_api_key_help">Buscamos a chave sozinhos após o login (retroachievements.org > Configurações > Aplicações). Se falhar, use a captura automática ou cole a chave aqui. Necessária para buscar seu perfil público.</string>
     <string name="settings_ra_save_api_key">Salvar chave da API</string>
+    <string name="settings_ra_capture_api_key">Capturar chave no navegador</string>
+    <string name="settings_ra_fetching_api_key">Entrado. Buscando chave da Web API…</string>
+    <string name="settings_ra_api_key_auto_saved">Chave da Web API obtida automaticamente!</string>
+    <string name="settings_ra_key_capture_title">Capturar chave da API</string>
+    <string name="settings_ra_key_capture_loading">Carregando…</string>
+    <string name="settings_ra_key_capture_logging_in">Entrando…</string>
+    <string name="settings_ra_key_capture_scanning">Procurando a chave…</string>
+    <string name="settings_ra_key_capture_needs_verification">Verifique seu e-mail no site RetroAchievements para liberar a chave da API.</string>
     <string name="settings_ra_api_key_saved">Chave salva!</string>
     <string name="settings_ra_api_key_error_missing">Digite a chave antes de salvar.</string>
     <string name="settings_ra_status_logged_in_no_key">Conectado. Adicione a chave da Web API acima para ver o perfil.</string>
@@ -296,7 +306,7 @@
     <string name="ra_profile_field_permissions">Permissões</string>
     <string name="ra_profile_field_untracked">Conta não rastreada</string>
     <string name="ra_profile_field_user_wall_active">Mural do usuário ativo</string>
-    <string name="ra_profile_needs_api_key">Você entrou, mas ainda falta adicionar a chave da Web API. Abra Configurações > RetroAchievements e cole a chave do Painel de Controle.</string>
+    <string name="ra_profile_needs_api_key">Você entrou, mas ainda falta a chave da Web API. Abra Configurações > RetroAchievements e use a captura automática ou cole a chave.</string>
     <string name="ra_profile_member_since">Na comunidade desde %1$s</string>
     <string name="ra_profile_last_game">Último jogo</string>
     <string name="ra_profile_last_game_image_description">Ícone do último jogo</string>

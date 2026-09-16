@@ -1,12 +1,10 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
-import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.MotionEvent
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,7 +17,7 @@ import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
 import br.com.redclaw.hylianbox.utils.CorePrefs
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.views.InstalledLibrary
 import coil.load
 import kotlinx.coroutines.Dispatchers
@@ -48,11 +46,7 @@ import kotlinx.coroutines.withContext
  * the game id, catalog definitions come from fetch-game-data and the user's unlock set from
  * fetch-user-unlocks (only when credentials exist). All network/parse work runs on Dispatchers.IO.
  */
-class AchievementsActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class AchievementsActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityAchievementsBinding
     private val adapter = RaAchievementAdapter()

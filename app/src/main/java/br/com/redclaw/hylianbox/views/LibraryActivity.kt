@@ -18,14 +18,12 @@
 
 package br.com.redclaw.hylianbox.views
 
-import android.content.Context
 import android.content.Intent
 import android.hardware.input.InputManager
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
@@ -42,7 +40,7 @@ import br.com.redclaw.hylianbox.ui.switchui.SwitchDock
 import br.com.redclaw.hylianbox.ui.switchui.SwitchGridActivity
 import br.com.redclaw.hylianbox.ui.switchui.SwitchHomeRow
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuController
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuHostDelegate
 import coil.load
@@ -73,11 +71,7 @@ import kotlinx.coroutines.launch
  * [br.com.redclaw.hylianbox.settings.ui.SettingsActivity] ("Aparência" section); RetroAchievements
  * login lives in its own Settings section.
  */
-class LibraryActivity : AppCompatActivity() {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class LibraryActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivityLibraryBinding
 
     /* Stateless: rebuilt from the source on every (re)create, so process

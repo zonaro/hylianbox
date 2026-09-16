@@ -1,7 +1,6 @@
 package br.com.redclaw.hylianbox.store.ui
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
@@ -14,15 +13,19 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.data.local.AppRepositories
 import br.com.redclaw.hylianbox.data.local.InstalledHacksRepository
+import br.com.redclaw.hylianbox.data.model.Checksums
 import br.com.redclaw.hylianbox.data.model.HackEntry
+import br.com.redclaw.hylianbox.data.model.PatchRef
 import br.com.redclaw.hylianbox.databinding.ActivityWebviewDownloadBinding
 import br.com.redclaw.hylianbox.patcher.PatcherFacade
 import br.com.redclaw.hylianbox.repositories.Storage
+import br.com.redclaw.hylianbox.store.DownloadQueueManager
+import br.com.redclaw.hylianbox.store.DownloadRequestHeaders
+import br.com.redclaw.hylianbox.store.DownloadTarget
 import br.com.redclaw.hylianbox.store.ImportPatchInvalid
 import br.com.redclaw.hylianbox.store.ImportPatchNoCompatibleRom
 import br.com.redclaw.hylianbox.store.ImportPatchSuccess
@@ -33,7 +36,7 @@ import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.store.ImportedPatchInstaller
 import br.com.redclaw.hylianbox.store.ImportedRomInstaller
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
@@ -55,11 +58,12 @@ import org.json.JSONObject
  * - Direct ROMs: `.n64`, `.z64`, `.v64`
  *
  * When such a file is detected the WebView navigation is cancelled, the file is downloaded with
- * OkHttp (reusing cookies from the WebView), and then installed through the same pipeline used by
- * the manual import flow:
+ * OkHttp (reusing cookies from the WebView), and then installed through the appropriate shared
+ * pipeline:
  *
- * - Patches → [ImportedPatchInstaller] (applies BPS/IPS/XDELTA against the user's imported base ROM
- * and writes `rom_<hackId>`).
+ * - Patches/archives → [DownloadQueueManager], the same process-lifetime download, extraction,
+ * validation and patch pipeline used by direct Store links. The browser closes as soon as the item
+ * is queued.
  * - ROMs → [ImportedRomInstaller] (normalizes and registers as a base ROM).
  *
  * Archives (`.zip`, `.7z`, `.rar`) are extracted automatically when they contain a supported inner
@@ -69,11 +73,7 @@ import org.json.JSONObject
  * The Activity is launched from [HackDetailDialog] with the hack JSON and the initial URL. On
  * success it finishes and the Library will show the new entry.
  */
-class WebViewDownloadActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class WebViewDownloadActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityWebviewDownloadBinding
     private lateinit var hack: HackEntry
@@ -224,14 +224,29 @@ class WebViewDownloadActivity : AppCompatActivity() {
             return
         }
 
+        if (isPatchFile(filename) ||
+                        isArchiveFile(filename) ||
+                        PATCH_EXTS.any { url.lowercase().substringBefore('?').endsWith(it) } ||
+                        ARCHIVE_EXTS.any { url.lowercase().substringBefore('?').endsWith(it) }
+        ) {
+            enqueuePatchDownload(url, filename)
+            return
+        }
+
         isHandlingDownload = true
         binding.webviewProgress.visibility = View.VISIBLE
         binding.webviewProgress.isIndeterminate = true
         binding.webviewProgressText.visibility = View.VISIBLE
         binding.webviewProgressText.text = getString(R.string.webview_downloading, filename)
+        val cookie = CookieManager.getInstance().getCookie(url)
+        val userAgent = binding.webview.settings.userAgentString
+        val referer = binding.webview.url
 
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) { downloadAndInstall(url, filename) }
+            val result =
+                    withContext(Dispatchers.IO) {
+                        downloadAndInstall(url, filename, cookie, userAgent, referer)
+                    }
             isHandlingDownload = false
             binding.webviewProgress.visibility = View.GONE
             binding.webviewProgressText.visibility = View.GONE
@@ -259,11 +274,48 @@ class WebViewDownloadActivity : AppCompatActivity() {
     }
 
     /**
+     * Hands a browser-originated patch/archive to the process-lifetime Store queue and closes the
+     * WebView immediately. Values that belong to WebView/CookieManager are captured on the main
+     * thread before the queue moves network and patch work to its IO scope.
+     */
+    private fun enqueuePatchDownload(url: String, filename: String) {
+        isHandlingDownload = true
+        val safeName =
+                filename.substringAfterLast('/').substringAfterLast('\\').ifBlank {
+                    URLUtil.guessFileName(url, null, null)
+                }
+        val patch = PatchRef(url, safeName, 0L, Checksums("", null, null))
+        val queuedHack =
+                hack.copy(patch = patch, downloadTarget = DownloadTarget.DirectPatch(patch))
+        val headers =
+                DownloadRequestHeaders(
+                        cookie = CookieManager.getInstance().getCookie(url),
+                        userAgent = binding.webview.settings.userAgentString,
+                        referer = binding.webview.url
+                )
+        val accepted = DownloadQueueManager.enqueueFromBrowser(queuedHack, headers)
+        Toast.makeText(
+                        this,
+                        if (accepted) R.string.webview_download_queued
+                        else R.string.webview_download_already_queued,
+                        Toast.LENGTH_SHORT
+                )
+                .show()
+        setResult(RESULT_OK)
+        finish()
+    }
+
+    /**
      * Download [url] to a temp file, then install it as a patch or ROM. Runs on [Dispatchers.IO].
      */
-    private suspend fun downloadAndInstall(url: String, filename: String): WebViewInstallResult =
+    private suspend fun downloadAndInstall(
+            url: String,
+            filename: String,
+            cookie: String?,
+            userAgent: String,
+            referer: String?
+    ): WebViewInstallResult =
             withContext(Dispatchers.IO) {
-                val cookie = CookieManager.getInstance().getCookie(url)
                 val client =
                         OkHttpClient.Builder()
                                 .connectTimeout(30, TimeUnit.SECONDS)
@@ -277,7 +329,8 @@ class WebViewDownloadActivity : AppCompatActivity() {
                     requestBuilder.header("Cookie", cookie)
                 }
                 // Some hosts require a Referer or User-Agent to serve downloads.
-                requestBuilder.header("User-Agent", binding.webview.settings.userAgentString)
+                requestBuilder.header("User-Agent", userAgent)
+                referer?.takeIf { it.isNotBlank() }?.let { requestBuilder.header("Referer", it) }
 
                 val tempFile: File
                 try {

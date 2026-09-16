@@ -445,6 +445,14 @@
                     android:layout_marginTop="8dp"
                     android:text="@string/settings_ra_save_api_key" />
 
+                <Button
+                    android:id="@+id/settings_ra_capture_api_key"
+                    style="@style/SwitchButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/settings_ra_capture_api_key" />
+
                 <TextView
                     android:id="@+id/settings_ra_status"
                     android:layout_width="match_parent"

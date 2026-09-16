@@ -19,7 +19,6 @@
 package br.com.redclaw.hylianbox.store
 
 import com.github.junrar.Archive
-import java.io.ByteArrayOutputStream
 import java.io.File
 
 /**
@@ -88,7 +87,7 @@ object RarExtractor {
             archive: Archive,
             header: com.github.junrar.rarfile.FileHeader
     ): ByteArray {
-        val out = ByteArrayOutputStream()
+        val out = BoundedArchiveOutputStream(ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES)
         archive.extractFile(header, out)
         return out.toByteArray()
     }

@@ -25,13 +25,12 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityCaptureViewerBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import coil.load
 import java.io.File
 
@@ -43,11 +42,7 @@ import java.io.File
  * activity accepts only files named like a gallery capture and checks that the supplied type
  * matches the extension before rendering it.
  */
-class CaptureViewerActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class CaptureViewerActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityCaptureViewerBinding
     private val backHelper = SwitchBackButton()

@@ -1,30 +1,24 @@
 package br.com.redclaw.hylianbox.store.ui
 
-import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
-import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityDownloadQueueBinding
 import br.com.redclaw.hylianbox.store.DownloadQueueManager
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 
 /**
  * Lists every queued / active / finished download for the Hack Store. Items can be cancelled while
  * in flight or removed once finished. The list is driven by [DownloadQueueManager.queue] so it
  * stays in sync with the Store grid badges and the progress notifications.
  */
-class DownloadQueueActivity : AppCompatActivity() {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class DownloadQueueActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivityDownloadQueueBinding
     private lateinit var adapter: DownloadQueueAdapter
 

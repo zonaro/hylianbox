@@ -17,24 +17,19 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.databinding.ActivityGamepadTesterBinding
 import br.com.redclaw.hylianbox.input.InputDeviceUtils
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 
 /**
  * A safe place to inspect a connected physical controller. The screen consumes controller events
  * exclusively for visualization, so no emulation core is created and the game's RadialGamePad
  * layout remains untouched.
  */
-class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListener {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class GamepadTesterActivity : ScaledAppCompatActivity(), InputManager.InputDeviceListener {
     private lateinit var binding: ActivityGamepadTesterBinding
     private lateinit var inputManager: InputManager
     private val backHelper = SwitchBackButton()
@@ -51,8 +46,14 @@ class GamepadTesterActivity : AppCompatActivity(), InputManager.InputDeviceListe
         // Dynamic accent for header icon and mode tabs
         val accent = br.com.redclaw.hylianbox.ui.switchui.AccentManager.getAccentColor(this)
         binding.testerHeaderIcon.setColorFilter(accent)
-        binding.testerPhysical.background = br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(this)
-        binding.testerN64.background = br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(this)
+        binding.testerPhysical.background =
+                br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(
+                        this
+                )
+        binding.testerN64.background =
+                br.com.redclaw.hylianbox.ui.switchui.AccentManager.createGamepadTesterModeSelector(
+                        this
+                )
 
         backHelper.attach(this, binding.testerBack.root, onBack = { finish() })
         binding.testerPhysical.setOnClickListener { selectMode(GamepadTesterView.Mode.PHYSICAL) }

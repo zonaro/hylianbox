@@ -18,7 +18,6 @@
 
 package br.com.redclaw.hylianbox.store
 
-import java.io.ByteArrayOutputStream
 import java.io.File
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
 
@@ -40,6 +39,7 @@ object SevenZExtractor {
             var entry = archive.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory && entry.name == entryName) {
+                    rejectOversizedDeclaredEntry(entry.size)
                     return readCurrentEntry(archive)
                 }
                 entry = archive.nextEntry
@@ -59,6 +59,7 @@ object SevenZExtractor {
             var entry = archive.nextEntry
             while (entry != null) {
                 if (!entry.isDirectory && pattern.matches(entry.name)) {
+                    rejectOversizedDeclaredEntry(entry.size)
                     return readCurrentEntry(archive)
                 }
                 entry = archive.nextEntry
@@ -86,12 +87,20 @@ object SevenZExtractor {
     }
 
     private fun readCurrentEntry(archive: SevenZFile): ByteArray {
-        val out = ByteArrayOutputStream()
+        val out = BoundedArchiveOutputStream(ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES)
         val buf = ByteArray(64 * 1024)
         var read: Int
         while (archive.read(buf).also { read = it } > 0) {
             out.write(buf, 0, read)
         }
         return out.toByteArray()
+    }
+
+    private fun rejectOversizedDeclaredEntry(size: Long) {
+        if (size > ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES) {
+            throw StoreException.InvalidPatch(
+                    "Archive entry exceeds the safe extraction limit of ${ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES} bytes"
+            )
+        }
     }
 }

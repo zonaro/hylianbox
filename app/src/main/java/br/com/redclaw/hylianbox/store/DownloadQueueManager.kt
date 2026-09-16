@@ -17,6 +17,7 @@ import br.com.redclaw.hylianbox.shortcuts.GamePlayHistoryStore
 import br.com.redclaw.hylianbox.shortcuts.GameShortcutsManager
 import br.com.redclaw.hylianbox.views.HackLibraryEntry
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 
@@ -36,6 +37,7 @@ object DownloadQueueManager {
     private lateinit var appContext: Context
     private lateinit var installedRepository: InstalledHacksRepository
     private lateinit var engine: DownloadQueueEngine
+    private val browserRequestHeaders = ConcurrentHashMap<String, DownloadRequestHeaders>()
 
     private val _queue = MutableLiveData<List<QueueItemUi>>(emptyList())
     val queue: LiveData<List<QueueItemUi>> = _queue
@@ -114,9 +116,15 @@ object DownloadQueueManager {
                                                             bytesDownloaded: Long,
                                                             totalBytes: Long) -> Unit
                                     ) =
-                                            downloadManager.download(hack, onProgress, signal).map {
-                                                Unit
-                                            }
+                                            downloadManager
+                                                    .download(
+                                                            hack,
+                                                            onProgress,
+                                                            signal,
+                                                            browserRequestHeaders[hack.id]
+                                                                    ?: DownloadRequestHeaders()
+                                                    )
+                                                    .map { Unit }
                                 },
                         listener =
                                 object : EngineListener {
@@ -134,16 +142,19 @@ object DownloadQueueManager {
                                     }
 
                                     override fun onSuccess(ui: QueueItemUi, hack: HackEntry) {
+                                        browserRequestHeaders.remove(hack.id)
                                         publishShortcut(hack)
                                         DownloadNotificationHelper.notifyCompleted(appContext, ui)
                                         showInstalledToast()
                                     }
 
                                     override fun onCancelled(ui: QueueItemUi, hack: HackEntry) {
+                                        browserRequestHeaders.remove(hack.id)
                                         DownloadNotificationHelper.notifyCancelled(appContext, ui)
                                     }
 
                                     override fun onError(ui: QueueItemUi, hack: HackEntry) {
+                                        browserRequestHeaders.remove(hack.id)
                                         DownloadNotificationHelper.notifyError(appContext, ui)
                                     }
 
@@ -160,6 +171,22 @@ object DownloadQueueManager {
                 "enqueue called for hack=${hack.id} version=${hack.version} patch=${hack.patch?.url}"
         )
         engine.enqueue(hack) { installedRepository.installedVersion(it.id) == it.version }
+    }
+
+    /**
+     * Enqueue a patch URL captured by the embedded browser.
+     *
+     * The actual work still runs through the exact same process-lifetime [DownloadManager] as a
+     * direct Store link. The transient [headers] let authenticated and anti-hotlinking hosts
+     * receive the WebView cookie/user-agent/referer without persisting sensitive values. Returns
+     * true only when a new queue item was accepted.
+     */
+    fun enqueueFromBrowser(hack: HackEntry, headers: DownloadRequestHeaders): Boolean {
+        if (browserRequestHeaders.putIfAbsent(hack.id, headers) != null) return false
+        val accepted =
+                engine.enqueue(hack) { installedRepository.installedVersion(it.id) == it.version }
+        if (!accepted) browserRequestHeaders.remove(hack.id, headers)
+        return accepted
     }
 
     /** Cancels an active item, or finalizes a QUEUED item immediately. */

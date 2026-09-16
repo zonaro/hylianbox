@@ -14,7 +14,7 @@ Users can import their **legally-owned base ROMs** (OoT / MM) into the Library a
 - **Badges:**
   - A `VANILLA` badge (gray/neutral) marks non-hack entries.
   - A small **robot/controller icon** (Dolfi asset) indicates "base game" vs hack.
-  - **Family colors:** OoT = yellow (`#FFC107`), MM = purple (`#9C27B0`) — applied to the card accent / badge border.
+  - **Family identity:** OoT/MM remain distinguishable by their glyph/text; card accent, badge border and interactive emphasis inherit the configured accent color rather than using fixed yellow/purple family colors.
 - **`HackLibraryEntry.family`:** Each entry carries a `family` field (`OOT` / `MM` / `CUSTOM`) used for coloring and filtering.
 - **Context menu:** Vanilla entries **omit** hack-specific actions (e.g., "View on Store", "Check for Updates"); they show only Play / Re-import / Delete-import.
 

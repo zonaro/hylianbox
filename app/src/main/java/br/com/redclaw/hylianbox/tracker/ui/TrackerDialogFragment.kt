@@ -21,7 +21,6 @@ package br.com.redclaw.hylianbox.tracker.ui
 import android.app.Dialog
 import android.content.Context
 import android.content.SharedPreferences
-import android.widget.Switch
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -29,18 +28,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDialog
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.tracker.data.TrackerExporter
 import br.com.redclaw.hylianbox.tracker.model.TrackerGame
 import br.com.redclaw.hylianbox.tracker.ui.components.TrackerTimerView
@@ -53,9 +52,9 @@ import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 
 /**
- * Switch-style modal hosting the item tracker. A tab strip switches between four child
- * fragments (Items / Locations / Songs / Hints) and an integrated run timer lives at the bottom. No
- * core RAM is read by this dialog; gameplay owns optional automatic updates.
+ * Switch-style modal hosting the item tracker. A tab strip switches between four child fragments
+ * (Items / Locations / Songs / Hints) and an integrated run timer lives at the bottom. No core RAM
+ * is read by this dialog; gameplay owns optional automatic updates.
  */
 class TrackerDialogFragment : DialogFragment() {
 
@@ -153,8 +152,7 @@ class TrackerDialogFragment : DialogFragment() {
                 if (game == TrackerGame.OOT) R.string.tracker_title_oot
                 else R.string.tracker_title_mm
         view.findViewById<TextView>(R.id.tracker_title).setText(titleRes)
-        val closeBtn = view.findViewById<Button>(R.id.tracker_close)
-        closeBtn.background = AccentManager.createSwitchButtonBackground(requireContext())
+        val closeBtn = view.findViewById<ImageButton>(R.id.tracker_close)
         closeBtn.setOnClickListener {
             sfx?.back()
             dismiss()
@@ -215,7 +213,7 @@ class TrackerDialogFragment : DialogFragment() {
         dualScreenPinned = pinned
         isCancelable = !pinned
         dialog?.let(::applyPinnedInputMode)
-        contentView?.findViewById<Button>(R.id.tracker_close)?.visibility =
+        contentView?.findViewById<ImageButton>(R.id.tracker_close)?.visibility =
                 if (pinned) View.GONE else View.VISIBLE
         if (!pinned && arguments?.getBoolean(ARG_DUAL_SCREEN_PINNED) == true) {
             dismissAllowingStateLoss()
@@ -247,7 +245,8 @@ class TrackerDialogFragment : DialogFragment() {
     override fun onStart() {
         super.onStart()
         GameplayFullscreenDialog.apply(requireDialog())
-        requireContext().getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+        requireContext()
+                .getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
                 .registerOnSharedPreferenceChangeListener(autoTrackingPreferenceListener)
         syncAutoTrackingSwitch()
         // Defer the first tab selection to after onStart() fully completes.
@@ -277,7 +276,9 @@ class TrackerDialogFragment : DialogFragment() {
         sfx?.select()
         tabButtons.forEachIndexed { i, btn ->
             btn.isSelected = i == index
-            btn.background = if (i == index) AccentManager.createSwitchButtonBackground(requireContext()) else createTabIdleBg()
+            btn.background =
+                    if (i == index) AccentManager.createSwitchButtonBackground(requireContext())
+                    else createTabIdleBg()
             btn.setTextColor(
                     if (i == index) android.graphics.Color.WHITE
                     else requireContext().getColor(R.color.switch_text_primary)
@@ -294,7 +295,9 @@ class TrackerDialogFragment : DialogFragment() {
     private fun applyTabStyles(accent: Int) {
         tabButtons.forEachIndexed { i, btn ->
             val selectedTab = i == selected
-            btn.background = if (selectedTab) AccentManager.createSwitchButtonBackground(requireContext()) else createTabIdleBg()
+            btn.background =
+                    if (selectedTab) AccentManager.createSwitchButtonBackground(requireContext())
+                    else createTabIdleBg()
             btn.setTextColor(
                     if (selectedTab) android.graphics.Color.WHITE
                     else requireContext().getColor(R.color.switch_text_primary)
@@ -314,7 +317,8 @@ class TrackerDialogFragment : DialogFragment() {
             }
 
     override fun onStop() {
-        requireContext().getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
+        requireContext()
+                .getSharedPreferences("ludere_prefs", Context.MODE_PRIVATE)
                 .unregisterOnSharedPreferenceChangeListener(autoTrackingPreferenceListener)
         super.onStop()
     }

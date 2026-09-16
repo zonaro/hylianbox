@@ -1,6 +1,5 @@
 package br.com.redclaw.hylianbox.retroachievements.ui
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -10,7 +9,6 @@ import android.view.ViewOutlineProvider
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -22,7 +20,7 @@ import br.com.redclaw.hylianbox.retroachievements.data.RaRecentlyPlayed
 import br.com.redclaw.hylianbox.retroachievements.data.RaUserProfile
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import coil.load
 import kotlinx.coroutines.launch
 
@@ -33,11 +31,7 @@ import kotlinx.coroutines.launch
  * point/rank metrics, mastery/beaten awards, last game, recently played games and recent
  * achievements.
  */
-class RaProfileActivity : AppCompatActivity() {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class RaProfileActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivityRaProfileBinding
     private val viewModel: RaProfileViewModel by viewModels()
 

@@ -27,35 +27,33 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.ColorRes
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 
 /**
- * Bottom dock of the Switch home screen: a centered row of circular buttons
- * (Loja, Galeria, RetroAchievements, Controle, Configurações). Each button shows a
- * colored glyph on a dock-circle background and gains a round green focus border
- * when focused; the glyph brightens slightly on focus. Click plays the select sound
- * then runs the button's [DockItem.action].
+ * Bottom dock of the Switch home screen: a centered row of circular buttons (Loja, Galeria,
+ * RetroAchievements, Controle, Configurações). Each button shows a colored glyph on a dock-circle
+ * background and gains a round green focus border when focused; the glyph brightens slightly on
+ * focus. Click plays the select sound then runs the button's [DockItem.action].
  *
- * Buttons are described by [DockItem] data objects (icon + label + action) so the
- * dock stays reusable and the parent only supplies the destination callbacks.
+ * Buttons are described by [DockItem] data objects (icon + label + action) so the dock stays
+ * reusable and the parent only supplies the destination callbacks.
  */
-class SwitchDock @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr) {
+class SwitchDock
+@JvmOverloads
+constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
+        LinearLayout(context, attrs, defStyleAttr) {
 
     private val sfx = runCatching { HylianBoxApp.sfxManager }.getOrNull()
 
     /** A single dock destination. */
     data class DockItem(
-        val iconRes: Int,
-        val labelRes: Int,
-        @ColorRes val iconColorRes: Int,
-        val action: () -> Unit,
-        /** Optional dynamic color int (overrides iconColorRes when non-zero). */
-        val iconColorInt: Int = 0
+            val iconRes: Int,
+            val labelRes: Int,
+            @ColorRes val iconColorRes: Int,
+            val action: () -> Unit,
+            /** Optional dynamic color int (overrides iconColorRes when non-zero). */
+            val iconColorInt: Int = 0
     )
 
     init {
@@ -70,10 +68,11 @@ class SwitchDock @JvmOverloads constructor(
         val gap = resources.getDimensionPixelSize(R.dimen.switch_dock_gap)
         for (item in items) {
             val button = DockButton(context)
-            button.layoutParams = LayoutParams(size, size).apply {
-                marginStart = gap / 2
-                marginEnd = gap / 2
-            }
+            button.layoutParams =
+                    LayoutParams(size, size).apply {
+                        marginStart = gap / 2
+                        marginEnd = gap / 2
+                    }
             button.bind(item)
             addView(button)
         }
@@ -100,11 +99,12 @@ class SwitchDock @JvmOverloads constructor(
 
         fun bind(item: DockItem) {
             icon.setImageResource(item.iconRes)
-            val color = if (item.iconColorInt != 0) {
-                item.iconColorInt
-            } else {
-                context.getColor(item.iconColorRes)
-            }
+            val color =
+                    if (item.iconColorInt != 0) {
+                        item.iconColorInt
+                    } else {
+                        context.getColor(item.iconColorRes)
+                    }
             icon.setColorFilter(color)
             icon.contentDescription = context.getString(item.labelRes)
             tag = item
@@ -115,9 +115,9 @@ class SwitchDock @JvmOverloads constructor(
         }
 
         override fun onFocusChanged(
-            gainFocus: Boolean,
-            direction: Int,
-            previouslyFocusedRect: android.graphics.Rect?
+                gainFocus: Boolean,
+                direction: Int,
+                previouslyFocusedRect: android.graphics.Rect?
         ) {
             super.onFocusChanged(gainFocus, direction, previouslyFocusedRect)
             border.visibility = if (gainFocus) View.VISIBLE else View.GONE

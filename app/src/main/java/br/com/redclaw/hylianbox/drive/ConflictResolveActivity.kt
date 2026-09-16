@@ -18,20 +18,18 @@
 
 package br.com.redclaw.hylianbox.drive
 
-import android.content.Context
 import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,11 +45,7 @@ import kotlinx.coroutines.withContext
  * Switch style via [SwitchDialog]. The activity itself uses the dialog theme so only the scrim +
  * box are visible.
  */
-class ConflictResolveActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class ConflictResolveActivity : ScaledAppCompatActivity() {
 
     private val sfx = runCatching { HylianBoxApp.sfxManager }.getOrNull()
 

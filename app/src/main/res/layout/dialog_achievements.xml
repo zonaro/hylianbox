@@ -14,16 +14,27 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Header: icon + title + close -->
+        <!-- Header: close + icon + title -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <ImageButton
+                android:id="@+id/dialog_achievements_close"
+                android:layout_width="@dimen/icon_button_size"
+                android:layout_height="@dimen/icon_button_size"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="@string/detail_close_desc"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_close"
+                android:tint="@color/switch_text_primary" />
+
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
+                android:layout_marginStart="12dp"
                 android:layout_marginEnd="10dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_trophy"
@@ -40,13 +51,6 @@
                 android:textColor="@color/switch_text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/dialog_achievements_close"
-                style="@style/SwitchButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@android:string/ok" />
         </LinearLayout>
 
         <View

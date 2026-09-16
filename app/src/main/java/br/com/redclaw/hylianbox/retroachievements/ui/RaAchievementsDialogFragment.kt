@@ -24,10 +24,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
-import android.view.WindowManager
-import android.widget.Button
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -37,11 +34,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
+import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.retroachievements.data.RaGameData
 import br.com.redclaw.hylianbox.retroachievements.data.liveUnlocks
-import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
@@ -55,8 +51,8 @@ import kotlinx.coroutines.withContext
  * RetroAchievements popup — DialogFragment version of [AchievementsActivity].
  *
  * Shown as a centered Switch-style dialog on a scrim so the underlying
- * [br.com.redclaw.hylianbox.views.GameActivity] never leaves the foreground: no onPause/onStop,
- * no GL-context loss, no emulation restart on dismiss.
+ * [br.com.redclaw.hylianbox.views.GameActivity] never leaves the foreground: no onPause/onStop, no
+ * GL-context loss, no emulation restart on dismiss.
  *
  * Supports the same two modes as the Activity:
  * - Single game (ARG_HACK_ID present): header card + that hack's achievements.
@@ -148,9 +144,7 @@ class RaAchievementsDialogFragment : DialogFragment() {
                 else RaViewMode.LIST
         applyViewMode()
 
-        val closeBtn = view.findViewById<Button>(R.id.dialog_achievements_close)
-        closeBtn.background = AccentManager.createSwitchButtonBackground(requireContext())
-        closeBtn.setOnClickListener {
+        view.findViewById<ImageButton>(R.id.dialog_achievements_close).setOnClickListener {
             sfx?.back()
             dismiss()
         }

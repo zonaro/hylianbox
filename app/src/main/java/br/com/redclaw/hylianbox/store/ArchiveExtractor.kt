@@ -18,7 +18,9 @@
 
 package br.com.redclaw.hylianbox.store
 
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
 
 /**
  * Single entry point for extracting a patch/ROM from a downloaded archive, dispatching on the
@@ -34,6 +36,8 @@ import java.io.File
  * Pure (no Android deps) so it can be unit-tested on the JVM.
  */
 object ArchiveExtractor {
+    /** Hard ceiling that prevents a compressed archive from expanding without bound in memory. */
+    const val MAX_EXTRACTED_ENTRY_BYTES: Long = 128L * 1024L * 1024L
     /** Regex matching a patch-like inner file (BPS/IPS/XDELTA). */
     const val PATCH_ENTRY_REGEX = ".*\\.(bps|ips|xdelta)$"
 
@@ -45,6 +49,19 @@ object ArchiveExtractor {
         val lower = urlOrName.lowercase().substringBefore('?').substringBefore('#')
         return lower.endsWith(".zip") || lower.endsWith(".7z") || lower.endsWith(".rar")
     }
+
+    /**
+     * Return the value that identifies an archive for a download, preferring the response/file
+     * [filename] over [url]. Browser download endpoints commonly use opaque URLs such as
+     * `download.php?id=42`; in that case only Content-Disposition exposes the real `.zip`, `.7z`
+     * or `.rar` name.
+     */
+    fun archiveSource(url: String, filename: String): String? =
+            when {
+                isArchive(filename) -> filename
+                isArchive(url) -> url
+                else -> null
+            }
 
     /** Archive container format, detected from a download URL or file name. */
     enum class ArchiveFormat {
@@ -140,5 +157,36 @@ object ArchiveExtractor {
             }
         } catch (_: Exception) {}
         return null
+    }
+}
+
+/** Read one archive entry while enforcing [maxBytes], including when its size is not declared. */
+internal fun readArchiveEntryLimited(
+        input: InputStream,
+        maxBytes: Long = ArchiveExtractor.MAX_EXTRACTED_ENTRY_BYTES
+): ByteArray {
+    val out = BoundedArchiveOutputStream(maxBytes)
+    input.copyTo(out, 64 * 1024)
+    return out.toByteArray()
+}
+
+/** Byte accumulator used by streaming and callback-based archive readers. */
+internal class BoundedArchiveOutputStream(private val maxBytes: Long) : ByteArrayOutputStream() {
+    override fun write(value: Int) {
+        ensureCapacityFor(1)
+        super.write(value)
+    }
+
+    override fun write(bytes: ByteArray, offset: Int, length: Int) {
+        ensureCapacityFor(length)
+        super.write(bytes, offset, length)
+    }
+
+    private fun ensureCapacityFor(additional: Int) {
+        if (additional < 0 || count.toLong() + additional > maxBytes) {
+            throw StoreException.InvalidPatch(
+                    "Archive entry exceeds the safe extraction limit of $maxBytes bytes"
+            )
+        }
     }
 }

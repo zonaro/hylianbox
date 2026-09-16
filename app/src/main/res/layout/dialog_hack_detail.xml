@@ -19,12 +19,13 @@
 
         <ImageButton
             android:id="@+id/detail_close"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/bg_focus_border"
+            android:layout_width="@dimen/icon_button_size"
+            android:layout_height="@dimen/icon_button_size"
+            android:background="@drawable/bg_icon_button"
             android:contentDescription="@string/detail_close_desc"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            app:tint="@color/switch_text_primary" />
+            android:src="@drawable/ic_close"
+            android:scaleType="centerInside"
+            android:tint="@color/switch_text_primary" />
 
         <TextView
             android:id="@+id/detail_name"

@@ -1,7 +1,6 @@
 package br.com.redclaw.hylianbox.views
 
 import android.app.Service
-import android.content.Context
 import android.hardware.input.InputManager
 import android.os.Bundle
 import android.util.Log
@@ -13,7 +12,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.RelativeLayout
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import br.com.redclaw.hylianbox.capture.RecordingIndicatorView
 import br.com.redclaw.hylianbox.databinding.ActivityGameBinding
 import br.com.redclaw.hylianbox.display.DisplayRouter
@@ -30,18 +28,11 @@ import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipmentHost
 import br.com.redclaw.hylianbox.tracker.ui.TrackerDialogFragment
 import br.com.redclaw.hylianbox.ui.switchui.GameplayDialogHost
 import br.com.redclaw.hylianbox.utils.CorePrefs
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.viewmodels.GameActivityViewModel
 import java.io.File
 
-class GameActivity :
-        AppCompatActivity(),
-        TrackerEquipmentHost,
-        GameplayDialogHost {
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
-
+class GameActivity : ScaledAppCompatActivity(), TrackerEquipmentHost, GameplayDialogHost {
     private lateinit var binding: ActivityGameBinding
     private val viewModel: GameActivityViewModel by viewModels()
 
@@ -278,6 +269,9 @@ class GameActivity :
         super.onResume()
         // Preference may have changed in Settings while paused; re-evaluate projection.
         maybeUpdatePresentation()
+        // Control mode may have changed via the web dashboard while paused; hot-swap the
+        // overlay without touching the running core.
+        viewModel.refreshControlOverlayIfChanged()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -378,7 +372,9 @@ class GameActivity :
         Log.d(TAG, "Game reattached to primary display")
     }
 
-    /** Keeps the non-game screen occupied by the tracker while dual-screen controller play lasts. */
+    /**
+     * Keeps the non-game screen occupied by the tracker while dual-screen controller play lasts.
+     */
     private fun syncDualScreenTracker() {
         if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) return
         val trackerGame = viewModel.currentTrackerGame()
@@ -391,8 +387,8 @@ class GameActivity :
                         trackerSupported = trackerGame != null
                 )
         val current =
-                supportFragmentManager.findFragmentByTag(TrackerDialogFragment.TAG)
-                        as? TrackerDialogFragment
+                supportFragmentManager.findFragmentByTag(TrackerDialogFragment.TAG) as?
+                        TrackerDialogFragment
         if (shouldPin && trackerGame != null) {
             if (current != null) {
                 current.setPinnedByDualScreen(true)

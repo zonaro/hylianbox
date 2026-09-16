@@ -222,6 +222,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var compositeDisposable = CompositeDisposable()
     /** Subscriptions owned by the touch overlay (RadialGamePad pads). Cleared on hot-swap. */
     private var overlayDisposables = CompositeDisposable()
+    /** Last overlay mode actually built; used to detect external pref changes on resume. */
+    private var appliedControlMode: ControlOverlayMode? = null
     private val controllerInput = ControllerInput()
 
     /**
@@ -615,12 +617,18 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     ColorStateList.valueOf(if (active) activeForeground else onSurfaceVariant)
             label.setTextColor(if (active) activeForeground else onSurface)
             cell.background =
-                    if (active) br.com.redclaw.hylianbox.ui.switchui.AccentManager.createMenuItemActiveBackground(context)
-                    else br.com.redclaw.hylianbox.ui.switchui.AccentManager.createMenuItemBackground(context)
+                    if (active)
+                            br.com.redclaw.hylianbox.ui.switchui.AccentManager
+                                    .createMenuItemActiveBackground(context)
+                    else
+                            br.com.redclaw.hylianbox.ui.switchui.AccentManager
+                                    .createMenuItemBackground(context)
             // Ensure active text/icon contrast against accent (accent may be light like yellow)
             if (active) {
                 val useDark = isColorLight(accent)
-                val fg = if (useDark) ContextCompat.getColor(context, android.R.color.black) else ContextCompat.getColor(context, android.R.color.white)
+                val fg =
+                        if (useDark) ContextCompat.getColor(context, android.R.color.black)
+                        else ContextCompat.getColor(context, android.R.color.white)
                 icon.imageTintList = ColorStateList.valueOf(fg)
                 label.setTextColor(fg)
             }
@@ -1116,8 +1124,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                             val mode =
                                     if (which == 1) CorePrefs.CONTROL_MODE_AREA
                                     else CorePrefs.CONTROL_MODE_STANDARD
-                            val previous =
-                                    CorePrefs.getControlMode(context)
+                            val previous = CorePrefs.getControlMode(context)
                             CorePrefs.setControlMode(context, mode)
                             dialog.dismiss()
                             if (mode == previous) return@setSingleChoiceItems
@@ -1215,6 +1222,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 (getSavedN64StickSensitivity() * 100).toInt()
         ) {
             floatingJoystick?.sensitivity = it
+            areaOverlayView?.analogSensitivity = it
             prefs.edit().putFloat(n64StickSensitivityPrefsKey, it).apply()
         }
         addSlider(
@@ -1222,6 +1230,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 (getSavedButtonStickSensitivity() * 100).toInt()
         ) {
             stickButtons.forEach { btn -> btn.sensitivity = it }
+            areaOverlayView?.stickSensitivity = it
             controllerInput.buttonStickSensitivity = it
             prefs.edit().putFloat(buttonStickSensitivityPrefsKey, it).apply()
         }
@@ -1930,8 +1939,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     /**
      * (Re)builds the touch overlay for the current [ControlOverlayMode] without touching the
      * emulator core: only views inside [overlay] are torn down and recreated, so the game keeps
-     * running. Used both for the initial build (via [setupGamePads]) and for hot-switching
-     * Standard <-> Pro from the in-game menu.
+     * running. Used both for the initial build (via [setupGamePads]) and for hot-switching Standard
+     * <-> Pro from the in-game menu.
      */
     private fun buildOverlay(overlay: FrameLayout) {
         val context = getApplication<Application>().applicationContext
@@ -1946,6 +1955,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         autoZEnabled = getSavedAutoZEnabled()
 
         val controlMode = ControlOverlayMode.fromPref(CorePrefs.getControlMode(context))
+        appliedControlMode = controlMode
         if (controlMode == ControlOverlayMode.AREA) {
             overlay.alpha = 1f
             setupAreaOverlay(overlay, context)
@@ -1957,6 +1967,10 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
 
     /** Tears down only the overlay views; the RetroView / core keeps running untouched. */
     private fun clearOverlay(overlay: FrameLayout) {
+        // Release any held touch input first so no button/analog stays stuck after the swap.
+        areaOverlayView?.cancelAll()
+        stickButtons.forEach { it.release() }
+        floatingJoystick?.release()
         overlayDisposables.dispose()
         overlayDisposables = CompositeDisposable()
         overlay.removeAllViews()
@@ -1972,14 +1986,27 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
      */
     private fun switchControlOverlay() {
         val activity = activityContext ?: return
-        val overlay =
-                activity.findViewById<FrameLayout>(R.id.gamepad_overlay) ?: return
+        val overlay = activity.findViewById<FrameLayout>(R.id.gamepad_overlay) ?: return
         if (overlay.width == 0 || overlay.height == 0) {
             overlay.post { buildOverlay(overlay) }
         } else {
             buildOverlay(overlay)
         }
         updateGamePadVisibility(activity, overlay)
+    }
+
+    /**
+     * Rebuilds the overlay when the pref changed outside the in-game menu (e.g. web dashboard while
+     * paused). No-op when the mode matches the built overlay or the core isn't running. Called from
+     * GameActivity.onResume; never recreates the Activity nor touches the core.
+     */
+    fun refreshControlOverlayIfChanged() {
+        val activity = activityContext ?: return
+        if (coreReady.value != true && coreFailed.value != true) return
+        val applied = appliedControlMode ?: return
+        val current = ControlOverlayMode.fromPref(CorePrefs.getControlMode(activity))
+        if (current == applied) return
+        switchControlOverlay()
     }
 
     private fun buildStandardOverlay(
@@ -1991,161 +2018,147 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         overlay.alpha = TouchControlLayout.OVERLAY_OPACITY
 
         /* Added first so it sits at the lowest z-order -- every real button placed after
-                        it (Select, D-pad) naturally claims its own touches first, leaving the
-                        joystick only the genuinely empty area to react to. */
-                        if (resources.getBoolean(R.bool.config_left_analog)) {
-                            val regionWidthPx =
-                                    (GamePadConfig.FLOATING_JOYSTICK_REGION_RIGHT_FRACTION *
-                                                    overlay.width)
-                                            .toInt()
-                            val joystickParams =
-                                    FrameLayout.LayoutParams(regionWidthPx, overlay.height)
+        it (Select, D-pad) naturally claims its own touches first, leaving the
+        joystick only the genuinely empty area to react to. */
+        if (resources.getBoolean(R.bool.config_left_analog)) {
+            val regionWidthPx =
+                    (GamePadConfig.FLOATING_JOYSTICK_REGION_RIGHT_FRACTION * overlay.width).toInt()
+            val joystickParams = FrameLayout.LayoutParams(regionWidthPx, overlay.height)
 
-                            floatingJoystick =
-                                    FloatingJoystick(context).also { joystick ->
-                                        joystick.retroView = retroView?.view
-                                        joystick.sensitivity = getSavedN64StickSensitivity()
-                                        joystick.hintX =
-                                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_X *
-                                                        overlay.width
-                                        joystick.hintY =
-                                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_Y *
-                                                        overlay.height
-                                        joystick.hintRadius =
-                                                GamePadConfig.FLOATING_JOYSTICK_HINT_SIZE_FRACTION *
-                                                        overlay.height / 2f
-                                        joystick.maxReachPx =
-                                                GamePadConfig.FLOATING_JOYSTICK_MAX_REACH_FRACTION *
-                                                        overlay.width
+            floatingJoystick =
+                    FloatingJoystick(context).also { joystick ->
+                        joystick.retroView = retroView?.view
+                        joystick.sensitivity = getSavedN64StickSensitivity()
+                        joystick.hintX =
+                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_X * overlay.width
+                        joystick.hintY =
+                                GamePadConfig.FLOATING_JOYSTICK_HINT_GRAVITY_Y * overlay.height
+                        joystick.hintRadius =
+                                GamePadConfig.FLOATING_JOYSTICK_HINT_SIZE_FRACTION *
+                                        overlay.height / 2f
+                        joystick.maxReachPx =
+                                GamePadConfig.FLOATING_JOYSTICK_MAX_REACH_FRACTION * overlay.width
 
-                                        /* onInterceptTouchEvent-only wrapper: drag/analog motion on the
-                                        joystick itself is completely unaffected. */
-                                        val container =
-                                                DoubleTapContainer(context) { onStickDoubleTap() }
-                                        container.addView(
-                                                joystick,
-                                                FrameLayout.LayoutParams(
-                                                        FrameLayout.LayoutParams.MATCH_PARENT,
-                                                        FrameLayout.LayoutParams.MATCH_PARENT
-                                                )
-                                        )
-                                        overlay.addView(container, joystickParams)
-                                    }
-                        }
-
-                        // C/A/B use ButtonStick behavior; R shares the same visual button as a
-                        // pure press control, so it never captures a larger transparent area.
-                        val stickKeyCodes =
-                                setOf(
-                                        KeyEvent.KEYCODE_BUTTON_R1, // C-Right
-                                        KeyEvent.KEYCODE_BUTTON_L1, // C-Left
-                                        KeyEvent.KEYCODE_BUTTON_X, // C-Down
-                                        KeyEvent.KEYCODE_BUTTON_A, // A
-                                        KeyEvent.KEYCODE_BUTTON_B, // B
-                                        KeyEvent.KEYCODE_BUTTON_R2 // R
+                        /* onInterceptTouchEvent-only wrapper: drag/analog motion on the
+                        joystick itself is completely unaffected. */
+                        val container = DoubleTapContainer(context) { onStickDoubleTap() }
+                        container.addView(
+                                joystick,
+                                FrameLayout.LayoutParams(
+                                        FrameLayout.LayoutParams.MATCH_PARENT,
+                                        FrameLayout.LayoutParams.MATCH_PARENT
                                 )
-                        val stickPlacements =
-                                config.placements.filter { placement ->
-                                    val pd = placement.config.primaryDial
-                                    val cid =
-                                            (pd as?
-                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
-                                                    ?.center
-                                                    ?.id
-                                    cid != null && cid in stickKeyCodes
-                                }
-                        val regularPlacements = config.placements.filter { it !in stickPlacements }
+                        )
+                        overlay.addView(container, joystickParams)
+                    }
+        }
 
-                        // C/A/B/R action buttons; only C/A/B honor ButtonStick drag behavior.
-                        val stickSensitivity = getSavedButtonStickSensitivity()
-                        stickButtons =
-                                stickPlacements.mapNotNull { placement ->
-                                    val centerId =
-                                            (placement.config.primaryDial as
-                                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
-                                                    .center
-                                                    ?.id
-                                                    ?: return@mapNotNull null
-                                    val label =
-                                            when (centerId) {
-                                                KeyEvent.KEYCODE_BUTTON_R1 -> "C▶"
-                                                KeyEvent.KEYCODE_BUTTON_L1 -> "C◀"
-                                                KeyEvent.KEYCODE_BUTTON_X -> "C▼"
-                                                KeyEvent.KEYCODE_BUTTON_A -> "A"
-                                                KeyEvent.KEYCODE_BUTTON_B -> "B"
-                                                KeyEvent.KEYCODE_BUTTON_R2 -> "R"
-                                                else -> "?"
-                                            }
-                                    val theme =
-                                            when (centerId) {
-                                                KeyEvent.KEYCODE_BUTTON_A -> StickButton.BLUE_THEME
-                                                KeyEvent.KEYCODE_BUTTON_B -> StickButton.GREEN_THEME
-                                                KeyEvent.KEYCODE_BUTTON_R2 ->
-                                                        StickButton.NEUTRAL_THEME
-                                                else -> StickButton.YELLOW_THEME
-                                            }
-                                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
-                                    val sx = placement.gravityX
-                                    val sy = placement.gravityY
-                                    val radiusX = sizePx / 2f / overlay.width
-                                    val radiusY = sizePx / 2f / overlay.height
-                                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
-                                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
-                                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
-                                    params.leftMargin =
-                                            (clampedX * overlay.width - sizePx / 2f).toInt()
-                                    params.topMargin =
-                                            (clampedY * overlay.height - sizePx / 2f).toInt()
-                                    StickButton(
-                                                    context,
-                                                    centerId,
-                                                    label,
-                                                    theme,
-                                                    supportsAnalogDrag =
-                                                            centerId != KeyEvent.KEYCODE_BUTTON_R2,
-                                                    hapticEnabled =
-                                                            centerId !=
-                                                                    KeyEvent.KEYCODE_BUTTON_R2 ||
-                                                                    resources.getBoolean(
-                                                                            R.bool.config_gamepad_haptic
-                                                                    )
-                                            )
-                                            .also { btn ->
-                                                btn.retroView = retroView?.view
-                                                btn.sensitivity = stickSensitivity
-                                                btn.stickEnabled = isButtonStickEnabled
-                                                overlay.addView(btn, params)
-                                            }
-                                }
+        // C/A/B use ButtonStick behavior; R shares the same visual button as a
+        // pure press control, so it never captures a larger transparent area.
+        val stickKeyCodes =
+                setOf(
+                        KeyEvent.KEYCODE_BUTTON_R1, // C-Right
+                        KeyEvent.KEYCODE_BUTTON_L1, // C-Left
+                        KeyEvent.KEYCODE_BUTTON_X, // C-Down
+                        KeyEvent.KEYCODE_BUTTON_A, // A
+                        KeyEvent.KEYCODE_BUTTON_B, // B
+                        KeyEvent.KEYCODE_BUTTON_R2 // R
+                )
+        val stickPlacements =
+                config.placements.filter { placement ->
+                    val pd = placement.config.primaryDial
+                    val cid =
+                            (pd as?
+                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                    ?.center
+                                    ?.id
+                    cid != null && cid in stickKeyCodes
+                }
+        val regularPlacements = config.placements.filter { it !in stickPlacements }
 
-                        updateEquippedButtonIcons()
+        // C/A/B/R action buttons; only C/A/B honor ButtonStick drag behavior.
+        val stickSensitivity = getSavedButtonStickSensitivity()
+        stickButtons =
+                stickPlacements.mapNotNull { placement ->
+                    val centerId =
+                            (placement.config.primaryDial as
+                                            com.swordfish.radialgamepad.library.config.PrimaryDialConfig.PrimaryButtons)
+                                    .center
+                                    ?.id
+                                    ?: return@mapNotNull null
+                    val label =
+                            when (centerId) {
+                                KeyEvent.KEYCODE_BUTTON_R1 -> "C▶"
+                                KeyEvent.KEYCODE_BUTTON_L1 -> "C◀"
+                                KeyEvent.KEYCODE_BUTTON_X -> "C▼"
+                                KeyEvent.KEYCODE_BUTTON_A -> "A"
+                                KeyEvent.KEYCODE_BUTTON_B -> "B"
+                                KeyEvent.KEYCODE_BUTTON_R2 -> "R"
+                                else -> "?"
+                            }
+                    val theme =
+                            when (centerId) {
+                                KeyEvent.KEYCODE_BUTTON_A -> StickButton.BLUE_THEME
+                                KeyEvent.KEYCODE_BUTTON_B -> StickButton.GREEN_THEME
+                                KeyEvent.KEYCODE_BUTTON_R2 -> StickButton.NEUTRAL_THEME
+                                else -> StickButton.YELLOW_THEME
+                            }
+                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
+                    val sx = placement.gravityX
+                    val sy = placement.gravityY
+                    val radiusX = sizePx / 2f / overlay.width
+                    val radiusY = sizePx / 2f / overlay.height
+                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
+                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
+                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
+                    params.leftMargin = (clampedX * overlay.width - sizePx / 2f).toInt()
+                    params.topMargin = (clampedY * overlay.height - sizePx / 2f).toInt()
+                    StickButton(
+                                    context,
+                                    centerId,
+                                    label,
+                                    theme,
+                                    supportsAnalogDrag = centerId != KeyEvent.KEYCODE_BUTTON_R2,
+                                    hapticEnabled =
+                                            centerId != KeyEvent.KEYCODE_BUTTON_R2 ||
+                                                    resources.getBoolean(
+                                                            R.bool.config_gamepad_haptic
+                                                    )
+                            )
+                            .also { btn ->
+                                btn.retroView = retroView?.view
+                                btn.sensitivity = stickSensitivity
+                                btn.stickEnabled = isButtonStickEnabled
+                                overlay.addView(btn, params)
+                            }
+                }
 
-                        gamePads =
-                                regularPlacements.map { placement ->
-                                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
-                                    val sx = placement.gravityX
-                                    val sy = placement.gravityY
-                                    val radiusX = sizePx / 2f / overlay.width
-                                    val radiusY = sizePx / 2f / overlay.height
-                                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
-                                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
-                                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
-                                    params.leftMargin =
-                                            (clampedX * overlay.width - sizePx / 2f).toInt()
-                                    params.topMargin =
-                                            (clampedY * overlay.height - sizePx / 2f).toInt()
-                                    GamePad(context, placement).also {
-                                        it.pad.primaryDialMaxSizeDp = sizePx / density
-                                        overlay.addView(it.pad, params)
-                                        retroView?.let { rv ->
-                                            val onButtonDown: ((Int) -> Unit)? =
-                                                    placement.buttonKeyCode?.let { keyCode ->
-                                                        { trackCButtonPress(keyCode) }
-                                                    }
-                                            it.subscribe(overlayDisposables, rv.view, onButtonDown)
-                                        }
+        updateEquippedButtonIcons()
+
+        gamePads =
+                regularPlacements.map { placement ->
+                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
+                    val sx = placement.gravityX
+                    val sy = placement.gravityY
+                    val radiusX = sizePx / 2f / overlay.width
+                    val radiusY = sizePx / 2f / overlay.height
+                    val clampedX = sx.coerceIn(radiusX, 1f - radiusX)
+                    val clampedY = sy.coerceIn(radiusY, 1f - radiusY)
+                    val params = FrameLayout.LayoutParams(sizePx, sizePx)
+                    params.leftMargin = (clampedX * overlay.width - sizePx / 2f).toInt()
+                    params.topMargin = (clampedY * overlay.height - sizePx / 2f).toInt()
+                    GamePad(context, placement).also {
+                        it.pad.primaryDialMaxSizeDp = sizePx / density
+                        overlay.addView(it.pad, params)
+                        retroView?.let { rv ->
+                            val onButtonDown: ((Int) -> Unit)? =
+                                    placement.buttonKeyCode?.let { keyCode ->
+                                        { trackCButtonPress(keyCode) }
                                     }
-                                }
+                            it.subscribe(overlayDisposables, rv.view, onButtonDown)
+                        }
+                    }
+                }
 
         wirePhysicalController(stickSensitivity)
     }
@@ -2538,13 +2551,13 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     inputType =
                             android.text.InputType.TYPE_CLASS_TEXT or
                                     android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    val pad = (16 * context.resources.displayMetrics.density).toInt()
                     setPadding(pad, pad, pad, pad)
                 }
         val container =
                 LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
-                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    val pad = (16 * context.resources.displayMetrics.density).toInt()
                     setPadding(pad, pad, pad, pad)
                     addView(
                             input,

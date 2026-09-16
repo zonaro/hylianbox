@@ -197,6 +197,23 @@ class StickButton(
         invalidate()
     }
 
+    /**
+     * Releases any held press before the view is detached (e.g. overlay hot-swap Standard <-> Pro):
+     * sends ACTION_UP when pressed, zeroes a dragging analog and cancels the pending ocarina hold.
+     * Safe no-op when idle.
+     */
+    fun release() {
+        cancelOcarinaHold()
+        if (dragging) {
+            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
+        }
+        if (pressed) {
+            retroView?.sendKeyEvent(KeyEvent.ACTION_UP, InputMapper.mapKeyCode(targetKeyCode))
+        }
+        resetState()
+        invalidate()
+    }
+
     private fun isSinglePointer(event: MotionEvent): Boolean {
         val parentLayout = parent as? GamepadOverlayLayout
         if (parentLayout != null) return parentLayout.isSinglePointer()

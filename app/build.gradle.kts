@@ -295,6 +295,13 @@ dependencies {
     implementation("io.coil-kt:coil:2.6.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Hack Store: archive extraction for catalog patches distributed as
+    // .7z (commons-compress + xz for LZMA2) or .rar (junrar, RAR up to v7
+    // incl. RAR5, extraction-only UnRAR license). .zip uses the JDK.
+    implementation("org.apache.commons:commons-compress:1.28.0")
+    implementation("org.tukaani:xz:1.12")
+    implementation("com.github.junrar:junrar:8.1.1")
+
     // Required by the frozen gamepad/ package (CompositeDisposable, pad.events()).
     implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
 
@@ -322,9 +329,4 @@ dependencies {
     // WebRTC native Android SDK for peer-to-peer streaming.
     // Published on JitPack (org.webrtc:google-webrtc is not on Maven Central/Google Maven).
     implementation("com.github.webrtc-sdk:android:v104.5112.10")
-
-    // Archive extraction for Hylian Modding downloads (.7z via commons-compress + xz, .rar via junrar).
-    implementation("org.apache.commons:commons-compress:1.26.2")
-    implementation("org.tukaani:xz:1.9")
-    implementation("com.github.junrar:junrar:7.5.5")
 }

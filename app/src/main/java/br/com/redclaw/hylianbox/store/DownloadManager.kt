@@ -21,6 +21,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
+ * Transient HTTP context captured by the embedded browser for a user-initiated download.
+ *
+ * It is intentionally never serialized or logged: cookies may contain authenticated session
+ * material. Direct Store downloads use the empty default while browser-originated downloads pass
+ * the same cookie, user agent and referring page that caused WebView to expose the file.
+ */
+data class DownloadRequestHeaders(
+        val cookie: String? = null,
+        val userAgent: String? = null,
+        val referer: String? = null
+)
+
+/** Apply only non-blank browser headers to a download request. */
+internal fun Request.Builder.applyDownloadHeaders(headers: DownloadRequestHeaders): Request.Builder =
+        apply {
+            headers.cookie?.takeIf { it.isNotBlank() }?.let { header("Cookie", it) }
+            headers.userAgent?.takeIf { it.isNotBlank() }?.let { header("User-Agent", it) }
+            headers.referer?.takeIf { it.isNotBlank() }?.let { header("Referer", it) }
+        }
+
+/**
  * Streaming download + apply of a hack's patch (BPS, possibly inside a `.zip`/`.7z`/`.rar` archive)
  * with checksum validation. On success the patched ROM is written to [Storage.rom] and the
  * installed state is recorded in [installedRepository]; the intermediate patch file is then
@@ -47,7 +68,8 @@ class DownloadManager(
         suspend fun download(
                 hack: HackEntry,
                 onProgress: (phase: InstallPhase, bytesDownloaded: Long, totalBytes: Long) -> Unit,
-                cancelSignal: CancelSignal? = null
+                cancelSignal: CancelSignal? = null,
+                requestHeaders: DownloadRequestHeaders = DownloadRequestHeaders()
         ): Result<File> =
                 withContext(Dispatchers.IO) {
                         Log.d(
@@ -71,12 +93,11 @@ class DownloadManager(
                                                 "DownloadManager",
                                                 "download: connecting to ${patch.url}"
                                         )
-                                        val response =
-                                                client.newCall(
-                                                                Request.Builder()
-                                                                        .url(patch.url)
-                                                                        .build()
-                                                        )
+                                        val request =
+                                                Request.Builder()
+                                                        .url(patch.url)
+                                                        .applyDownloadHeaders(requestHeaders)
+                                        val response = client.newCall(request.build())
                                                         .execute()
                                         try {
                                                 if (!response.isSuccessful) {
@@ -122,10 +143,17 @@ class DownloadManager(
                                                 // .zip/.7z/.rar — see ArchiveExtractor). The
                                                 // format is detected from the catalog URL because
                                                 // the temp file itself carries a `.tmp` extension.
-                                                val archiveFormat =
-                                                        ArchiveExtractor.formatOf(patch.url)
+                                                val archiveSource =
+                                                        ArchiveExtractor.archiveSource(
+                                                                patch.url,
+                                                                patch.filename
+                                                        )
                                                 val bpsBytes =
-                                                        if (ArchiveExtractor.isArchive(patch.url)) {
+                                                        if (archiveSource != null) {
+                                                                val archiveFormat =
+                                                                        ArchiveExtractor.formatOf(
+                                                                                archiveSource
+                                                                        )
                                                                 val innerIsPatch =
                                                                         ArchiveExtractor
                                                                                 .isPatchName(

@@ -2,7 +2,7 @@
 
 **Nintendo Switch UI is the mandatory visual standard for ALL screens** (existing and future). This is a custom native implementation inspired by the Nintendo Switch HOME menu aesthetic (as seen in NS_Launcher / FLauncher). No Material 3 Expressive requirements remain. The only exemption is the **RadialGamePad touch-control LAYOUT** (Rule 14 — control placement, button-stick modes, floating joystick, auto-Z, physical-controller mirroring remain frozen). Interactive in-game modal surfaces follow the same fullscreen Switch screen language as normal screens; only transient, non-interactive gameplay status layers use compact overlay presentation.
 
-> The app retains its own green highlight color (`#02830C`), cyan focus treatment, and amber action color — blended into the Switch aesthetic.
+> Every interactive or highlighted Switch UI element inherits the accent color selected by the user. Focus, selection, active controls, sliders, toggles, buttons, circular buttons, icons, badges and decorative highlights must not keep their own cyan, amber, violet or other fixed accent.
 
 ---
 
@@ -12,9 +12,8 @@
 | ---------------------- | ---------------------- | ------------------------- | ---------------------------------------------------- |
 | `bg_primary`           | `#2D2D2D`              | `#F0F0F0`                 | Main background (Library Home, grid screens)         |
 | `bg_panel`             | `#1E1E1E` – `#2A2A2A`  | `#FFFFFF`                 | Dialogs, cards                                       |
-| `accent_focus`         | `#00BCD4` (cyan)       | `#00BCD4` (cyan)          | Focus borders, focused labels, primary actions       |
-| `accent_amber`         | `#FFA000` (amber)      | `#FFA000` (amber)         | Warnings                                             |
-| `accent_green`         | `#02830C`              | `#02830C`                 | App brand highlight (Zelda green)                    |
+| `accent`               | User-selected          | User-selected             | Focus, selection, active controls, buttons, icons and highlights |
+| `status_warning`       | Semantic token         | Semantic token            | Warning/error status only; never generic emphasis or actions |
 | `text_primary`         | `#FFFFFF`              | `#333333`                 | Primary text (titles, labels)                        |
 | `text_secondary`       | `#9E9E9E`              | `#666666`                 | Secondary text (hints, "(default)" suffixes, footer) |
 | `scrim`                | `rgba(0,0,0,0.5–0.6)`  | `rgba(0,0,0,0.3–0.4)`     | Modal backdrop                                       |
@@ -30,11 +29,11 @@
 
 ## 2. Focus System
 
-- **D-pad / click focus** drives a **cyan 2–3 dp border** on the focused element + **label above the focused card** in cyan 18sp medium.
+- **D-pad / click focus** drives a **2–3 dp accent border** on the focused element + **label above the focused card** in the selected accent, 18sp medium.
 - **Unfocused cards:** 10% black overlay dimming.
-- **Dialog rows:** full-width focus border (cyan default).
-- **Circular "All Games" card:** cyan border when focused, opens fullscreen grid.
-- **Dock buttons:** focus ring (cyan) + glyph highlight.
+- **Dialog rows:** full-width border in the selected accent.
+- **Circular "All Games" card:** accent border and icon, opens fullscreen grid.
+- **Dock buttons:** accent focus ring and glyph; dock destinations do not have individual colors.
 
 ---
 
@@ -44,13 +43,13 @@
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SwitchHomeRow`      | Horizontal scrollable row of square game cards + circular "Todos os Jogos" card at end                                                                                    |
 | `SwitchGameCard`     | Square card (1:1), cover image, game title overlay on focus, focus border, dimming overlay                                                                                |
-| `SwitchAllGamesCard` | Circular card (charcoal fill, cyan 2×2 grid icon, cyan border on focus)                                                                                                   |
+| `SwitchAllGamesCard` | Circular card (charcoal fill, accent 2×2 grid icon, accent border on focus)                                                                                                 |
 | `SwitchGridScreen`   | Fullscreen grid ("Todos os Jogos"): header icon+title "Todos os Jogos" 20sp bold + thin separator, smaller square cards (~170dp), search/filter bar, ghosted placeholders |
-| `SwitchDock`         | Fixed bottom dock: 5 circular buttons (Loja, RetroAchievements, Galeria, Teste de Controle, Configurações), ~50dp diameter, colored glyphs, focus ring                    |
+| `SwitchDock`         | Fixed bottom dock: 5 circular buttons (Loja, RetroAchievements, Galeria, Teste de Controle, Configurações), ~50dp diameter, accent glyphs and focus ring                  |
 | `SwitchFooterHints`  | Bottom bar: gamepad status indicator, gray 11–12sp                                                                                                                        |
-| `SwitchDialog`       | Centered modal for dialogs opened outside gameplay: scrim, box ~40% width, radius 12–16dp, bg `#3A3A3C`, header icon+title 18sp, rows 48–52dp with icon+text, focused row = cyan border outline |
+| `SwitchDialog`       | Centered modal for dialogs opened outside gameplay: scrim, box ~40% width, radius 12–16dp, bg `#3A3A3C`, header icon+title 18sp, rows 48–52dp with icon+text, focused row = accent border outline |
 | Fullscreen gameplay modal | Presentation contract for every interactive surface owned by `GameActivity`: opaque edge-to-edge Switch screen with normal screen header/content/footer structure and no popup shell; implemented with a dialog/overlay lifecycle so the running game remains alive underneath |
-| `SwitchFocusBorder`  | Drawable: cyan 2–3dp stroke, transparent fill, for focus indication                                                                                                       |
+| `SwitchFocusBorder`  | Dynamic drawable: accent 2–3dp stroke, transparent fill, for focus indication                                                                                             |
 | `SfxManager`         | SoundPool wrapper: focus-move tick, select, back, panel open/close; CC0/generated only; volume respect; toggle in settings                                                |
 | `ThemeManager`       | Runtime dark/light switch, persists preference, applies tokens above                                                                                                      |
 
@@ -124,4 +123,4 @@ All icons/covers generated by **Dolfi** (see `.agents/dolfi.md`):
 - Zelda-gold splash artwork
 - Gallery/capture icons (`ic_gallery`, `ic_screenshot`, `ic_record`, `ic_stop`)
 
-**Style reference:** Primary `#4CAF50` (Zelda green) / app accent `#02830C`, rupee gold `#FFD700`, dark surface `#1B1B1B`, Switch tokens (cyan `#00BCD4`, amber `#FFA000`, bg `#2D2D2D`). Clean, bold, simple geometry; near-square corners (4–6dp); avoid intricate details that conflict with generous component sizing.
+**Style reference:** Dark surface `#1B1B1B` / Switch background `#2D2D2D`; all interactive color comes from the user-selected accent. Fixed brand/art colors are restricted to non-interactive artwork such as the splash. Clean, bold, simple geometry; near-square corners (4–6dp); avoid intricate details that conflict with generous component sizing.

@@ -18,12 +18,10 @@
 
 package br.com.redclaw.hylianbox.gallery
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -34,7 +32,7 @@ import br.com.redclaw.hylianbox.databinding.ActivityGalleryBinding
 import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -44,11 +42,7 @@ import kotlinx.coroutines.launch
  * [Intent.ACTION_SEND]) and Delete (confirmation then [GalleryViewModel.delete]). The list is
  * observed from [GalleryViewModel] and refreshed on create / resume.
  */
-class GalleryActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class GalleryActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityGalleryBinding
     private lateinit var viewModel: GalleryViewModel

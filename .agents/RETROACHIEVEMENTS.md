@@ -19,7 +19,7 @@ These describe the implementation contract, not evidence of successful device va
 ## 2. User Decisions (Final)
 
 1. **Full scope INCLUDING leaderboards**, but leaderboards appear **only in the in-game menu** as a fullscreen modal surface owned by `GameActivity`. No persistent tracker/widget overlay over visible gameplay.
-2. **Login screen** accessed from Library (main screen); first login with user+password, token stored encrypted (separate prefs file); subsequent logins silent via token; logout supported.
+2. **Login screen** accessed from Library (main screen); first login with user+password, token stored encrypted (separate prefs file); subsequent logins silent via token; logout supported. Right after a password login the app auto-fetches the Web API key (`settings?tab=applications`, `userSettings.apiKey` page props) in background and stores it encrypted; on failure the user can open the in-app key-capture browser (auto-login + JS extraction, FLAG_SECURE) or paste the key manually (kept as fallback).
 3. **Achievements screen** shows progress of all installed games (via RA hash computed at install + gameId resolution via rapi, badges loaded with Coil); tapping a game opens the full achievement list.
 4. **Achievement unlock** generates a custom in-game toast popup (View over GLRetroView) WITH badge icon + optional system notification (toggle in settings, default ON; needs `POST_NOTIFICATIONS` on API 33+).
 5. **Catalog gains optional RA compatibility metadata** (JSON backward-compatible; `catalogVersion` bump). Store UI shows RA badge on compatible hacks. At **INSTALL**, compute RA hash (via rhash exposed by our JNI) and resolve `gameId`, caching `{raHash, raGameId, raTitle}` per `hackId`.
@@ -39,24 +39,24 @@ For N64 + mupen64plus-next, `RETRO_MEMORY_SYSTEM_RAM` is **RDRAM** (8MB with exp
 
 ### rcheevos (MIT) — High-Level API (`rc_client_t`)
 
-| Function | Purpose |
-|----------|---------|
-| `rc_client_create(read_memory_fn, server_call_fn)` | Create client; required callbacks |
-| `rc_client_begin_login_with_password(user, pass)` | Initial login |
-| `rc_client_begin_login_with_token(token)` | Silent subsequent login |
-| `rc_client_get_user_info` | username/token/display_name/score |
-| `rc_client_begin_identify_and_load_game(client, RC_CONSOLE_NINTENDO_64, file_path, NULL, 0, cb, ud)` | Uses internal rhash to compute correct RA hash of ROM file (handles N64 byte-order/header); hash computed on **final patched ROM** |
-| `rc_client_get_game_info` | title/badge_name/badge_url |
-| `rc_client_get_user_game_summary` | num unlocked/total |
-| `rc_client_create_achievement_list(client, category, grouping)` | Returns buckets (label + achievements with title/description/points/badge_url/badge_locked_url/unlocked/measured_progress) |
-| `rc_client_destroy_achievement_list` | Free list |
-| `rc_client_do_frame(client)` | Call 1× per emulated frame |
-| `rc_client_set_event_handler` | Events: ACHIEVEMENT_TRIGGERED, ACHIEVEMENT_CHALLENGE_INDICATOR_SHOW/HIDE, ACHIEVEMENT_PROGRESS_INDICATOR_SHOW/UPDATE/HIDE, LEADERBOARD_STARTED/FAILED/SUBMITTED, LEADERBOARD_TRACKER_SHOW/UPDATE/HIDE, GAME_MASTERY, etc. |
-| `rc_client_set_hardcore_enabled` | Hardcore on/off |
-| `rc_client_enable_logging` | Debug logs |
-| `rc_client_disconnect` | Logout |
-| `rc_client_unload_game` | Unload current game |
-| `rc_client_set_userdata/get_userdata` | User data pointer |
+| Function                                                                                             | Purpose                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rc_client_create(read_memory_fn, server_call_fn)`                                                   | Create client; required callbacks                                                                                                                                                                                         |
+| `rc_client_begin_login_with_password(user, pass)`                                                    | Initial login                                                                                                                                                                                                             |
+| `rc_client_begin_login_with_token(token)`                                                            | Silent subsequent login                                                                                                                                                                                                   |
+| `rc_client_get_user_info`                                                                            | username/token/display_name/score                                                                                                                                                                                         |
+| `rc_client_begin_identify_and_load_game(client, RC_CONSOLE_NINTENDO_64, file_path, NULL, 0, cb, ud)` | Uses internal rhash to compute correct RA hash of ROM file (handles N64 byte-order/header); hash computed on **final patched ROM**                                                                                        |
+| `rc_client_get_game_info`                                                                            | title/badge_name/badge_url                                                                                                                                                                                                |
+| `rc_client_get_user_game_summary`                                                                    | num unlocked/total                                                                                                                                                                                                        |
+| `rc_client_create_achievement_list(client, category, grouping)`                                      | Returns buckets (label + achievements with title/description/points/badge_url/badge_locked_url/unlocked/measured_progress)                                                                                                |
+| `rc_client_destroy_achievement_list`                                                                 | Free list                                                                                                                                                                                                                 |
+| `rc_client_do_frame(client)`                                                                         | Call 1× per emulated frame                                                                                                                                                                                                |
+| `rc_client_set_event_handler`                                                                        | Events: ACHIEVEMENT_TRIGGERED, ACHIEVEMENT_CHALLENGE_INDICATOR_SHOW/HIDE, ACHIEVEMENT_PROGRESS_INDICATOR_SHOW/UPDATE/HIDE, LEADERBOARD_STARTED/FAILED/SUBMITTED, LEADERBOARD_TRACKER_SHOW/UPDATE/HIDE, GAME_MASTERY, etc. |
+| `rc_client_set_hardcore_enabled`                                                                     | Hardcore on/off                                                                                                                                                                                                           |
+| `rc_client_enable_logging`                                                                           | Debug logs                                                                                                                                                                                                                |
+| `rc_client_disconnect`                                                                               | Logout                                                                                                                                                                                                                    |
+| `rc_client_unload_game`                                                                              | Unload current game                                                                                                                                                                                                       |
+| `rc_client_set_userdata/get_userdata`                                                                | User data pointer                                                                                                                                                                                                         |
 
 **Host must implement:**
 - `read_memory(address, buffer, num_bytes)` → bytes read (called from rcheevos thread)
@@ -105,15 +105,15 @@ retroachievements/
 
 ## 5. Runtime Evaluation and Threading
 
-| Component | Execution | Details |
-|-----------|-----------|---------|
-| `rc_client_do_frame` | Emulation/GL thread | Synchronous observer after every `retro_run`, under LibretroDroid's `coreLock`; includes fast-forward iterations. No asynchronous rendered-frame Flow is used for achievement evaluation. |
-| `read_memory` callback | Calling rcheevos operation's thread | Reads the attached direct SYSTEM_RAM buffer; frame evaluation observes memory before the next emulated frame can mutate it. |
-| Live client JNI operations | Serialized by `g_client_mutex` | Frame evaluation, HTTP response completion, idle processing and teardown cannot concurrently mutate the rcheevos client. |
-| HTTP bridge | Asynchronous request completion | Network work runs outside frame evaluation; response completion re-enters the native client under its mutex. |
-| `rc_client_idle` | Session coroutine, once per second | Processes pending work/retries even when gameplay is paused; it does not emulate frames. Cancelled when the session stops. |
-| UI notifications | Main dispatcher | Native events are relayed through the session to UI collectors for toast/notification updates. |
-| Standalone catalog requests | `Dispatchers.IO` | Fetch definitions and user unlocks without starting a core. |
+| Component                   | Execution                           | Details                                                                                                                                                                                   |
+| --------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rc_client_do_frame`        | Emulation/GL thread                 | Synchronous observer after every `retro_run`, under LibretroDroid's `coreLock`; includes fast-forward iterations. No asynchronous rendered-frame Flow is used for achievement evaluation. |
+| `read_memory` callback      | Calling rcheevos operation's thread | Reads the attached direct SYSTEM_RAM buffer; frame evaluation observes memory before the next emulated frame can mutate it.                                                               |
+| Live client JNI operations  | Serialized by `g_client_mutex`      | Frame evaluation, HTTP response completion, idle processing and teardown cannot concurrently mutate the rcheevos client.                                                                  |
+| HTTP bridge                 | Asynchronous request completion     | Network work runs outside frame evaluation; response completion re-enters the native client under its mutex.                                                                              |
+| `rc_client_idle`            | Session coroutine, once per second  | Processes pending work/retries even when gameplay is paused; it does not emulate frames. Cancelled when the session stops.                                                                |
+| UI notifications            | Main dispatcher                     | Native events are relayed through the session to UI collectors for toast/notification updates.                                                                                            |
+| Standalone catalog requests | `Dispatchers.IO`                    | Fetch definitions and user unlocks without starting a core.                                                                                                                               |
 
 ### Memory and lifecycle
 
@@ -161,13 +161,13 @@ The session obtains and attaches SYSTEM_RAM before login/game loading, because a
 Original games use `vanilla_<crc32>` keys in the same document. `gameId: 0` represents an unresolved identity; the title may be null. The hash always describes the final playable ROM supplied to the core.
 
 ### Settings Keys (CorePrefs Convention)
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `pref_ra_enabled` | Boolean | `true` | Master toggle RA integration |
-| `pref_ra_hardcore` | Boolean | `false` | Hardcore mode (OFF until UA validated) |
-| `pref_ra_system_notifications` | Boolean | `true` | System notification on unlock (API 33+ needs POST_NOTIFICATIONS) |
-| `pref_ra_show_challenge_indicators` | Boolean | `true` | Show challenge/progress indicators in-game |
-| `pref_ra_username` | String | `""` | Cached username (display only) |
+| Key                                 | Type    | Default | Description                                                      |
+| ----------------------------------- | ------- | ------- | ---------------------------------------------------------------- |
+| `pref_ra_enabled`                   | Boolean | `true`  | Master toggle RA integration                                     |
+| `pref_ra_hardcore`                  | Boolean | `false` | Hardcore mode (OFF until UA validated)                           |
+| `pref_ra_system_notifications`      | Boolean | `true`  | System notification on unlock (API 33+ needs POST_NOTIFICATIONS) |
+| `pref_ra_show_challenge_indicators` | Boolean | `true`  | Show challenge/progress indicators in-game                       |
+| `pref_ra_username`                  | String  | `""`    | Cached username (display only)                                   |
 
 ## 7. Manifest Changes
 ```xml
@@ -190,13 +190,13 @@ The list below records the original phase breakdown, not current verification re
 - **B5 Leaderboards (In-Game Menu Only) + Catalog Integration + Polish:** `LeaderboardDialog`, in-game menu "Conquistas" category, catalog v2, Store RA badge, i18n, third-party license notices (rcheevos MIT).
 
 ## 10. Risk Register (RA)
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| rcheevos native build fails on an ABI | Medium | High | Pin rcheevos tag; test all 4 ABIs in CI |
-| `read_memory` called after unload → crash | Low | High | Null-guard in `getMemoryData`; return 0 bytes |
-| Hardcore unlock rejected (UA not validated) | High | Low | Default OFF; show notice until RAdmin validates |
-| Missed evaluation during fast-forward | Low | High | Observe every `retro_run` synchronously under `coreLock`; exercise device/core behavior separately |
-| Process exit loses pending offline awards | Medium | High | Encrypted synchronous journal and network-constrained WorkManager replay; exact-id acknowledgment |
-| Hardcore approval pending | High | Medium | Technical restrictions implemented; default OFF pending external User-Agent validation |
-| Token expiry mid-session | Medium | Medium | `RaSessionManager` auto-refresh; silent re-login |
-| Notification permission denied (API 33+) | Medium | Low | Graceful degrade to in-game toast only |
+| Risk                                        | Probability | Impact | Mitigation                                                                                         |
+| ------------------------------------------- | ----------- | ------ | -------------------------------------------------------------------------------------------------- |
+| rcheevos native build fails on an ABI       | Medium      | High   | Pin rcheevos tag; test all 4 ABIs in CI                                                            |
+| `read_memory` called after unload → crash   | Low         | High   | Null-guard in `getMemoryData`; return 0 bytes                                                      |
+| Hardcore unlock rejected (UA not validated) | High        | Low    | Default OFF; show notice until RAdmin validates                                                    |
+| Missed evaluation during fast-forward       | Low         | High   | Observe every `retro_run` synchronously under `coreLock`; exercise device/core behavior separately |
+| Process exit loses pending offline awards   | Medium      | High   | Encrypted synchronous journal and network-constrained WorkManager replay; exact-id acknowledgment  |
+| Hardcore approval pending                   | High        | Medium | Technical restrictions implemented; default OFF pending external User-Agent validation             |
+| Token expiry mid-session                    | Medium      | Medium | `RaSessionManager` auto-refresh; silent re-login                                                   |
+| Notification permission denied (API 33+)    | Medium      | Low    | Graceful degrade to in-game toast only                                                             |

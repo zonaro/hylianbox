@@ -18,7 +18,6 @@
 
 package br.com.redclaw.hylianbox.ui.switchui
 
-import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -32,7 +31,6 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -51,7 +49,7 @@ import br.com.redclaw.hylianbox.store.ImportRomInvalid
 import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.store.ui.StoreViewModel
 import br.com.redclaw.hylianbox.utils.CorePrefs
-import br.com.redclaw.hylianbox.utils.UiScaleManager
+import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuController
 import br.com.redclaw.hylianbox.viewmodels.LibraryMenuHostDelegate
 import br.com.redclaw.hylianbox.views.GridSortMode
@@ -82,11 +80,7 @@ import kotlinx.coroutines.launch
  * uses (which ends at [br.com.redclaw.hylianbox.views.GameActivity] and the shared
  * [br.com.redclaw.hylianbox.repositories.GameRomResolver]).
  */
-class SwitchGridActivity : AppCompatActivity() {
-
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(UiScaleManager.wrap(newBase))
-    }
+class SwitchGridActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivitySwitchGridBinding
     private lateinit var menuHost: LibraryMenuHostDelegate

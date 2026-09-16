@@ -13,10 +13,9 @@ import kotlin.math.min
  * A "floating"/relative analog stick spanning the whole empty left side of the screen: touching
  * down anywhere within its bounds starts a virtual stick centered on that exact point, instead of
  * requiring the touch to land on a fixed graphic -- matching how most mobile games implement
- * movement sticks. Real buttons layered on top (L, D-pad) claim their own touches first via
- * normal view z-order, so this view only ever sees touches that land on genuinely empty space.
- * A static hint circle at [hintX]/[hintY] marks the stick's usual resting spot when idle, purely
- * cosmetic.
+ * movement sticks. Real buttons layered on top (L, D-pad) claim their own touches first via normal
+ * view z-order, so this view only ever sees touches that land on genuinely empty space. A static
+ * hint circle at [hintX]/[hintY] marks the stick's usual resting spot when idle, purely cosmetic.
  *
  * Suporta multi-toque: o analógico pode ser iniciado com o segundo dedo enquanto um botão
  * (StickButton) está segurado com o primeiro — prioridade total do analógico.
@@ -51,11 +50,31 @@ class FloatingJoystick(context: Context) : View(context) {
     private val knobPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = KNOB_COLOR }
     private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = HINT_COLOR }
 
+    /**
+     * Releases a held analog before the view is detached (e.g. overlay hot-swap Standard <-> Pro).
+     * Safe no-op when idle.
+     */
+    fun release() {
+        if (active) {
+            retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f)
+        }
+        active = false
+        activePointerId = -1
+        knobOffsetX = 0f
+        knobOffsetY = 0f
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (active) {
             canvas.drawCircle(centerX, centerY, maxReachPx, basePaint)
-            canvas.drawCircle(centerX + knobOffsetX, centerY + knobOffsetY, maxReachPx * 0.4f, knobPaint)
+            canvas.drawCircle(
+                    centerX + knobOffsetX,
+                    centerY + knobOffsetY,
+                    maxReachPx * 0.4f,
+                    knobPaint
+            )
         } else {
             canvas.drawCircle(hintX, hintY, hintRadius, hintPaint)
         }
@@ -90,7 +109,11 @@ class FloatingJoystick(context: Context) : View(context) {
                 knobOffsetY = ny * clampedDist
 
                 val magnitude = if (maxReachPx > 0) clampedDist / maxReachPx * sensitivity else 0f
-                retroView?.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, nx * magnitude, ny * magnitude)
+                retroView?.sendMotionEvent(
+                        GLRetroView.MOTION_SOURCE_ANALOG_LEFT,
+                        nx * magnitude,
+                        ny * magnitude
+                )
                 invalidate()
             }
             MotionEvent.ACTION_POINTER_UP -> {

@@ -29,35 +29,43 @@ import br.com.redclaw.hylianbox.utils.CorePrefs
 /**
  * Manages the Nintendo Switch UI accent color.
  *
- * The accent color is user-selectable from a predefined palette and persisted in
- * [CorePrefs] (key `pref_switch_accent`). This class provides the resolved color
- * int for the current accent, plus helper drawables (focus borders, badge backgrounds)
- * that use the dynamic accent color instead of the static `switch_accent` resource.
+ * The accent color is user-selectable from a predefined palette and persisted in [CorePrefs] (key
+ * `pref_switch_accent`). This class provides the resolved color int for the current accent, plus
+ * helper drawables (focus borders, badge backgrounds) that use the dynamic accent color instead of
+ * the static `switch_accent` resource.
  *
- * The palette keys match the color resource names in `colors.xml` (e.g., "cyan",
- * "green_light", "blue") and the display strings in `strings.xml`.
+ * The palette keys match the color resource names in `colors.xml` (e.g., "cyan", "green_light",
+ * "blue") and the display strings in `strings.xml`.
  */
 object AccentManager {
 
     /** All available accent options, in display order. */
-    val options: List<AccentOption> = listOf(
-        AccentOption("cyan", R.string.accent_cyan, R.color.accent_cyan),
-        AccentOption("green_light", R.string.accent_green_light, R.color.accent_green_light),
-        AccentOption("green_dark", R.string.accent_green_dark, R.color.accent_green_dark),
-        AccentOption("blue", R.string.accent_blue, R.color.accent_blue),
-        AccentOption("yellow", R.string.accent_yellow, R.color.accent_yellow),
-        AccentOption("pink", R.string.accent_pink, R.color.accent_pink),
-        AccentOption("red", R.string.accent_red, R.color.accent_red),
-        AccentOption("violet", R.string.accent_violet, R.color.accent_violet),
-        AccentOption("teal", R.string.accent_teal, R.color.accent_teal),
-        AccentOption("orange", R.string.accent_orange, R.color.accent_orange),
-        AccentOption("purple", R.string.accent_purple, R.color.accent_purple),
-        AccentOption("indigo", R.string.accent_indigo, R.color.accent_indigo),
-    )
+    val options: List<AccentOption> =
+            listOf(
+                    AccentOption("cyan", R.string.accent_cyan, R.color.accent_cyan),
+                    AccentOption(
+                            "green_light",
+                            R.string.accent_green_light,
+                            R.color.accent_green_light
+                    ),
+                    AccentOption(
+                            "green_dark",
+                            R.string.accent_green_dark,
+                            R.color.accent_green_dark
+                    ),
+                    AccentOption("blue", R.string.accent_blue, R.color.accent_blue),
+                    AccentOption("yellow", R.string.accent_yellow, R.color.accent_yellow),
+                    AccentOption("pink", R.string.accent_pink, R.color.accent_pink),
+                    AccentOption("red", R.string.accent_red, R.color.accent_red),
+                    AccentOption("violet", R.string.accent_violet, R.color.accent_violet),
+                    AccentOption("teal", R.string.accent_teal, R.color.accent_teal),
+                    AccentOption("orange", R.string.accent_orange, R.color.accent_orange),
+                    AccentOption("purple", R.string.accent_purple, R.color.accent_purple),
+                    AccentOption("indigo", R.string.accent_indigo, R.color.accent_indigo),
+            )
 
     /** Returns the currently selected accent key (e.g., "cyan"). */
-    fun getCurrentAccentKey(context: Context): String =
-        CorePrefs.getSwitchAccent(context)
+    fun getCurrentAccentKey(context: Context): String = CorePrefs.getSwitchAccent(context)
 
     /** Sets the accent color and persists it. */
     fun setAccent(context: Context, accentKey: String) {
@@ -97,12 +105,10 @@ object AccentManager {
         drawable.shape = GradientDrawable.RECTANGLE
         drawable.setColor(android.graphics.Color.TRANSPARENT)
         drawable.setStroke(
-            context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width),
-            color
+                context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width),
+                color
         )
-        drawable.setCornerRadius(
-            context.resources.getDimension(R.dimen.switch_card_corner_radius)
-        )
+        drawable.setCornerRadius(context.resources.getDimension(R.dimen.switch_card_corner_radius))
         return drawable
     }
 
@@ -113,8 +119,8 @@ object AccentManager {
         drawable.shape = GradientDrawable.OVAL
         drawable.setColor(android.graphics.Color.TRANSPARENT)
         drawable.setStroke(
-            context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width),
-            color
+                context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width),
+                color
         )
         return drawable
     }
@@ -146,24 +152,32 @@ object AccentManager {
         }
     }
 
-    /** Creates a selector for SwitchButton: focused = transparent + accent stroke, default = accent solid. */
+    /**
+     * Creates a selector for SwitchButton: focused = transparent + accent stroke, default = accent
+     * solid.
+     */
     fun createSwitchButtonSelector(context: Context): android.graphics.drawable.StateListDrawable {
         val accent = getAccentColor(context)
         val stroke = context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width)
         val radius = 4f * context.resources.displayMetrics.density
-        val focused = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(android.graphics.Color.TRANSPARENT)
-            setStroke(stroke, accent)
-            cornerRadius = radius
-        }
-        val normal = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(accent)
-            cornerRadius = radius
-        }
+        val focused =
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(android.graphics.Color.TRANSPARENT)
+                    setStroke(stroke, accent)
+                    cornerRadius = radius
+                }
+        val normal =
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(accent)
+                    cornerRadius = radius
+                }
         return android.graphics.drawable.StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused, android.R.attr.state_enabled), focused)
+            addState(
+                    intArrayOf(android.R.attr.state_focused, android.R.attr.state_enabled),
+                    focused
+            )
             addState(intArrayOf(), normal)
         }
     }
@@ -188,19 +202,21 @@ object AccentManager {
     }
 
     /** Creates a pill selector for Gamepad Tester mode tabs (selected/pressed = accent solid). */
-    fun createGamepadTesterModeSelector(context: Context): android.graphics.drawable.StateListDrawable {
+    fun createGamepadTesterModeSelector(
+            context: Context
+    ): android.graphics.drawable.StateListDrawable {
         val accent = getAccentColor(context)
         val panel = ContextCompat.getColor(context, R.color.switch_panel)
         val secondary = ContextCompat.getColor(context, R.color.switch_text_secondary)
         val stroke = context.resources.getDimensionPixelSize(R.dimen.switch_focus_border_width)
         val radius = 24f * context.resources.displayMetrics.density
         fun pill(color: Int, strokeColor: Int? = null, strokeW: Int = 0): GradientDrawable =
-            GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(color)
-                cornerRadius = radius
-                if (strokeColor != null) setStroke(strokeW, strokeColor)
-            }
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(color)
+                    cornerRadius = radius
+                    if (strokeColor != null) setStroke(strokeW, strokeColor)
+                }
         val selected = pill(accent)
         val focused = pill(android.graphics.Color.TRANSPARENT, accent, stroke)
         val idle = pill(panel, secondary, (1f * context.resources.displayMetrics.density).toInt())
@@ -226,8 +242,8 @@ object AccentManager {
         val accent = getAccentColor(context)
         val unchecked = ContextCompat.getColor(context, R.color.switch_text_primary)
         return ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(accent, unchecked)
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(accent, unchecked)
         )
     }
 
@@ -235,15 +251,11 @@ object AccentManager {
         val accent = getAccentColor(context)
         val unchecked = ContextCompat.getColor(context, R.color.switch_text_secondary)
         return ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(accent, unchecked)
+                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                intArrayOf(accent, unchecked)
         )
     }
 
     /** Data class representing a single accent option. */
-    data class AccentOption(
-        val key: String,
-        val labelRes: Int,
-        val colorRes: Int
-    )
+    data class AccentOption(val key: String, val labelRes: Int, val colorRes: Int)
 }
