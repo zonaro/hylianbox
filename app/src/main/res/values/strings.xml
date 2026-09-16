@@ -5,6 +5,7 @@
     <string name="pref_audio_enabled">audio_enabled</string>
 
     <!-- In-game menu -->
+    <string name="menu_title">Menu</string>
     <string name="menu_reset">Reiniciar</string>
     <string name="menu_save_state">Salvar Estado</string>
     <string name="menu_load_state">Carregar Estado</string>

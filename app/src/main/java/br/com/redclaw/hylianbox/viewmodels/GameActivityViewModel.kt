@@ -304,6 +304,11 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     item.action()
                     menuDialog?.dismiss()
                 }
+        // Header: X circular antes do título — mesmo padrão das outras telas
+        built.view.findViewById<View>(R.id.menu_close)?.setOnClickListener {
+            runCatching { HylianBoxApp.sfxManager }.getOrNull()?.back()
+            menuDialog?.dismiss()
+        }
         toggleEntries.clear()
         toggleEntries.addAll(built.toggleEntries)
         badgeViews.clear()
