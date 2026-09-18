@@ -27,7 +27,7 @@
             android:layout_height="24dp"
             android:layout_marginStart="12dp"
             android:src="@drawable/ic_gallery"
-            android:tint="@color/switch_accent_focus"
+            android:tint="?attr/colorPrimary"
             android:contentDescription="@string/dock_gallery" />
 
         <TextView

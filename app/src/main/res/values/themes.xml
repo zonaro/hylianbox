@@ -30,6 +30,133 @@
         <item name="bottomSheetDialogTheme">@style/Theme.HylianBox.BottomSheet</item>
     </style>
 
+    <!-- Runtime-selected accent overlays. ScaledAppCompatActivity applies exactly one before
+         inflation, so Android, AppCompat and Material controls share the user's accent instead of
+         falling back to the historical cyan/amber theme tokens. -->
+    <style name="ThemeOverlay.HylianBox.Accent.Cyan" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_cyan</item>
+        <item name="colorPrimaryContainer">@color/accent_cyan</item>
+        <item name="colorSecondary">@color/accent_cyan</item>
+        <item name="colorAccent">@color/accent_cyan</item>
+        <item name="android:colorAccent">@color/accent_cyan</item>
+        <item name="colorControlActivated">@color/accent_cyan</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.GreenLight" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_green_light</item>
+        <item name="colorPrimaryContainer">@color/accent_green_light</item>
+        <item name="colorSecondary">@color/accent_green_light</item>
+        <item name="colorAccent">@color/accent_green_light</item>
+        <item name="android:colorAccent">@color/accent_green_light</item>
+        <item name="colorControlActivated">@color/accent_green_light</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.GreenDark" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_green_dark</item>
+        <item name="colorPrimaryContainer">@color/accent_green_dark</item>
+        <item name="colorSecondary">@color/accent_green_dark</item>
+        <item name="colorAccent">@color/accent_green_dark</item>
+        <item name="android:colorAccent">@color/accent_green_dark</item>
+        <item name="colorControlActivated">@color/accent_green_dark</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Blue" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorPrimaryContainer">@color/accent_blue</item>
+        <item name="colorSecondary">@color/accent_blue</item>
+        <item name="colorAccent">@color/accent_blue</item>
+        <item name="android:colorAccent">@color/accent_blue</item>
+        <item name="colorControlActivated">@color/accent_blue</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Yellow" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_yellow</item>
+        <item name="colorPrimaryContainer">@color/accent_yellow</item>
+        <item name="colorSecondary">@color/accent_yellow</item>
+        <item name="colorAccent">@color/accent_yellow</item>
+        <item name="android:colorAccent">@color/accent_yellow</item>
+        <item name="colorControlActivated">@color/accent_yellow</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Pink" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_pink</item>
+        <item name="colorPrimaryContainer">@color/accent_pink</item>
+        <item name="colorSecondary">@color/accent_pink</item>
+        <item name="colorAccent">@color/accent_pink</item>
+        <item name="android:colorAccent">@color/accent_pink</item>
+        <item name="colorControlActivated">@color/accent_pink</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Red" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_red</item>
+        <item name="colorPrimaryContainer">@color/accent_red</item>
+        <item name="colorSecondary">@color/accent_red</item>
+        <item name="colorAccent">@color/accent_red</item>
+        <item name="android:colorAccent">@color/accent_red</item>
+        <item name="colorControlActivated">@color/accent_red</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Violet" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_violet</item>
+        <item name="colorPrimaryContainer">@color/accent_violet</item>
+        <item name="colorSecondary">@color/accent_violet</item>
+        <item name="colorAccent">@color/accent_violet</item>
+        <item name="android:colorAccent">@color/accent_violet</item>
+        <item name="colorControlActivated">@color/accent_violet</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Teal" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_teal</item>
+        <item name="colorPrimaryContainer">@color/accent_teal</item>
+        <item name="colorSecondary">@color/accent_teal</item>
+        <item name="colorAccent">@color/accent_teal</item>
+        <item name="android:colorAccent">@color/accent_teal</item>
+        <item name="colorControlActivated">@color/accent_teal</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Orange" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_orange</item>
+        <item name="colorPrimaryContainer">@color/accent_orange</item>
+        <item name="colorSecondary">@color/accent_orange</item>
+        <item name="colorAccent">@color/accent_orange</item>
+        <item name="android:colorAccent">@color/accent_orange</item>
+        <item name="colorControlActivated">@color/accent_orange</item>
+        <item name="colorOnPrimary">@android:color/black</item>
+        <item name="colorOnPrimaryContainer">@android:color/black</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Purple" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="colorPrimaryContainer">@color/accent_purple</item>
+        <item name="colorSecondary">@color/accent_purple</item>
+        <item name="colorAccent">@color/accent_purple</item>
+        <item name="android:colorAccent">@color/accent_purple</item>
+        <item name="colorControlActivated">@color/accent_purple</item>
+    </style>
+
+    <style name="ThemeOverlay.HylianBox.Accent.Indigo" parent="ThemeOverlay.Material3">
+        <item name="colorPrimary">@color/accent_indigo</item>
+        <item name="colorPrimaryContainer">@color/accent_indigo</item>
+        <item name="colorSecondary">@color/accent_indigo</item>
+        <item name="colorAccent">@color/accent_indigo</item>
+        <item name="android:colorAccent">@color/accent_indigo</item>
+        <item name="colorControlActivated">@color/accent_indigo</item>
+    </style>
+
     <!-- Splash theme. References @drawable/splash_artwork; a temporary solid
          placeholder drawable ships until Dolfi delivers the real PNG. -->
     <style name="Theme.HylianBox.Splash" parent="Theme.Material3.DayNight.NoActionBar">
@@ -113,7 +240,7 @@
     <style name="SwitchButton" parent="android:Widget.Button">
         <item name="android:background">@drawable/bg_switch_button_focus</item>
         <item name="android:backgroundTint">@null</item>
-        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
         <item name="android:textAllCaps">false</item>
         <item name="android:minHeight">40dp</item>
         <item name="android:paddingStart">16dp</item>

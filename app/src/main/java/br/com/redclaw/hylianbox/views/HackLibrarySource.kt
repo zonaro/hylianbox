@@ -20,8 +20,8 @@ data class HackLibraryEntry(
         val badge: BadgeType? = null,
         /**
          * Game family driving the badge's chip background and icon tint. Null means the family is
-         * unknown, in which case the adapter falls back to a neutral chip (color_primary background
-         * / white icon). OoT -> yellow bg / black icon, MM -> purple bg / white icon.
+         * unknown, in which case the adapter falls back to the generic hack glyph. Every family
+         * badge uses the configured accent background with a contrast-safe icon.
          */
         val family: OcarinaGame? = null,
         /** True when this tile is a user-imported vanilla base ROM (managed in Settings). */

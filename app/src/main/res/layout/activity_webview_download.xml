@@ -15,15 +15,11 @@
         android:paddingStart="8dp"
         android:paddingEnd="8dp">
 
-        <ImageButton
+        <include
             android:id="@+id/webview_close"
+            layout="@layout/switch_back_button"
             android:layout_width="@dimen/icon_button_size"
-            android:layout_height="@dimen/icon_button_size"
-            android:background="@drawable/bg_icon_button"
-            android:contentDescription="@string/detail_close_desc"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_close"
-            android:tint="@color/switch_text_primary" />
+            android:layout_height="@dimen/icon_button_size" />
 
         <ImageButton
             android:id="@+id/webview_back"
@@ -34,7 +30,7 @@
             android:contentDescription="@string/webview_back_desc"
             android:scaleType="centerInside"
             android:src="@android:drawable/ic_media_previous"
-            android:tint="@color/switch_text_primary" />
+            android:tint="?attr/colorPrimary" />
 
         <TextView
             android:id="@+id/webview_toolbar_title"

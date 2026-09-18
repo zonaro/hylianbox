@@ -508,6 +508,33 @@
     }
 
     // ---- Settings Page ----
+    const accentColors = {
+        cyan: '#00BCD4', green_light: '#4CAF50', green_dark: '#2E7D32', blue: '#2196F3',
+        yellow: '#FFEB3B', pink: '#E91E63', red: '#F44336', violet: '#9C27B0',
+        teal: '#009688', orange: '#FF9800', purple: '#673AB7', indigo: '#3F51B5'
+    };
+
+    function applyAccent(accentKey) {
+        const color = accentColors[accentKey] || accentColors.cyan;
+        const root = document.documentElement;
+        root.style.setProperty('--accent', color);
+        root.style.setProperty('--accent-hover', color);
+        root.style.setProperty('--accent-amber', color);
+        root.style.setProperty('--accent-green', color);
+        const rgb = color.slice(1).match(/.{2}/g).map(component => parseInt(component, 16));
+        const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+        root.style.setProperty('--accent-contrast', luminance > 0.55 ? '#000000' : '#FFFFFF');
+    }
+
+    async function loadAccent() {
+        try {
+            const data = await api('/settings');
+            applyAccent((data.preferences || []).find(pref => pref.key === 'switch_accent')?.value);
+        } catch (_) {
+            applyAccent('cyan');
+        }
+    }
+
     async function loadSettings() {
         try {
             const data = await api('/settings');
@@ -525,7 +552,9 @@
             if (displayTouchEl) displayTouchEl.value = data.displayTouchControls;
             if (addrEl) addrEl.textContent = data.address;
             if (clientsEl) clientsEl.textContent = data.connectedClients;
-            renderAppSettings(data.preferences || []);
+            const preferences = data.preferences || [];
+            applyAccent(preferences.find(pref => pref.key === 'switch_accent')?.value);
+            renderAppSettings(preferences);
         } catch (e) {
             showToast(e.message, 'error');
         }
@@ -550,6 +579,7 @@
                     method: 'PUT',
                     body: JSON.stringify({ port, password: password || undefined, displayOutput, displayId, displayTouchControls, preferences })
                 });
+                applyAccent(preferences.switch_accent);
                 showToast(result.message, 'success');
                 if (result.restartRequired) showToast(t('settings_restart_required'), 'info');
             } catch (e) {
@@ -596,6 +626,7 @@
     // ---- Init ----
     async function init() {
         await loadTranslations();
+        await loadAccent();
         setupNavigation();
         setupBackup();
         setupPlayer();

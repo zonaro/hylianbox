@@ -78,7 +78,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                     setText(R.string.tracker_start)
                     isAllCaps = false
                     background = AccentManager.createSwitchButtonBackground(context)
-                    setTextColor(android.graphics.Color.WHITE)
+                    setTextColor(AccentManager.getOnAccentColor(context))
                     setOnClickListener {
                         sfx?.select()
                         val vm = viewModel ?: return@setOnClickListener
@@ -93,7 +93,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                     setText(R.string.tracker_reset)
                     isAllCaps = false
                     background = AccentManager.createSwitchButtonBackground(context)
-                    setTextColor(android.graphics.Color.WHITE)
+                    setTextColor(AccentManager.getOnAccentColor(context))
                     setOnClickListener {
                         sfx?.back()
                         viewModel?.resetTimer()
@@ -151,23 +151,6 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                                 orientation = VERTICAL
                                 val pad = (16 * resources.displayMetrics.density).toInt()
                                 setPadding(pad, pad, pad, pad)
-                                addView(
-                                        TextView(context).apply {
-                                            text =
-                                                    context.getString(
-                                                            R.string.tracker_edit_time_title
-                                                    )
-                                            setTextColor(
-                                                    context.getColor(R.color.switch_text_primary)
-                                            )
-                                            textSize = 16f
-                                            typeface =
-                                                    android.graphics.Typeface.create(
-                                                            "sans-serif-medium",
-                                                            android.graphics.Typeface.BOLD
-                                                    )
-                                        }
-                                )
                                 edit.setTextColor(context.getColor(R.color.switch_text_primary))
                                 edit.setHintTextColor(
                                         context.getColor(R.color.switch_text_secondary)
@@ -178,6 +161,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
                 }
         val dialog =
                 AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
+                        .setTitle(R.string.tracker_edit_time_title)
                         .setView(dialogView)
                         .setPositiveButton(android.R.string.ok) { _, _ ->
                             val parsed = parseTime(edit.text.toString())

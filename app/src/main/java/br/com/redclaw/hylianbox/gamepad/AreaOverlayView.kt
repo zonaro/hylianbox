@@ -228,7 +228,7 @@ class AreaOverlayView(context: Context) : View(context) {
     }
 
     private fun drawGestureFeedback(canvas: Canvas) {
-        val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
+        val reach = width * AreaControlLayout.ANALOG_REACH_FRACTION
         val dotRadius = min(width, height) * AreaControlLayout.FEEDBACK_RADIUS_FRACTION
 
         if (analogPointerId != -1) {
@@ -346,13 +346,22 @@ class AreaOverlayView(context: Context) : View(context) {
                     cancelOcarinaHold(pointerId)
                 }
                 if (state.dragging) {
-                    val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
-                    val clamped = min(distance, reach)
+                    // Calculate reach based on the zone's actual pixel dimensions (like Standard mode uses button radius)
+                    val zoneRect = state.zone.rect
+                    val zoneLeft = zoneRect.left * width
+                    val zoneRight = zoneRect.right * width
+                    val zoneTop = zoneRect.top * height
+                    val zoneBottom = zoneRect.bottom * height
+                    val zoneWidth = zoneRight - zoneLeft
+                    val zoneHeight = zoneBottom - zoneTop
+                    val zoneRadius = min(zoneWidth, zoneHeight) / 2f
+
+                    val clamped = min(distance, zoneRadius)
                     val unitX = if (distance > 0f) dx / distance else 0f
                     val unitY = if (distance > 0f) dy / distance else 0f
                     state.offsetX = unitX * clamped
                     state.offsetY = unitY * clamped
-                    val magnitude = if (reach > 0f) clamped / reach * stickSensitivity else 0f
+                    val magnitude = if (zoneRadius > 0f) clamped / zoneRadius * stickSensitivity else 0f
                     retroView?.sendMotionEvent(
                             GLRetroView.MOTION_SOURCE_ANALOG_LEFT,
                             unitX * magnitude,
@@ -393,7 +402,7 @@ class AreaOverlayView(context: Context) : View(context) {
             val dy = y - analogCenterY
             val distance = hypot(dx, dy)
             if (distance > dragThresholdPx) analogMoved = true
-            val reach = min(width, height) * AreaControlLayout.ANALOG_REACH_FRACTION
+            val reach = width * AreaControlLayout.ANALOG_REACH_FRACTION
             val clamped = min(distance, reach)
             val unitX = if (distance > 0f) dx / distance else 0f
             val unitY = if (distance > 0f) dy / distance else 0f

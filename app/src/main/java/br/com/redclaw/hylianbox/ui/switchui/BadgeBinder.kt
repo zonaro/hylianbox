@@ -28,8 +28,8 @@ import br.com.redclaw.hylianbox.views.HackLibraryEntry
 
 /**
  * Binds a [HackLibraryEntry]'s family/type badge onto an [ImageView], keeping the chip background
- * and icon tint consistent with the rest of the app (OoT = yellow chip / black icon, MM = purple
- * chip / white icon, unknown = neutral chip).
+ * and icon tint consistent with the configured accent. OoT/MM identity comes from the glyph rather
+ * than fixed family colors.
  *
  * Extracted from the legacy grid adapter so both the Switch home row and the (Phase C) grid screen
  * render badges identically without duplicating the per-family branching (DRY).
@@ -82,41 +82,32 @@ object BadgeBinder {
                     ?: familyFromGameCode(hack.baseRom.gameCode)
 
     /**
-     * Applies the family icon badge to [imageView]: OoT -> [R.drawable.ic_oot] on the yellow chip
-     * (black icon), MM -> [R.drawable.ic_mm] on the purple chip (white icon), and an unknown family
-     * falls back to the generic [R.drawable.ic_hack] on a neutral chip. Used by both the Library
-     * tiles and the Store (detail + grid).
+     * Applies the family glyph while keeping both badge fill and icon contrast derived from the
+     * configured accent. Family identity comes from the glyph, not a private yellow/purple color.
      */
     fun bindFamily(imageView: ImageView, family: OcarinaGame?) {
         val drawableRes: Int
-        val bgRes: Int
-        val iconTint: Int
         val contentDescriptionRes: Int
         when (family) {
             OcarinaGame.OOT -> {
                 drawableRes = R.drawable.ic_oot
-                bgRes = R.drawable.bg_badge_oot
-                iconTint = R.color.color_badge_oot_icon
                 contentDescriptionRes = R.string.game_oot
             }
             OcarinaGame.MM -> {
                 drawableRes = R.drawable.ic_mm
-                bgRes = R.drawable.bg_badge_mm
-                iconTint = R.color.color_badge_mm_icon
                 contentDescriptionRes = R.string.game_mm
             }
             null -> {
                 drawableRes = R.drawable.ic_hack
-                bgRes = R.drawable.bg_badge
-                iconTint = android.R.color.white
                 contentDescriptionRes = R.string.hack_badge_content_description
             }
         }
 
         imageView.visibility = View.VISIBLE
         imageView.setImageResource(drawableRes)
-        imageView.setBackgroundResource(bgRes)
-        imageView.imageTintList = ColorStateList.valueOf(imageView.context.getColor(iconTint))
+        imageView.background = AccentManager.createBadgeBackground(imageView.context)
+        imageView.imageTintList =
+                ColorStateList.valueOf(AccentManager.getOnAccentColor(imageView.context))
         imageView.contentDescription = imageView.context.getString(contentDescriptionRes)
     }
 }

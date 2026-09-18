@@ -29,6 +29,7 @@ import br.com.redclaw.hylianbox.databinding.ActivityRaKeyCaptureBinding
 import br.com.redclaw.hylianbox.retroachievements.auth.RaWebApiKeyExtractor
 import br.com.redclaw.hylianbox.retroachievements.auth.RaWebApiKeyResolver
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import org.json.JSONObject
 
 /**
@@ -54,6 +55,7 @@ import org.json.JSONObject
 class RaKeyCaptureActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityRaKeyCaptureBinding
+    private val closeHelper = SwitchBackButton()
     private var autoLoginAttempted = false
     private var finished = false
 
@@ -67,10 +69,7 @@ class RaKeyCaptureActivity : ScaledAppCompatActivity() {
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.raKeyCaptureToolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.settings_ra_key_capture_title)
-        binding.raKeyCaptureToolbar.setNavigationOnClickListener { finish() }
+        closeHelper.attach(this, binding.raKeyCaptureClose.root, onBack = { finish() })
 
         setupWebView(
                 savedInstanceState,

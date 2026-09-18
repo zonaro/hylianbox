@@ -22,7 +22,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -68,6 +67,9 @@ class GoogleDriveBackupService(
         val size: Long,
         val appProperties: Map<String, String>
     )
+
+    /** A save discovered in Drive, with the hack id encoded by its folder or file name. */
+    data class RemoteSave(val hackId: String, val file: DriveFileMeta)
 
     /** Summary of a backup run. */
     data class BackupSummary(
@@ -157,11 +159,13 @@ class GoogleDriveBackupService(
         val meta = JSONObject().apply {
             put("name", fileName)
             if (existingFileId == null) {
-                val appFolder = ensureAppFolder()
-                val parts = remotePath.split("/")
-                val category = parts[0]
-                val categoryFolder = ensureCategoryFolder(appFolder, category)
-                put("parents", JSONArray().put(categoryFolder))
+                val parts = remotePath.split('/').filter { it.isNotBlank() }
+                val folders = remoteParentSegments(remotePath)
+                var parent = ensureAppFolder()
+                for (folder in folders) {
+                    parent = ensureCategoryFolder(parent, folder)
+                }
+                put("parents", JSONArray().put(parent))
             }
             appProperties?.let { props ->
                 val ap = JSONObject()
@@ -174,23 +178,42 @@ class GoogleDriveBackupService(
             fileName.endsWith(".mp4") -> "video/mp4"
             else -> "application/octet-stream"
         }.toMediaType()
-        val mediaBody = ProgressRequestBody(localFile, mediaType, onProgress)
-        val body = MultipartBody.Builder().setType("multipart/related".toMediaType())
-            .addPart(MultipartBody.Part.create(meta.toString().toRequestBody(JSON)))
-            .addPart(MultipartBody.Part.create(mediaBody))
-            .build()
-        val url = if (existingFileId == null) {
-            "$UPLOAD/files?uploadType=multipart"
+        // Resumable upload works for both small SRAM files and large save-states/videos,
+        // while multipart is limited to 5 MB by the Drive API.
+        val initiationUrl = if (existingFileId == null) {
+            "$UPLOAD/files?uploadType=resumable&fields=id"
         } else {
-            "$API/files/$existingFileId?uploadType=multipart"
+            "$UPLOAD/files/$existingFileId?uploadType=resumable&fields=id"
         }
-        val req = Request.Builder()
-            .url(url)
+        val initiation = Request.Builder()
+            .url(initiationUrl)
             .addHeader("Authorization", authHeader(token()))
-            .method(if (existingFileId == null) "POST" else "PATCH", body)
+            .addHeader("X-Upload-Content-Type", mediaType.toString())
+            .addHeader("X-Upload-Content-Length", localFile.length().toString())
+            .method(
+                if (existingFileId == null) "POST" else "PATCH",
+                meta.toString().toRequestBody(JSON)
+            )
             .build()
-        val resp = client.newCall(req).execute().requireOk()
-        JSONObject(resp.body!!.string()).getString("id")
+        val sessionResponse = client.newCall(initiation).execute().requireOk()
+        val sessionUrl = sessionResponse.header("Location")
+            ?: throw IOException("Drive resumable upload did not return a session URL")
+        sessionResponse.close()
+
+        val upload = Request.Builder()
+            .url(sessionUrl)
+            .addHeader("Authorization", authHeader(token()))
+            .put(ProgressRequestBody(localFile, mediaType, onProgress))
+            .build()
+        val uploadResponse = client.newCall(upload).execute().requireOk()
+        val responseJson = uploadResponse.body?.string().orEmpty()
+        if (responseJson.isBlank()) {
+            existingFileId ?: throw IOException("Drive upload returned no file id")
+        } else {
+            JSONObject(responseJson).optString("id").ifBlank {
+                existingFileId ?: throw IOException("Drive upload returned no file id")
+            }
+        }
     }
 
     // ---- List / Download / Delete ----
@@ -202,6 +225,7 @@ class GoogleDriveBackupService(
             .addQueryParameter("q", q)
             .addQueryParameter("fields", "files(id,name,createdTime,modifiedTime,mimeType,size,appProperties)")
             .addQueryParameter("orderBy", "createdTime desc")
+            .addQueryParameter("pageSize", "1000")
             .build()
         val resp = get(url).requireOk()
         val arr = JSONObject(resp.body!!.string()).optJSONArray("files") ?: JSONArray()
@@ -249,6 +273,26 @@ class GoogleDriveBackupService(
             findFileByName(hackFolder, fileName)
         }
 
+    /**
+     * List every save created by HylianBox. Current backups use
+     * `saves/<hackId>/<fileName>`; flat files produced by older builds are also returned.
+     */
+    suspend fun listRemoteSaves(): List<RemoteSave> = withContext(Dispatchers.IO) {
+        val appFolder = findFolder(APP_FOLDER_NAME, "root") ?: return@withContext emptyList()
+        val savesFolder = findFolder("saves", appFolder) ?: return@withContext emptyList()
+        val result = mutableListOf<RemoteSave>()
+        for (entry in listFiles(savesFolder)) {
+            if (entry.mimeType == FOLDER_MIME) {
+                listFiles(entry.id).forEach { file ->
+                    if (isSaveName(file.name, entry.name)) result += RemoteSave(entry.name, file)
+                }
+            } else {
+                hackIdFromSaveName(entry.name)?.let { result += RemoteSave(it, entry) }
+            }
+        }
+        result
+    }
+
     /** Parse a Drive files resource object into [DriveFileMeta]. */
     private fun parseDriveFileMeta(o: JSONObject): DriveFileMeta {
         val appProps = mutableMapOf<String, String>()
@@ -264,6 +308,15 @@ class GoogleDriveBackupService(
             size = o.optLong("size"),
             appProperties = appProps
         )
+    }
+
+    private fun isSaveName(name: String, hackId: String): Boolean =
+        name == "sram_$hackId" || name == "state_$hackId"
+
+    private fun hackIdFromSaveName(name: String): String? = when {
+        name.startsWith("sram_") && name.length > 5 -> name.removePrefix("sram_")
+        name.startsWith("state_") && name.length > 6 -> name.removePrefix("state_")
+        else -> null
     }
 
     /** Download [fileId] to [dest] (overwrites). */
@@ -307,7 +360,21 @@ class GoogleDriveBackupService(
         var uploaded = 0
         items.forEachIndexed { index, item ->
             runCatching {
-                uploadFile(item.localFile, item.remotePath)
+                val existing = if (item.category == BackupCategory.SAVES) {
+                    val parts = item.remotePath.split('/')
+                    if (parts.size == 3) findSaveFile(parts[1], parts[2]) else null
+                } else {
+                    null
+                }
+                val properties = if (item.category == BackupCategory.SAVES) {
+                    mapOf(
+                        "crc32" to br.com.redclaw.hylianbox.patcher.n64.ChecksumCalculator.crc32(item.localFile),
+                        "size" to item.localFile.length().toString()
+                    )
+                } else {
+                    null
+                }
+                uploadFile(item.localFile, item.remotePath, properties, existing?.id)
                 uploaded++
             }.onFailure { e -> errors.add("${item.remotePath}: ${e.message}") }
             onItemProgress(index + 1, items.size)
@@ -324,7 +391,8 @@ class GoogleDriveBackupService(
     private suspend fun prune(keepPerCategory: Int): Int {
         val appFolder = ensureAppFolder()
         var removed = 0
-        for (category in listOf("saves", "images", "videos")) {
+        // Saves are upserted in one stable path per game and must never be pruned as snapshots.
+        for (category in listOf("images", "videos")) {
             val folder = findFolder(category, appFolder) ?: continue
             val files = listFiles(folder)
             if (files.size <= keepPerCategory) continue
@@ -402,4 +470,12 @@ class GoogleDriveBackupService(
         private val JSON = "application/json; charset=UTF-8".toMediaType()
         const val DEFAULT_KEEP = 10
     }
+}
+
+/** Validated folder chain for a Drive relative path, excluding its final file name. */
+internal fun remoteParentSegments(remotePath: String): List<String> {
+    val parts = remotePath.split('/').filter { it.isNotBlank() }
+    require(parts.size >= 2) { "remote path must include a folder and file name" }
+    require(parts.none { it == "." || it == ".." }) { "remote path contains an unsafe segment" }
+    return parts.dropLast(1)
 }

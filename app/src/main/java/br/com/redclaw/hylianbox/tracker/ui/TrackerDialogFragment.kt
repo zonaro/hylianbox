@@ -49,6 +49,7 @@ import br.com.redclaw.hylianbox.tracker.ui.tabs.LocationsTab
 import br.com.redclaw.hylianbox.tracker.ui.tabs.SongsTab
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.utils.CorePrefs
 
 /**
@@ -119,6 +120,7 @@ class TrackerDialogFragment : DialogFragment() {
         viewModel = TrackerViewModel(requireContext(), game, hackId)
 
         val dialog = AppCompatDialog(requireContext(), R.style.GameplayFullscreenDialogTheme)
+        AccentManager.applyThemeOverlay(dialog.context)
         val view = LayoutInflater.from(dialog.context).inflate(R.layout.tracker_dialog, null)
         contentView = view
         tabButtons.clear()
@@ -152,10 +154,9 @@ class TrackerDialogFragment : DialogFragment() {
                 if (game == TrackerGame.OOT) R.string.tracker_title_oot
                 else R.string.tracker_title_mm
         view.findViewById<TextView>(R.id.tracker_title).setText(titleRes)
-        val closeBtn = view.findViewById<ImageButton>(R.id.tracker_close)
-        closeBtn.setOnClickListener {
-            sfx?.back()
-            dismiss()
+        val closeBtn = view.findViewById<View>(R.id.tracker_close)
+        if (!dualScreenPinned) {
+            SwitchBackButton.bindDialog(dialog, closeBtn, onBack = { dismiss() })
         }
         closeBtn.visibility = if (dualScreenPinned) View.GONE else View.VISIBLE
 
@@ -213,7 +214,7 @@ class TrackerDialogFragment : DialogFragment() {
         dualScreenPinned = pinned
         isCancelable = !pinned
         dialog?.let(::applyPinnedInputMode)
-        contentView?.findViewById<ImageButton>(R.id.tracker_close)?.visibility =
+        contentView?.findViewById<View>(R.id.tracker_close)?.visibility =
                 if (pinned) View.GONE else View.VISIBLE
         if (!pinned && arguments?.getBoolean(ARG_DUAL_SCREEN_PINNED) == true) {
             dismissAllowingStateLoss()
@@ -280,7 +281,7 @@ class TrackerDialogFragment : DialogFragment() {
                     if (i == index) AccentManager.createSwitchButtonBackground(requireContext())
                     else createTabIdleBg()
             btn.setTextColor(
-                    if (i == index) android.graphics.Color.WHITE
+                    if (i == index) AccentManager.getOnAccentColor(requireContext())
                     else requireContext().getColor(R.color.switch_text_primary)
             )
             btn.alpha = 1f
@@ -299,7 +300,7 @@ class TrackerDialogFragment : DialogFragment() {
                     if (selectedTab) AccentManager.createSwitchButtonBackground(requireContext())
                     else createTabIdleBg()
             btn.setTextColor(
-                    if (selectedTab) android.graphics.Color.WHITE
+                    if (selectedTab) AccentManager.getOnAccentColor(requireContext())
                     else requireContext().getColor(R.color.switch_text_primary)
             )
         }

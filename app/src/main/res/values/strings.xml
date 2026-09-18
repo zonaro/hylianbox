@@ -14,6 +14,10 @@
     <string name="toast_state_none">Nenhum estado salvo encontrado</string>
     <string name="menu_mute">Silenciar</string>
     <string name="menu_fast_forward">Acelerar</string>
+    <string name="menu_aspect_ratio">Proporção</string>
+    <string name="aspect_ratio_4_3">4:3</string>
+    <string name="aspect_ratio_16_9">16:9</string>
+    <string name="aspect_ratio_fullscreen">Tela Cheia</string>
     <string name="menu_core">Core</string>
     <string name="menu_button_stick">Button Stick</string>
     <string name="menu_hide_hud_buttons">Esconder Botões C/B</string>
@@ -382,7 +386,7 @@
 
     <!-- Settings: backups (local save export/import) -->
     <string name="backup_title">Backups</string>
-    <string name="backup_description">Exporte ou restaure os saves (SRAM e estados) de todos os hacks instalados em um arquivo ZIP local. Nenhum dado é enviado para a nuvem.</string>
+    <string name="backup_description">Proteja seus saves em um arquivo ZIP local ou sincronize saves e capturas com sua conta do Google Drive.</string>
     <string name="backup_export">Exportar saves</string>
     <string name="backup_import">Restaurar saves</string>
     <string name="backup_export_empty">Nenhum hack instalado para fazer backup.</string>
@@ -392,6 +396,7 @@
 
     <!-- Settings: Google Drive cloud backup -->
     <string name="gdrive_subtitle">Backup na nuvem (Google Drive)</string>
+    <string name="gdrive_description">Um único fluxo para backup e restauração no Google Drive. Os backups automáticos usam o mesmo fluxo do backup manual.</string>
     <string name="gdrive_enable">Ativar backup no Google Drive</string>
     <string name="gdrive_connect">Conectar conta Google</string>
     <string name="gdrive_connected">Conta: %1$s</string>
@@ -405,6 +410,12 @@
     <string name="gdrive_frequency_weekly">Semanal</string>
     <string name="gdrive_frequency_manual">Manual</string>
     <string name="gdrive_backup_now">Fazer backup agora</string>
+    <string name="gdrive_restore">Restaurar do Google Drive</string>
+    <string name="gdrive_restore_confirm">Os saves encontrados no Google Drive substituirão os saves locais correspondentes. Deseja continuar?</string>
+    <string name="gdrive_restore_confirm_action">Restaurar</string>
+    <string name="gdrive_restore_summary">Restauração concluída: %1$d arquivo(s). Ignorados: %2$d.</string>
+    <string name="gdrive_restore_summary_errors">Restauração parcial: %1$d arquivo(s). Ignorados: %2$d. Erros: %3$d.</string>
+    <string name="gdrive_restore_failed">Falha na restauração: %1$s</string>
     <string name="gdrive_view">Ver backups no Drive</string>
     <string name="gdrive_last_backup">Último backup: %1$s</string>
     <string name="gdrive_last_backup_never">Nunca</string>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Switch button background: shows the cyan focus border while focused, the
+<!-- Switch button background: shows the configured accent border while focused, the
      flat accent fill otherwise. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:state_enabled="true">
@@ -7,13 +7,13 @@
             <solid android:color="@android:color/transparent" />
             <stroke
                 android:width="@dimen/switch_focus_border_width"
-                android:color="#00BCD4" />
+                android:color="?attr/colorPrimary" />
             <corners android:radius="4dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#00BCD4" />
+            <solid android:color="?attr/colorPrimary" />
             <corners android:radius="4dp" />
         </shape>
     </item>

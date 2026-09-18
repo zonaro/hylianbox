@@ -36,6 +36,9 @@ import br.com.redclaw.hylianbox.gamepad.GamePad
  * @param activeLabelRes optional label shown when [isActive] is true (toggles only). Used by the
  * recording item to swap "Start" / "Stop" text with state. When null the base [labelRes] is always
  * shown.
+ * @param badgeText optional dynamic badge text (e.g. current aspect ratio). Evaluated live when
+ * the menu is shown/refreshed. If both [badgeRes] and [badgeText] are provided, [badgeText] takes
+ * precedence.
  * @param action invoked when the cell is tapped or activated by key.
  */
 data class MenuActionItem(
@@ -49,6 +52,7 @@ data class MenuActionItem(
         val tintIcon: Boolean = true,
         val isEnabled: () -> Boolean = { true },
         @StringRes val activeLabelRes: Int? = null,
+        val badgeText: (() -> String?)? = null,
         val action: () -> Unit
 )
 
@@ -76,13 +80,22 @@ data class MenuEnabledEntry(
 )
 
 /**
+ * Live references to a cell with a dynamic badge text, used to refresh the badge label.
+ */
+data class MenuBadgeEntry(
+        val item: MenuActionItem,
+        val badge: TextView
+)
+
+/**
  * Result of [MenuGridBuilder.build]: the dialog content view plus the live references needed to
- * refresh toggle state and badge visibility.
+ * refresh toggle state, badge visibility, and dynamic badge text.
  */
 data class BuiltMenu(
         val view: View,
         val toggleEntries: List<MenuToggleEntry>,
         val badgeViews: List<TextView>,
+        val badgeEntries: List<MenuBadgeEntry>,
         val enabledEntries: List<MenuEnabledEntry>
 )
 
@@ -137,6 +150,7 @@ object MenuGridBuilder {
 
         val toggleEntries = mutableListOf<MenuToggleEntry>()
         val badgeViews = mutableListOf<TextView>()
+        val badgeEntries = mutableListOf<MenuBadgeEntry>()
         val enabledEntries = mutableListOf<MenuEnabledEntry>()
 
         for (section in sections) {
@@ -200,6 +214,12 @@ object MenuGridBuilder {
                         badge.visibility = if (showBadges) View.VISIBLE else View.GONE
                         badgeViews.add(badge)
                     }
+                    item.badgeText?.let { badgeText ->
+                        val badge = cell.findViewById<TextView>(R.id.menu_item_badge)
+                        badge.setText(badgeText())
+                        badge.visibility = View.VISIBLE
+                        badgeEntries.add(MenuBadgeEntry(item, badge))
+                    }
                     row.addView(
                             cell,
                             LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -218,6 +238,6 @@ object MenuGridBuilder {
                 index = end
             }
         }
-        return BuiltMenu(view, toggleEntries, badgeViews, enabledEntries)
+        return BuiltMenu(view, toggleEntries, badgeViews, badgeEntries, enabledEntries)
     }
 }

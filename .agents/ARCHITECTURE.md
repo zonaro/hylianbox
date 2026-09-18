@@ -97,7 +97,7 @@ br.com.redclaw.hylianbox
 │   ├── GalleryActivity.kt    # SwitchGridScreen-style gallery
 │   ├── GalleryAdapter.kt     # RecyclerView adapter for gallery items
 │   └── GalleryViewModel.kt   # StateFlow of gallery items + actions
-├── drive/                    # Cloud save backup/restore (Google Drive)
+├── drive/                    # Unified Google Drive save/capture backup, save restore, scheduling, conflicts
 ├── shortcuts/                # App shortcuts (dynamic/static)
 ├── retroachievements/        # RetroAchievements Integration feature
 │   ├── jni/                  # RcheevosJni, LibretroDroidMemoryJni (JNI bridges)
@@ -152,6 +152,20 @@ Libretro core (mupen64plus-next GLES3) emulates
 **Rule 10 (RetroView interception):** The ONLY place ROM bytes reach the core is `RetroView.kt` → `GLRetroViewData.gameFilePath` (or `gameFileBytes`). Default `config_load_bytes=false` (stream from file).
 
 **Rule 11 (Storage paths keyed by hackId):** Each hack gets isolated `rom_<hackId>`, `sram_<hackId>`, `state_<hackId>`. SRAM/save-states never collide. At install time, patched ROM is written to `Storage.rom(canonicalId)` (cross-catalog dedup → one ROM file per hack).
+
+### Backup and restore
+
+Settings exposes one **Backups** section with two destinations. Local export and restore use the
+canonical manifest ZIP implemented by `data/local/SaveBackupManager`; its restore path also accepts
+the legacy per-game `sram.bin` / `state.bin` ZIP. Google Drive backup and restore use
+`drive/GoogleDriveBackup` and `GoogleDriveBackupService`, with stable save paths per `hackId`, CRC32
+verification when available, and atomic replacement during restore.
+
+Drive has one preference set and one service pipeline. Manual backup calls that pipeline directly;
+periodic scheduling and save-change triggers share `GoogleDriveBackupWorker`. Wi-Fi-only constraints
+and conflict notifications are configured in the same Backups section. The former cloud-sync master
+preference is retained only as a compatibility alias for upgrades, and the duplicate
+repository-level `SaveBackupManager` implementation has been removed.
 
 ---
 

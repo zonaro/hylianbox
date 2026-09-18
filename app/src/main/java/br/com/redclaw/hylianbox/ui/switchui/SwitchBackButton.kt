@@ -19,16 +19,21 @@
 package br.com.redclaw.hylianbox.ui.switchui
 
 import android.content.Context
+import android.content.res.Configuration
+import android.app.Dialog
 import android.hardware.input.InputManager
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
+import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.input.InputDeviceUtils
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 
 /**
  * Reusable on-screen back-button behaviour for non-HOME Switch-style screens.
@@ -51,6 +56,9 @@ class SwitchBackButton {
 
     private var button: View? = null
     private var inputManager: InputManager? = null
+    private var hostActivity: AppCompatActivity? = null
+    private var dialogWindow: Window? = null
+    private var originalWindowCallback: Window.Callback? = null
 
     /** True only while the button is hidden because a controller is present. */
     private var hiddenByController = false
@@ -62,12 +70,12 @@ class SwitchBackButton {
 
         override fun onInputDeviceRemoved(deviceId: Int) {
             // Only reveal the button once no physical controller remains.
-            if (!InputDeviceUtils.hasConnectedController()) show()
+            button?.context?.let { if (shouldShowForTouch(it)) show() else hide() }
         }
 
         override fun onInputDeviceChanged(deviceId: Int) {
             // A device may have become (or stopped being) a controller.
-            if (InputDeviceUtils.hasConnectedController()) hide() else show()
+            button?.context?.let { if (shouldShowForTouch(it)) show() else hide() }
         }
     }
 
@@ -77,7 +85,10 @@ class SwitchBackButton {
      * connected at attach time.
      */
     fun attach(activity: AppCompatActivity, button: View, onBack: () -> Unit) {
+        detach()
+        hostActivity = activity
         this.button = button
+        register(activity, this)
         button.setOnClickListener {
             HylianBoxApp.sfxManager?.back()
             onBack()
@@ -86,16 +97,58 @@ class SwitchBackButton {
         inputManager = activity.getSystemService(Context.INPUT_SERVICE) as InputManager
         inputManager?.registerInputDeviceListener(deviceListener, null)
 
-        if (InputDeviceUtils.hasConnectedController()) hide() else show()
+        if (shouldShowForTouch(activity)) show() else hide()
 
         activity.lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
                 if (event == Lifecycle.Event.ON_DESTROY) {
                     inputManager?.unregisterInputDeviceListener(deviceListener)
+                    unregister(activity, this@SwitchBackButton)
                     activity.lifecycle.removeObserver(this)
                 }
             }
         })
+    }
+
+    /** Binds a close button owned by a separate Dialog Window and tracks its input modality. */
+    fun attach(dialog: Dialog, activity: AppCompatActivity, button: View, onBack: () -> Unit) {
+        attach(activity, button, onBack)
+        val window = dialog.window ?: return
+        val delegate = window.callback ?: return
+        val wrapper =
+                object : Window.Callback by delegate {
+                    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                        onTouch(event)
+                        return delegate.dispatchTouchEvent(event)
+                    }
+
+                    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+                        if (event.action == android.view.KeyEvent.ACTION_DOWN) onNonTouchInput()
+                        return delegate.dispatchKeyEvent(event)
+                    }
+
+                    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+                        onNonTouchInput()
+                        return delegate.dispatchGenericMotionEvent(event)
+                    }
+                }
+        dialogWindow = window
+        originalWindowCallback = delegate
+        window.callback = wrapper
+    }
+
+    /** Releases listener/registry references when a dialog-owned button is dismissed. */
+    fun detach() {
+        val window = dialogWindow
+        val original = originalWindowCallback
+        if (window != null && original != null) window.callback = original
+        dialogWindow = null
+        originalWindowCallback = null
+        inputManager?.unregisterInputDeviceListener(deviceListener)
+        hostActivity?.let { unregister(it, this) }
+        hostActivity = null
+        inputManager = null
+        button = null
     }
 
     /**
@@ -104,13 +157,22 @@ class SwitchBackButton {
      * controller was connected, satisfying "touch usage => button visible".
      */
     fun onTouch(event: MotionEvent) {
-        if (hiddenByController) show()
+        if (event.actionMasked != MotionEvent.ACTION_DOWN) return
+        val hasTouchscreen =
+                button?.resources?.configuration?.touchscreen !=
+                        Configuration.TOUCHSCREEN_NOTOUCH
+        if (TouchClosePolicy.afterTouch(hasTouchscreen)) show() else hide()
+    }
+
+    /** Hides the touch-only affordance again when navigation comes from a controller. */
+    fun onNonTouchInput() {
+        if (!TouchClosePolicy.afterNonTouch()) hide()
     }
 
     private fun hide() {
         val b = button ?: return
         hiddenByController = true
-        b.visibility = View.INVISIBLE
+        b.visibility = View.GONE
         b.isClickable = false
     }
 
@@ -119,5 +181,68 @@ class SwitchBackButton {
         hiddenByController = false
         b.visibility = View.VISIBLE
         b.isClickable = true
+    }
+
+    private fun shouldShowForTouch(context: Context): Boolean =
+            TouchClosePolicy.initial(
+                    context.resources.configuration.touchscreen !=
+                            Configuration.TOUCHSCREEN_NOTOUCH,
+                    InputDeviceUtils.hasConnectedController()
+            )
+
+    companion object {
+        private val attached =
+                WeakHashMap<AppCompatActivity, MutableList<WeakReference<SwitchBackButton>>>()
+
+        private fun register(activity: AppCompatActivity, helper: SwitchBackButton) {
+            synchronized(attached) {
+                val helpers = attached.getOrPut(activity) { mutableListOf() }
+                helpers.removeAll { it.get() == null || it.get() === helper }
+                helpers += WeakReference(helper)
+            }
+        }
+
+        private fun unregister(activity: AppCompatActivity, helper: SwitchBackButton) {
+            synchronized(attached) {
+                attached[activity]?.removeAll { it.get() == null || it.get() === helper }
+                if (attached[activity].isNullOrEmpty()) attached.remove(activity)
+            }
+        }
+
+        /** Routes the host Activity's touch modality to every attached close affordance. */
+        fun dispatchTouch(activity: AppCompatActivity, event: MotionEvent) {
+            snapshot(activity).forEach { it.onTouch(event) }
+        }
+
+        /** Routes controller/D-pad navigation so the touch-only close affordance disappears. */
+        fun dispatchNonTouch(activity: AppCompatActivity) {
+            snapshot(activity).forEach { it.onNonTouchInput() }
+        }
+
+        private fun snapshot(activity: AppCompatActivity): List<SwitchBackButton> =
+                synchronized(attached) {
+                    val helpers = attached[activity] ?: return@synchronized emptyList()
+                    helpers.removeAll { it.get() == null }
+                    helpers.mapNotNull { it.get() }
+                }
+
+        /** Binds a dialog-owned close view and releases it automatically when the Window detaches. */
+        fun bindDialog(dialog: Dialog, button: View, onBack: () -> Unit): SwitchBackButton? {
+            val activity = GameplayFullscreenDialog.activity(dialog.context) as? AppCompatActivity
+                    ?: return null
+            val helper = SwitchBackButton()
+            helper.attach(dialog, activity, button, onBack)
+            dialog.window?.decorView?.addOnAttachStateChangeListener(
+                    object : View.OnAttachStateChangeListener {
+                        override fun onViewAttachedToWindow(view: View) = Unit
+
+                        override fun onViewDetachedFromWindow(view: View) {
+                            view.removeOnAttachStateChangeListener(this)
+                            helper.detach()
+                        }
+                    }
+            )
+            return helper
+        }
     }
 }

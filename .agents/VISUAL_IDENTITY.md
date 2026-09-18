@@ -2,7 +2,7 @@
 
 **Nintendo Switch UI is the mandatory visual standard for ALL screens** (existing and future). This is a custom native implementation inspired by the Nintendo Switch HOME menu aesthetic (as seen in NS_Launcher / FLauncher). No Material 3 Expressive requirements remain. The only exemption is the **RadialGamePad touch-control LAYOUT** (Rule 14 — control placement, button-stick modes, floating joystick, auto-Z, physical-controller mirroring remain frozen). Interactive in-game modal surfaces follow the same fullscreen Switch screen language as normal screens; only transient, non-interactive gameplay status layers use compact overlay presentation.
 
-> Every interactive or highlighted Switch UI element inherits the accent color selected by the user. Focus, selection, active controls, sliders, toggles, buttons, circular buttons, icons, badges and decorative highlights must not keep their own cyan, amber, violet or other fixed accent.
+> Every interactive or highlighted Switch UI element inherits the accent color selected by the user. Focus, selection, active controls, sliders, toggles, buttons, circular buttons, icons, badges and decorative highlights must not keep their own cyan, amber, violet or other fixed accent. The sole exception is the five destination glyphs in the Home dock: Loja red, Galeria cyan, Conquistas gold, Teste de Controle green and Configurações white; their focus ring still inherits the configured accent.
 
 ---
 
@@ -33,7 +33,7 @@
 - **Unfocused cards:** 10% black overlay dimming.
 - **Dialog rows:** full-width border in the selected accent.
 - **Circular "All Games" card:** accent border and icon, opens fullscreen grid.
-- **Dock buttons:** accent focus ring and glyph; dock destinations do not have individual colors.
+- **Home dock buttons:** accent focus ring; destination glyphs use the fixed exception palette (Loja red, Galeria cyan, Conquistas gold, Teste de Controle green, Configurações white).
 
 ---
 
@@ -45,7 +45,7 @@
 | `SwitchGameCard`     | Square card (1:1), cover image, game title overlay on focus, focus border, dimming overlay                                                                                |
 | `SwitchAllGamesCard` | Circular card (charcoal fill, accent 2×2 grid icon, accent border on focus)                                                                                                 |
 | `SwitchGridScreen`   | Fullscreen grid ("Todos os Jogos"): header icon+title "Todos os Jogos" 20sp bold + thin separator, smaller square cards (~170dp), search/filter bar, ghosted placeholders |
-| `SwitchDock`         | Fixed bottom dock: 5 circular buttons (Loja, RetroAchievements, Galeria, Teste de Controle, Configurações), ~50dp diameter, accent glyphs and focus ring                  |
+| `SwitchDock`         | Fixed bottom dock: 5 circular buttons (Loja red, Galeria cyan, Conquistas gold, Teste de Controle green, Configurações white), ~50dp diameter; focus ring inherits the configured accent |
 | `SwitchFooterHints`  | Bottom bar: gamepad status indicator, gray 11–12sp                                                                                                                        |
 | `SwitchDialog`       | Centered modal for dialogs opened outside gameplay: scrim, box ~40% width, radius 12–16dp, bg `#3A3A3C`, header icon+title 18sp, rows 48–52dp with icon+text, focused row = accent border outline |
 | Fullscreen gameplay modal | Presentation contract for every interactive surface owned by `GameActivity`: opaque edge-to-edge Switch screen with normal screen header/content/footer structure and no popup shell; implemented with a dialog/overlay lifecycle so the running game remains alive underneath |

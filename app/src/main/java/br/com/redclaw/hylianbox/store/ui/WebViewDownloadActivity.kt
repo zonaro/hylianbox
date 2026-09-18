@@ -36,6 +36,7 @@ import br.com.redclaw.hylianbox.store.ImportRomSuccess
 import br.com.redclaw.hylianbox.store.ImportedPatchInstaller
 import br.com.redclaw.hylianbox.store.ImportedRomInstaller
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.utils.ScaledAppCompatActivity
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -78,6 +79,7 @@ class WebViewDownloadActivity : ScaledAppCompatActivity() {
     private lateinit var binding: ActivityWebviewDownloadBinding
     private lateinit var hack: HackEntry
     private var isHandlingDownload = false
+    private val closeHelper = SwitchBackButton()
 
     companion object {
         const val EXTRA_HACK_JSON = "extra_hack_json"
@@ -135,7 +137,7 @@ class WebViewDownloadActivity : ScaledAppCompatActivity() {
 
         binding.webviewToolbarTitle.text = hack.name
         binding.webviewBack.setOnClickListener { handleBack() }
-        binding.webviewClose.setOnClickListener { finish() }
+        closeHelper.attach(this, binding.webviewClose.root, onBack = { finish() })
 
         val webView = binding.webview
         webView.settings.javaScriptEnabled = true
@@ -263,11 +265,13 @@ class WebViewDownloadActivity : ScaledAppCompatActivity() {
                     finish()
                 }
                 is WebViewInstallResult.Error -> {
-                    AlertDialog.Builder(this@WebViewDownloadActivity)
+                    val dialog = AlertDialog.Builder(this@WebViewDownloadActivity)
                             .setTitle(R.string.webview_install_error_title)
                             .setMessage(result.message)
                             .setPositiveButton(R.string.dialog_ok, null)
                             .show()
+                    br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
+                            .bindAlertTitleClose(dialog)
                 }
             }
         }

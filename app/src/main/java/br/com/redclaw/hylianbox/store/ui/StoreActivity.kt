@@ -94,8 +94,6 @@ class StoreActivity : ScaledAppCompatActivity() {
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.storeToolbar)
-        supportActionBar?.setTitle(R.string.store_title)
         backHelper.attach(this, binding.storeBack.root, onBack = { finish() })
 
         viewModel = ViewModelProvider(this)[StoreViewModel::class.java]
@@ -469,11 +467,12 @@ class StoreActivity : ScaledAppCompatActivity() {
                 message = result.message
             }
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
                 .setTitle(titleRes)
                 .setMessage(message)
                 .setPositiveButton(R.string.dialog_ok, null)
                 .show()
+        br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog.bindAlertTitleClose(dialog)
     }
 
     /** Human-readable game family name for success messages. */

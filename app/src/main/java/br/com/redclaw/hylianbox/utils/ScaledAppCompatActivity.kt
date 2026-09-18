@@ -21,7 +21,12 @@ package br.com.redclaw.hylianbox.utils
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.appcompat.app.AppCompatActivity
+import br.com.redclaw.hylianbox.ui.switchui.AccentManager
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 
 /**
  * Base activity applying the global interface scale ([UiScaleManager]).
@@ -32,6 +37,14 @@ import androidx.appcompat.app.AppCompatActivity
  * touch overlay stays excluded by construction (application context, system density).
  */
 open class ScaledAppCompatActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply the persisted accent before AppCompat inflates or tints any view. This is the
+        // global fallback for platform/Material controls; custom Switch views still use
+        // AccentManager directly for their runtime-created drawables.
+        setTheme(AccentManager.getThemeOverlay(this))
+        super.onCreate(savedInstanceState)
+    }
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(UiScaleManager.wrap(newBase))
     }
@@ -45,5 +58,20 @@ open class ScaledAppCompatActivity : AppCompatActivity() {
         val res = super.getResources()
         UiScaleManager.ensureScaled(res, this)
         return res
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        SwitchBackButton.dispatchTouch(this, ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) SwitchBackButton.dispatchNonTouch(this)
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        SwitchBackButton.dispatchNonTouch(this)
+        return super.dispatchGenericMotionEvent(ev)
     }
 }

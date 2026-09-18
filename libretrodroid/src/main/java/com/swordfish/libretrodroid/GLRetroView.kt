@@ -324,6 +324,14 @@ class GLRetroView(
         }
     }
 
+    fun setAspectRatioOverride(aspectRatio: Float) {
+        LibretroDroid.setAspectRatioOverride(aspectRatio)
+    }
+
+    fun getAspectRatioOverride(): Float {
+        return LibretroDroid.getAspectRatioOverride()
+    }
+
     fun getAvailableDisks(useEmulationThread: Boolean = true): Int {
         return runOnEmulationThread(useEmulationThread) { LibretroDroid.availableDisks() }
     }

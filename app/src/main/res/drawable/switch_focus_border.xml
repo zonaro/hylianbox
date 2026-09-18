@@ -5,6 +5,6 @@
     <solid android:color="@android:color/transparent" />
     <stroke
         android:width="@dimen/switch_focus_border_width"
-        android:color="@color/switch_accent" />
+        android:color="?attr/colorPrimary" />
     <corners android:radius="@dimen/switch_card_corner_radius" />
 </shape>

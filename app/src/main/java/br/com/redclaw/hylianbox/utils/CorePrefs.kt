@@ -335,14 +335,19 @@ object CorePrefs {
         // ---- Google Drive cloud backup ----
 
         /** Master switch for Google Drive backup (default off). */
-        fun getGdriveEnabled(context: Context): Boolean =
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .getBoolean(PREF_GDRIVE_ENABLED, false)
+        fun getGdriveEnabled(context: Context): Boolean {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                return prefs.getBoolean(PREF_GDRIVE_ENABLED, false) ||
+                        prefs.getBoolean(PREF_CLOUD_SYNC_ENABLED, false)
+        }
 
         fun setGdriveEnabled(context: Context, enabled: Boolean) {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         .edit()
                         .putBoolean(PREF_GDRIVE_ENABLED, enabled)
+                        // Keep the retired switch in lockstep so an older true value cannot
+                        // silently re-enable Drive after the user turns the unified switch off.
+                        .putBoolean(PREF_CLOUD_SYNC_ENABLED, enabled)
                         .apply()
         }
 
@@ -410,9 +415,14 @@ object CorePrefs {
         }
 
         /** Automatic periodic backup switch (default off). */
-        fun getGdriveAutoBackup(context: Context): Boolean =
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .getBoolean(PREF_GDRIVE_AUTO_BACKUP, false)
+        fun getGdriveAutoBackup(context: Context): Boolean {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                return if (prefs.contains(PREF_GDRIVE_AUTO_BACKUP)) {
+                        prefs.getBoolean(PREF_GDRIVE_AUTO_BACKUP, false)
+                } else {
+                        prefs.getBoolean(PREF_CLOUD_SYNC_ENABLED, false)
+                }
+        }
 
         fun setGdriveAutoBackup(context: Context, enabled: Boolean) {
                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -458,16 +468,15 @@ object CorePrefs {
 
         // ---- Automatic cloud sync (incremental, per-save) ----
 
-        /** Master switch for automatic cloud sync of saves (default off). */
+        /** Compatibility alias for the former separate cloud-sync switch. */
         fun getCloudSyncEnabled(context: Context): Boolean =
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .getBoolean(PREF_CLOUD_SYNC_ENABLED, false)
+                getGdriveEnabled(context) && getGdriveBackupSaves(context) &&
+                        getGdriveAutoBackup(context)
 
         fun setCloudSyncEnabled(context: Context, enabled: Boolean) {
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                        .edit()
-                        .putBoolean(PREF_CLOUD_SYNC_ENABLED, enabled)
-                        .apply()
+                setGdriveEnabled(context, enabled)
+                setGdriveBackupSaves(context, enabled)
+                setGdriveAutoBackup(context, enabled)
         }
 
         /** Only sync while on an unmetered (Wi-Fi) network (default off). */
@@ -712,4 +721,46 @@ object CorePrefs {
         const val RIGHT_TAP_A = "a"
         const val RIGHT_TAP_B = "b"
         const val RIGHT_TAP_R = "r"
+
+        // ---- Aspect Ratio (per game/hack) ----
+        private const val PREF_ASPECT_RATIO_PREFIX = "aspect_ratio_"
+
+        /**
+         * Aspect ratio mode for a specific game/hack.
+         * Returns one of [ASPECT_RATIO_4_3], [ASPECT_RATIO_16_9], [ASPECT_RATIO_FULLSCREEN].
+         * Default is [ASPECT_RATIO_4_3] (N64 native).
+         */
+        fun getAspectRatio(context: Context, hackId: String?): String {
+                if (hackId == null) return ASPECT_RATIO_4_3
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val key = PREF_ASPECT_RATIO_PREFIX + hackId
+                return prefs.getString(key, ASPECT_RATIO_4_3) ?: ASPECT_RATIO_4_3
+        }
+
+        fun setAspectRatio(context: Context, hackId: String?, mode: String) {
+                if (hackId == null) return
+                require(mode == ASPECT_RATIO_4_3 || mode == ASPECT_RATIO_16_9 || mode == ASPECT_RATIO_FULLSCREEN) {
+                        "Unsupported aspect ratio mode"
+                }
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString(PREF_ASPECT_RATIO_PREFIX + hackId, mode)
+                        .apply()
+        }
+
+        /** Cycle to the next aspect ratio mode. */
+        fun cycleAspectRatio(context: Context, hackId: String?): String {
+                val current = getAspectRatio(context, hackId)
+                val next = when (current) {
+                        ASPECT_RATIO_4_3 -> ASPECT_RATIO_16_9
+                        ASPECT_RATIO_16_9 -> ASPECT_RATIO_FULLSCREEN
+                        else -> ASPECT_RATIO_4_3
+                }
+                setAspectRatio(context, hackId, next)
+                return next
+        }
+
+        const val ASPECT_RATIO_4_3 = "4:3"
+        const val ASPECT_RATIO_16_9 = "16:9"
+        const val ASPECT_RATIO_FULLSCREEN = "fullscreen"
 }

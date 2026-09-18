@@ -426,11 +426,12 @@ class SwitchGridActivity : ScaledAppCompatActivity() {
                 message = result.message
             }
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
                 .setTitle(titleRes)
                 .setMessage(message)
                 .setPositiveButton(R.string.dialog_ok, null)
                 .show()
+        GameplayFullscreenDialog.bindAlertTitleClose(dialog)
     }
 
     /** Human-readable game family name for success messages. */

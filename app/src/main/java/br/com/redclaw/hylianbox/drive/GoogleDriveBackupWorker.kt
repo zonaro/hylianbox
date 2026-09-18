@@ -79,6 +79,10 @@ class GoogleDriveBackupWorker(
                 categories = categories,
                 sinceMillis = since
             )
+            if (summary.errors.isNotEmpty()) {
+                Log.w(TAG, "Drive backup incomplete: ${summary.errors.size} file(s) failed")
+                return@withContext Result.retry()
+            }
             if (summary.uploaded > 0 || summary.deleted > 0) {
                 CorePrefs.setGdriveLastBackup(context, System.currentTimeMillis())
             }
@@ -87,7 +91,7 @@ class GoogleDriveBackupWorker(
         } catch (e: Exception) {
             // Never crash the app; let WorkManager retry with its default backoff.
             Log.w(TAG, "Drive backup failed: ${e.message}")
-            Result.failure()
+            Result.retry()
         }
     }
 

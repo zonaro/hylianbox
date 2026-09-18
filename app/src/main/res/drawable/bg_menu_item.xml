@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Switch-style menu cell: flat panel surface with a cyan focus border
+<!-- Switch-style menu cell: flat panel surface with an accent focus border
      (mirrors the Switch focus system used across the app). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true" android:state_enabled="true">
@@ -15,7 +15,7 @@
                     <solid android:color="@android:color/transparent" />
                     <stroke
                         android:width="@dimen/switch_focus_border_width"
-                        android:color="@color/switch_accent" />
+                        android:color="?attr/colorPrimary" />
                     <corners android:radius="@dimen/switch_card_corner_radius" />
                 </shape>
             </item>

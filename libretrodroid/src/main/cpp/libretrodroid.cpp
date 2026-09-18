@@ -555,12 +555,24 @@ void LibretroDroid::step(JNIEnv* env) {
 }
 
 float LibretroDroid::getAspectRatio() {
+    if (aspectRatioOverride > 0) {
+        return aspectRatioOverride;
+    }
     float gameAspectRatio = Environment::getInstance().retrieveGameSpecificAspectRatio();
     return gameAspectRatio > 0 ? gameAspectRatio : defaultAspectRatio;
 }
 
 void LibretroDroid::refreshAspectRatio() {
     video->updateAspectRatio(getAspectRatio());
+}
+
+void LibretroDroid::setAspectRatioOverride(float aspectRatio) {
+    aspectRatioOverride = aspectRatio;
+    refreshAspectRatio();
+}
+
+float LibretroDroid::getAspectRatioOverride() const {
+    return aspectRatioOverride;
 }
 
 void LibretroDroid::setRumbleEnabled(bool enabled) {
@@ -781,3 +793,15 @@ void LibretroDroid::setViewport(Rect viewportRect) {
 }
 
 } //namespace libretrodroid
+
+extern "C" {
+
+JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_setAspectRatioOverride(JNIEnv* env, jclass obj, jfloat aspectRatio) {
+    libretrodroid::LibretroDroid::getInstance().setAspectRatioOverride(aspectRatio);
+}
+
+JNIEXPORT jfloat JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getAspectRatioOverride(JNIEnv* env, jclass obj) {
+    return libretrodroid::LibretroDroid::getInstance().getAspectRatioOverride();
+}
+
+}

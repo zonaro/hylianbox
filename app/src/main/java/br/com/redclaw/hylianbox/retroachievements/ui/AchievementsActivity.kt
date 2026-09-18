@@ -66,7 +66,6 @@ class AchievementsActivity : ScaledAppCompatActivity() {
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.achievementsToolbar)
         backHelper.attach(this, binding.achievementsBack.root, onBack = { finish() })
 
         binding.achievementsList.adapter = adapter
@@ -98,10 +97,10 @@ class AchievementsActivity : ScaledAppCompatActivity() {
 
         val hackId = intent.getStringExtra(EXTRA_HACK_ID)
         if (hackId.isNullOrBlank()) {
-            supportActionBar?.setTitle(R.string.achievements_title_all)
+            binding.achievementsToolbarTitle.setText(R.string.achievements_title_all)
             loadAllGames()
         } else {
-            supportActionBar?.setTitle(R.string.achievements_title)
+            binding.achievementsToolbarTitle.setText(R.string.achievements_title)
             loadSingle(hackId)
         }
     }

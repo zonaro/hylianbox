@@ -57,13 +57,13 @@
     <dimen name="switch_grid_card_gap">16dp</dimen>
     <dimen name="switch_label_focused_text">18sp</dimen>
     <dimen name="switch_title_text">20sp</dimen>
-    <dimen name="switch_row_text">16sp</dimen>
+    <dimen name="switch_row_text">17sp</dimen>
     <dimen name="switch_hint_text">12sp</dimen>
     <dimen name="switch_suffix_text">14sp</dimen>
     <!-- Dialog minimum width so it never gets too narrow on phones. -->
     <dimen name="switch_side_panel_min_width">320dp</dimen>
     <!-- Dialog row height. -->
-    <dimen name="switch_side_panel_row_height">52dp</dimen>
+    <dimen name="switch_side_panel_row_height">60dp</dimen>
     <!-- Size of each seed-hash item icon overlaid on a seed tile. -->
     <dimen name="seed_hash_size">28dp</dimen>
     <!-- Hack Store left sidebar fixed width (eShop-style split layout). -->

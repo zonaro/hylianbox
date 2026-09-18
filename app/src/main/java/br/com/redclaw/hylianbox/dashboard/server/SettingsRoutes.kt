@@ -182,9 +182,8 @@ private fun appSettings(context: Context): List<DashboardPreference> =
                         CorePrefs.getGdriveBackupFrequency(context),
                         listOf("daily", "weekly", "manual")
                 ),
-                bool("cloud_sync", CorePrefs.getCloudSyncEnabled(context)),
-                bool("cloud_sync_wifi", CorePrefs.getCloudSyncWifiOnly(context)),
-                bool("cloud_sync_notifications", CorePrefs.getCloudSyncNotifications(context)),
+                bool("gdrive_wifi_only", CorePrefs.getCloudSyncWifiOnly(context)),
+                bool("gdrive_notifications", CorePrefs.getCloudSyncNotifications(context)),
                 bool("button_stick", CorePrefs.getButtonStickEnabled(context)),
                 choice(
                         "control_mode",
@@ -255,6 +254,10 @@ private fun applySetting(context: Context, key: String, value: String) {
                 "gdrive_frequency" ->
                         if (value in setOf("daily", "weekly", "manual"))
                                 CorePrefs.setGdriveBackupFrequency(context, value)
+                "gdrive_wifi_only" -> bool?.let { CorePrefs.setCloudSyncWifiOnly(context, it) }
+                "gdrive_notifications" ->
+                        bool?.let { CorePrefs.setCloudSyncNotifications(context, it) }
+                // Backward-compatible aliases for dashboards cached from older app builds.
                 "cloud_sync" -> bool?.let { CorePrefs.setCloudSyncEnabled(context, it) }
                 "cloud_sync_wifi" -> bool?.let { CorePrefs.setCloudSyncWifiOnly(context, it) }
                 "cloud_sync_notifications" ->

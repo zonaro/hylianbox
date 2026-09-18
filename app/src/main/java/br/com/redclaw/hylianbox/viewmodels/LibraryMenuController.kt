@@ -95,10 +95,6 @@ class LibraryMenuController(private val host: LibraryMenuHost) {
         badgeViews.addAll(built.badgeViews)
         // Header: X circular antes do título — mesmo padrão das outras telas
         built.view.findViewById<android.widget.TextView>(R.id.menu_title)?.text = entry.title
-        built.view.findViewById<View>(R.id.menu_close)?.setOnClickListener {
-            runCatching { HylianBoxApp.sfxManager }.getOrNull()?.back()
-            menuDialog?.dismiss()
-        }
 
         menuDialog = AlertDialog.Builder(context).setView(built.view).create()
         val dialog = menuDialog ?: return
@@ -120,6 +116,11 @@ class LibraryMenuController(private val host: LibraryMenuHost) {
         val dialogHeight = minOf(contentHeight + verticalInset, maxHeight)
 
         dialog.show()
+        br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton.bindDialog(
+                dialog,
+                built.view.findViewById(R.id.menu_close),
+                onBack = { dialog.dismiss() }
+        )
         dialog.window?.setLayout(dialogWidth, dialogHeight)
         dialog.window?.setBackgroundDrawable(
                 AppCompatResources.getDrawable(context, R.drawable.bg_menu_dialog)

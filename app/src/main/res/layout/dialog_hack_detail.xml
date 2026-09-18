@@ -17,15 +17,11 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <ImageButton
+        <include
             android:id="@+id/detail_close"
+            layout="@layout/switch_back_button"
             android:layout_width="@dimen/icon_button_size"
-            android:layout_height="@dimen/icon_button_size"
-            android:background="@drawable/bg_icon_button"
-            android:contentDescription="@string/detail_close_desc"
-            android:src="@drawable/ic_close"
-            android:scaleType="centerInside"
-            android:tint="@color/switch_text_primary" />
+            android:layout_height="@dimen/icon_button_size" />
 
         <TextView
             android:id="@+id/detail_name"
@@ -208,7 +204,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textColor="@color/switch_accent"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="13sp" />
 
             <TextView

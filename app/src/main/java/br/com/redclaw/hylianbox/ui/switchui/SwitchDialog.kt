@@ -40,7 +40,7 @@ import br.com.redclaw.hylianbox.R
  * positive/negative button row.
  *
  * Built for reuse across Phases D (Settings confirmations), E (Store) and F (RetroAchievements):
- * every focusable element (list rows and buttons) shows the cyan focus border, focus traversal
+ * every focusable element (list rows and buttons) shows the configured accent border, focus traversal
  * plays the focus-move "toc", activation plays select, and BACK plays the back sound before
  * dismissing.
  *
@@ -67,6 +67,7 @@ class SwitchDialog(private val context: Context) {
     private var customContent: View? = null
 
     private var dialog: AppCompatDialog? = null
+    private val closeHelper = SwitchBackButton()
 
     /** Replaces the single-choice list with an arbitrary view (e.g. 3 C buttons). */
     fun customView(view: View): SwitchDialog = apply { customContent = view }
@@ -116,9 +117,14 @@ class SwitchDialog(private val context: Context) {
                 if (fullscreenGameplay) R.style.GameplayFullscreenDialogTheme
                 else R.style.SwitchDialogTheme
         val dialog = AppCompatDialog(context, theme)
+        AccentManager.applyThemeOverlay(dialog.context)
         dialog.setContentView(view)
         dialog.setCancelable(true)
         dialog.setCanceledOnTouchOutside(!fullscreenGameplay)
+        dialog.setOnDismissListener {
+            closeHelper.detach()
+            this.dialog = null
+        }
         this.dialog = dialog
 
         // Size the window to fill (the scrim) so the box can be centered.
@@ -131,6 +137,15 @@ class SwitchDialog(private val context: Context) {
         bindMessage(view)
         bindList(view)
         bindButtons(view)
+        (GameplayFullscreenDialog.activity(context) as? androidx.appcompat.app.AppCompatActivity)
+                ?.let { activity ->
+                    closeHelper.attach(
+                            dialog,
+                            activity,
+                            view.findViewById(R.id.dialog_close),
+                            onBack = { dismiss() }
+                    )
+                }
 
         // BACK plays the back sound; let the dialog handle the actual dismissal.
         view.setOnKeyListener { _, keyCode, event ->
@@ -199,19 +214,22 @@ class SwitchDialog(private val context: Context) {
             list.removeAllViews()
             list.addView(custom)
             // Focus first focusable child for D-pad
-            custom.post { custom.findViewById<View>(custom.id)?.requestFocus() ?: run {
-                // find first focusable descendant
-                var first: View? = null
-                fun find(v: ViewGroup) {
-                    for (i in 0 until v.childCount) {
-                        val c = v.getChildAt(i)
-                        if (c.isFocusable && first == null) first = c
-                        if (c is ViewGroup) find(c)
-                    }
-                }
-                if (custom is ViewGroup) find(custom)
-                first?.requestFocus()
-            }}
+            custom.post {
+                custom.findViewById<View>(custom.id)?.requestFocus()
+                        ?: run {
+                            // find first focusable descendant
+                            var first: View? = null
+                            fun find(v: ViewGroup) {
+                                for (i in 0 until v.childCount) {
+                                    val c = v.getChildAt(i)
+                                    if (c.isFocusable && first == null) first = c
+                                    if (c is ViewGroup) find(c)
+                                }
+                            }
+                            if (custom is ViewGroup) find(custom)
+                            first?.requestFocus()
+                        }
+            }
             return
         }
         if (choiceItems.isEmpty()) {

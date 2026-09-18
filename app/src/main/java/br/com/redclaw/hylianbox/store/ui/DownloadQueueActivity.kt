@@ -30,8 +30,6 @@ class DownloadQueueActivity : ScaledAppCompatActivity() {
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.downloadQueueToolbar)
-        supportActionBar?.setTitle(R.string.download_queue_title)
         backHelper.attach(this, binding.downloadQueueBack.root, onBack = { finish() })
 
         adapter =

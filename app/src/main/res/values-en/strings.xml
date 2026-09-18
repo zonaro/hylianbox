@@ -14,6 +14,10 @@
     <string name="toast_state_none">No saved state found</string>
     <string name="menu_mute">Mute</string>
     <string name="menu_fast_forward">Fast Forward</string>
+    <string name="menu_aspect_ratio">Aspect Ratio</string>
+    <string name="aspect_ratio_4_3">4:3</string>
+    <string name="aspect_ratio_16_9">16:9</string>
+    <string name="aspect_ratio_fullscreen">Fullscreen</string>
     <string name="menu_core">Core</string>
     <string name="menu_button_stick">Button Stick</string>
     <string name="menu_hide_hud_buttons">Hide C/B Buttons</string>
@@ -364,7 +368,7 @@
 
     <!-- Settings: backups (local save export/import) -->
     <string name="backup_title">Backups</string>
-    <string name="backup_description">Export or restore the saves (SRAM and states) of all installed hacks to a local ZIP file. No data is sent to the cloud.</string>
+    <string name="backup_description">Protect your saves in a local ZIP file or sync saves and captures with your Google Drive account.</string>
     <string name="backup_export">Export saves</string>
     <string name="backup_import">Restore saves</string>
     <string name="backup_export_empty">No hacks installed to back up.</string>
@@ -374,6 +378,7 @@
 
     <!-- Settings: Google Drive cloud backup -->
     <string name="gdrive_subtitle">Cloud backup (Google Drive)</string>
+    <string name="gdrive_description">One unified flow for Google Drive backup and restore. Automatic backups use the same flow as manual backup.</string>
     <string name="gdrive_enable">Enable Google Drive backup</string>
     <string name="gdrive_connect">Connect Google account</string>
     <string name="gdrive_connected">Account: %1$s</string>
@@ -387,6 +392,12 @@
     <string name="gdrive_frequency_weekly">Weekly</string>
     <string name="gdrive_frequency_manual">Manual</string>
     <string name="gdrive_backup_now">Back up now</string>
+    <string name="gdrive_restore">Restore from Google Drive</string>
+    <string name="gdrive_restore_confirm">Matching saves from Google Drive will replace their local copies. Continue?</string>
+    <string name="gdrive_restore_confirm_action">Restore</string>
+    <string name="gdrive_restore_summary">Restore complete: %1$d file(s). Skipped: %2$d.</string>
+    <string name="gdrive_restore_summary_errors">Partial restore: %1$d file(s). Skipped: %2$d. Errors: %3$d.</string>
+    <string name="gdrive_restore_failed">Restore failed: %1$s</string>
     <string name="gdrive_view">View backups in Drive</string>
     <string name="gdrive_last_backup">Last backup: %1$s</string>
     <string name="gdrive_last_backup_never">Never</string>

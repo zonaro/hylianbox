@@ -203,33 +203,8 @@ class GameActivity : ScaledAppCompatActivity(), TrackerEquipmentHost, GameplayDi
 
     override fun onBackPressed() = viewModel.showMenu()
 
-    /* Tracks whether this Activity instance has already been started once;
-    false only right after onCreate(), true after returning from onStop() */
-    private var hasStarted = false
-
     override fun onStart() {
         super.onStart()
-
-        /* Some hardware-rendered cores (e.g. mupen64plus_next) can't recover
-        their GL context after the app is backgrounded, leaving a black
-        screen. GLRetroView only supports being created once during
-        Activity.onCreate(), so the safe fix is a full activity recreate:
-        the old RetroView is torn down by the normal ON_DESTROY lifecycle
-        dispatch (it's still a registered observer) as this instance goes
-        away, and onCreate() builds a fresh one, exactly like a normal
-        (working) cold launch. Do NOT call retroView.view.onDestroy() here
-        directly -- it races with the GL render thread and can crash.
-
-        The recreate is delegated to GameActivityViewModel.handleBackgroundReturn,
-        which only recreates once a frame has rendered (coreReady). If the core is
-        still loading it defers the recreate until the first frame arrives, avoiding
-        destruction of a mid-load core (SIGSEGV in retro_deinit). */
-        if (hasStarted) {
-            viewModel.handleBackgroundReturn(this)
-            return
-        }
-
-        hasStarted = true
     }
 
     override fun onDestroy() {

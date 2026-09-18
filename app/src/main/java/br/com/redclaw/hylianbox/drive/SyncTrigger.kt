@@ -36,15 +36,13 @@ import java.util.concurrent.TimeUnit
  *
  * Design: saves are written on the UI / emulation thread, so we must NOT upload
  * inline (that would block and risk an ANR). Instead we mark the file "dirty" in
- * [SyncMetaStore] and enqueue [CloudSyncWorker] with [ExistingWorkPolicy.REPLACE]
- * — WorkManager coalesces repeated marks into a single deferred run (30s backoff,
- * network-connected constraint), so rapid successive saves do not spawn a worker
- * per save. The worker later reads the dirty set and uploads only those files.
+ * enqueue the same [GoogleDriveBackupWorker] used by manual and periodic backup.
+ * WorkManager coalesces repeated writes, so there is only one active Drive pipeline.
  */
 object SyncTrigger {
 
     /** Unique work name so repeated enqueues replace rather than stack. */
-    const val WORK_NAME = "cloud_sync"
+    const val WORK_NAME = "gdrive_backup_changes"
 
     /** Mark the SRAM file for [hackId] dirty and schedule a sync. */
     fun markDirtySram(context: Context, hackId: String) =
@@ -55,12 +53,14 @@ object SyncTrigger {
         markDirty(context, Storage.getInstance(context).state(hackId))
 
     /**
-     * Mark [file] dirty (if cloud sync is enabled) and enqueue the worker.
-     * No-op when cloud sync is disabled, so non-synced installs pay nothing.
+     * Schedule the unified backup when Drive save backup and automatic backup are enabled.
      */
     fun markDirty(context: Context, file: File) {
-        if (!CorePrefs.getCloudSyncEnabled(context)) return
-        SyncMetaStore(context).markDirty(file.name)
+        if (!file.exists() ||
+            !CorePrefs.getGdriveEnabled(context) ||
+            !CorePrefs.getGdriveBackupSaves(context) ||
+            !CorePrefs.getGdriveAutoBackup(context)
+        ) return
         enqueue(context)
     }
 
@@ -71,7 +71,7 @@ object SyncTrigger {
         } else {
             NetworkType.CONNECTED
         }
-        val request = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+        val request = OneTimeWorkRequestBuilder<GoogleDriveBackupWorker>()
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(networkType)

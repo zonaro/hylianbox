@@ -11,7 +11,6 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/switch_panel"
-        app:title="@string/achievements_title"
         app:titleTextColor="@color/switch_text_primary">
 
         <include
@@ -20,6 +19,17 @@
             android:layout_width="@dimen/icon_button_size"
             android:layout_height="@dimen/icon_button_size"
             android:layout_gravity="start|center_vertical" />
+
+        <TextView
+            android:id="@+id/achievements_toolbar_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="12dp"
+            android:text="@string/achievements_title"
+            android:textColor="@color/switch_text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
     </androidx.appcompat.widget.Toolbar>
 
     <LinearLayout
@@ -107,7 +117,7 @@
             android:background="@drawable/bg_icon_button"
             android:contentDescription="@string/ra_sort_button"
             android:src="@drawable/ic_tune"
-            android:tint="@color/switch_accent" />
+            android:tint="?attr/colorPrimary" />
 
         <ImageButton
             android:id="@+id/achievements_view_toggle"
@@ -117,7 +127,7 @@
             android:background="@drawable/bg_icon_button"
             android:contentDescription="@string/ra_view_mode"
             android:src="@drawable/ic_view_list"
-            android:tint="@color/switch_accent" />
+            android:tint="?attr/colorPrimary" />
     </LinearLayout>
 
     <TextView

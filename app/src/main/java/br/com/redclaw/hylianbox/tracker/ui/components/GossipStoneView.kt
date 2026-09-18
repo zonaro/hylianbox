@@ -19,13 +19,15 @@
 package br.com.redclaw.hylianbox.tracker.ui.components
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 
-/** Purple Gossip Stone card with a stone icon (no "Pedra" text) + hint text. */
+/** Accent-colored Gossip Stone card with a stone icon (no "Pedra" text) + hint text. */
 class GossipStoneView(context: Context) : FrameLayout(context) {
 
     private val iconView: ImageView
@@ -39,12 +41,13 @@ class GossipStoneView(context: Context) : FrameLayout(context) {
         iconView =
                 ImageView(context).apply {
                     setImageResource(R.drawable.ic_gossip_stone)
+                    imageTintList = ColorStateList.valueOf(AccentManager.getOnAccentColor(context))
                     scaleType = ImageView.ScaleType.FIT_CENTER
                 }
         textView =
                 TextView(context).apply {
                     gravity = Gravity.CENTER
-                    setTextColor(context.getColor(android.R.color.white))
+                    setTextColor(AccentManager.getOnAccentColor(context))
                     textSize = 11f
                     maxLines = 3
                 }

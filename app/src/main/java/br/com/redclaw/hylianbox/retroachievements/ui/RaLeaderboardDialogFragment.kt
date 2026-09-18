@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.DialogFragment
 import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.HylianBoxApp
@@ -53,16 +54,28 @@ class RaLeaderboardDialogFragment : DialogFragment() {
     }
 
     /** Bold Switch-style section header shown above the leaderboard list. */
-    private fun makeHeader(context: android.content.Context): TextView =
-        TextView(context).apply {
-            setText(R.string.ra_leaderboards_title)
-            setTextColor(
-                androidx.core.content.ContextCompat.getColor(context, R.color.switch_text_primary)
+    private fun makeHeader(context: android.content.Context): View =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val close =
+                LayoutInflater.from(context).inflate(R.layout.switch_back_button, this, false)
+            addView(close)
+            addView(
+                TextView(context).apply {
+                    setText(R.string.ra_leaderboards_title)
+                    setTextColor(
+                        androidx.core.content.ContextCompat.getColor(
+                            context,
+                            R.color.switch_text_primary
+                        )
+                    )
+                    textSize = 18f
+                    paint.isFakeBoldText = true
+                    val density = resources.displayMetrics.density
+                    setPadding((12 * density).toInt(), 0, 0, (12 * density).toInt())
+                }
             )
-            textSize = 18f
-            paint.isFakeBoldText = true
-            val density = resources.displayMetrics.density
-            setPadding(0, 0, 0, (12 * density).toInt())
         }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -88,8 +101,7 @@ class RaLeaderboardDialogFragment : DialogFragment() {
                 )
             }
             if (!isAdded) return@launch
-            container.removeAllViews()
-            container.addView(makeHeader(requireContext()))
+            while (container.childCount > 1) container.removeViewAt(1)
 
             if (data == null) {
                 addMessage(R.string.ra_error_network)
@@ -156,6 +168,11 @@ class RaLeaderboardDialogFragment : DialogFragment() {
     override fun onStart() {
         super.onStart()
         GameplayFullscreenDialog.apply(requireDialog())
+        SwitchBackButton.bindDialog(
+            requireDialog(),
+            requireView().findViewById(R.id.back_button),
+            onBack = { dismiss() }
+        )
     }
 
     companion object {

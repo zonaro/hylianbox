@@ -14,10 +14,6 @@
     <color name="switch_panel_light">#FFFFFF</color>
     <color name="switch_dialog_bg_dark">#3A3A3C</color>
     <color name="switch_dialog_bg_light">#FFFFFF</color>
-    <color name="switch_accent">#00BCD4</color>
-    <color name="switch_accent_amber">#FFA000</color>
-    <color name="switch_accent_focus">#00BCD4</color>
-
     <!-- Accent color options (constant across configs, used by AccentManager).
          Keys match AccentOption enum values. -->
     <color name="accent_cyan">#00BCD4</color>
@@ -50,12 +46,13 @@
     <color name="switch_text_secondary">#666666</color>
     <color name="switch_scrim">#66000000</color>
     <color name="switch_dock_circle">#FFFFFF</color>
-    <!-- Dock glyphs: dark green on the white light-mode circles. -->
-    <color name="switch_dock_icon">#02830c</color>
-    <!-- Per-dock glyph colors (constant across night mode, like switch_accent_*).
-         Store = red, Control = green; others reuse switch_accent_* / text tokens. -->
-    <color name="switch_dock_icon_store">#E53935</color>
-    <color name="switch_dock_icon_control">#43A047</color>
+    <color name="switch_dock_icon">#FFFFFF</color>
+    <!-- Home dock glyphs are the sole fixed-color exception to the user-selected accent. -->
+    <color name="switch_dock_store">#E53935</color>
+    <color name="switch_dock_gallery">#00BCD4</color>
+    <color name="switch_dock_achievements">#FFA000</color>
+    <color name="switch_dock_control">#43A047</color>
+    <color name="switch_dock_settings">#FFFFFF</color>
     <!-- Charcoal fill for the circular "Todos os Jogos" card (NS Launcher style). -->
     <color name="switch_all_games_bg">#BDBDBD</color>
 
@@ -66,7 +63,8 @@
     <!-- Legacy Material 3 token names remapped to Switch equivalents so
          existing layouts/themes keep compiling (full visual restyle continues
          in later Switch UI phases). Mapping: background->switch_bg,
-         surface->panel, primary->accent cyan, secondary->accent amber. -->
+         surface->panel; primary and secondary default to cyan only until the runtime-selected
+         accent overlay is applied. -->
     <color name="color_background">#F0F0F0</color>
     <color name="color_surface">#FFFFFF</color>
     <color name="color_surface_container">#FFFFFF</color>
@@ -78,7 +76,7 @@
     <color name="color_on_primary_container">#FFFFFF</color>
     <color name="color_on_surface">#333333</color>
     <color name="color_on_surface_variant">#666666</color>
-    <color name="color_secondary">#FFA000</color>
+    <color name="color_secondary">#00BCD4</color>
     <color name="color_on_secondary">#FFFFFF</color>
     <color name="color_error">#B3261E</color>
     <color name="color_on_error">#FFFFFF</color>
@@ -89,11 +87,4 @@
     <!-- Neutral cover backdrop (blends with the card surface) -->
     <color name="color_cover_background">#FFFFFF</color>
 
-    <!-- Library tile badge colors, keyed by game family (NOT in values-night so
-         dark theme cannot override them). OoT = yellow bg / black icon,
-         MM = purple bg / white icon. -->
-    <color name="color_badge_oot_background">#FFEB3B</color>
-    <color name="color_badge_oot_icon">#000000</color>
-    <color name="color_badge_mm_background">#7B1FA2</color>
-    <color name="color_badge_mm_icon">#FFFFFF</color>
 </resources>

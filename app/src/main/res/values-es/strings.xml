@@ -14,6 +14,10 @@
     <string name="toast_state_none">No hay ningún estado guardado</string>
     <string name="menu_mute">Silenciar</string>
     <string name="menu_fast_forward">Acelerar</string>
+    <string name="menu_aspect_ratio">Proporción</string>
+    <string name="aspect_ratio_4_3">4:3</string>
+    <string name="aspect_ratio_16_9">16:9</string>
+    <string name="aspect_ratio_fullscreen">Pantalla Completa</string>
     <string name="menu_core">Core</string>
     <string name="menu_button_stick">Button Stick</string>
     <string name="menu_hide_hud_buttons">Ocultar Botones C/B</string>
@@ -364,7 +368,7 @@
 
     <!-- Settings: backups (local save export/import) -->
     <string name="backup_title">Copias de seguridad</string>
-    <string name="backup_description">Exporta o restaura las partidas (SRAM y estados) de todos los hacks instalados en un archivo ZIP local. Ningún dato se envía a la nube.</string>
+    <string name="backup_description">Protege tus partidas en un archivo ZIP local o sincroniza partidas y capturas con tu cuenta de Google Drive.</string>
     <string name="backup_export">Exportar partidas</string>
     <string name="backup_import">Restaurar partidas</string>
     <string name="backup_export_empty">Ningún hack instalado para hacer copia.</string>
@@ -374,6 +378,7 @@
 
     <!-- Settings: Google Drive cloud backup -->
     <string name="gdrive_subtitle">Copia de seguridad en la nube (Google Drive)</string>
+    <string name="gdrive_description">Un único flujo para copia y restauración en Google Drive. Las copias automáticas usan el mismo flujo que la copia manual.</string>
     <string name="gdrive_enable">Activar copia de seguridad en Google Drive</string>
     <string name="gdrive_connect">Conectar cuenta de Google</string>
     <string name="gdrive_connected">Cuenta: %1$s</string>
@@ -387,6 +392,12 @@
     <string name="gdrive_frequency_weekly">Semanal</string>
     <string name="gdrive_frequency_manual">Manual</string>
     <string name="gdrive_backup_now">Hacer copia ahora</string>
+    <string name="gdrive_restore">Restaurar desde Google Drive</string>
+    <string name="gdrive_restore_confirm">Las partidas de Google Drive sustituirán sus copias locales correspondientes. ¿Continuar?</string>
+    <string name="gdrive_restore_confirm_action">Restaurar</string>
+    <string name="gdrive_restore_summary">Restauración completa: %1$d archivo(s). Omitidos: %2$d.</string>
+    <string name="gdrive_restore_summary_errors">Restauración parcial: %1$d archivo(s). Omitidos: %2$d. Errores: %3$d.</string>
+    <string name="gdrive_restore_failed">Error de restauración: %1$s</string>
     <string name="gdrive_view">Ver copias en Drive</string>
     <string name="gdrive_last_backup">Última copia: %1$s</string>
     <string name="gdrive_last_backup_never">Nunca</string>

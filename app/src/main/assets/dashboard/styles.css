@@ -1,7 +1,5 @@
-/* HylianBox — Dashboard Styles — Nintendo Switch HOME edition
-   Tokens match the native app (values-night/colors.xml + VISUAL_IDENTITY.md).
-   Dark default (#2D2D2D), cyan focus (#00BCD4), amber (#FFA000), green (#02830C).
-*/
+/* HylianBox — Dashboard Styles — Nintendo Switch HOME edition.
+   Interactive color is replaced at runtime with the same accent selected in the native app. */
 
 :root {
     --bg-primary: #2D2D2D;
@@ -9,9 +7,12 @@
     --bg-panel-2: #2A2A2A;
     --bg-dialog: #3A3A3C;
     --accent: #00BCD4;
-    --accent-hover: #00E5FF;
-    --accent-amber: #FFA000;
-    --accent-green: #02830C;
+    --accent-hover: var(--accent);
+    --accent-amber: var(--accent);
+    --accent-green: var(--accent);
+    --accent-contrast: #000000;
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+    --accent-border-soft: color-mix(in srgb, var(--accent) 35%, transparent);
     --text-primary: #FFFFFF;
     --text-secondary: #9E9E9E;
     --border: rgba(255,255,255,0.08);
@@ -22,8 +23,8 @@
     --focus-border: 3px solid var(--accent);
     --dock-circle: #555555;
     --danger: #E53935;
-    --success: #43A047;
-    --warning: #FF9800;
+    --success: var(--accent);
+    --warning: var(--accent);
     --shadow: 0 8px 24px rgba(0,0,0,0.45);
     --shadow-card: 0 4px 16px rgba(0,0,0,0.35);
 }
@@ -111,7 +112,7 @@ a:hover { text-decoration: underline; }
 .switch-nav-link.active {
     border-color: var(--accent);
     color: var(--text-primary);
-    background: rgba(0,188,212,0.12);
+    background: var(--accent-soft);
 }
 .switch-status {
     display: flex;
@@ -193,7 +194,7 @@ a:hover { text-decoration: underline; }
 .switch-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .switch-btn-primary {
     background: var(--accent);
-    color: #0a0a0a;
+    color: var(--accent-contrast);
     border-color: var(--accent);
 }
 .switch-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
@@ -236,7 +237,7 @@ a:hover { text-decoration: underline; }
 .switch-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-card);
-    border-color: rgba(0,188,212,0.35);
+    border-color: var(--accent-border-soft);
 }
 .switch-card:focus-within,
 .switch-card.is-focused {
@@ -288,8 +289,8 @@ a:hover { text-decoration: underline; }
     backdrop-filter: blur(4px);
     border: 1px solid rgba(255,255,255,0.12);
 }
-.switch-card-badge-vanilla { background: rgba(255,235,59,0.92); color: #000; border-color: rgba(0,0,0,0.12); }
-.switch-card-badge-hack { background: rgba(0,188,212,0.92); color: #000; }
+.switch-card-badge-vanilla,
+.switch-card-badge-hack { background: var(--accent); color: var(--accent-contrast); border-color: rgba(0,0,0,0.12); }
 
 .switch-card-info {
     padding: 10px 12px 12px;
@@ -469,7 +470,7 @@ a:hover { text-decoration: underline; }
     gap: 10px;
     text-align: center;
     padding: 24px;
-    background: radial-gradient(600px 400px at 50% 30%, rgba(0,188,212,0.14), transparent 70%), #0a0a0a;
+    background: radial-gradient(600px 400px at 50% 30%, var(--accent-soft), transparent 70%), #0a0a0a;
 }
 .switch-emulator-placeholder[hidden] { display: none !important; }
 .switch-emulator-icon {
@@ -477,7 +478,7 @@ a:hover { text-decoration: underline; }
     height: 56px;
     border-radius: 50%;
     background: var(--accent);
-    color: #000;
+    color: var(--accent-contrast);
     display: grid;
     place-items: center;
     font-size: 22px;
@@ -686,7 +687,7 @@ a:hover { text-decoration: underline; }
     font-size: 13px;
     font-weight: 500;
 }
-.switch-dialog-row:hover { border-color: var(--accent); background: rgba(0,188,212,0.08); }
+.switch-dialog-row:hover { border-color: var(--accent); background: var(--accent-soft); }
 .switch-dialog-row small { color: var(--text-secondary); font-weight: 400; }
 .switch-dialog-footer { padding: 12px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border); }
 
@@ -712,9 +713,9 @@ a:hover { text-decoration: underline; }
     max-width: min(520px, calc(100vw - 24px));
     text-align: center;
 }
-.switch-toast.success { border-color: rgba(67,160,71,0.45); }
+.switch-toast.success { border-color: var(--accent-border-soft); }
 .switch-toast.error { border-color: rgba(229,57,53,0.45); }
-.switch-toast.info { border-color: rgba(0,188,212,0.35); }
+.switch-toast.info { border-color: var(--accent-border-soft); }
 @keyframes switchToastIn { from { transform: translateX(-50%) translateY(8px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
 
 /* ---------- Responsive ---------- */

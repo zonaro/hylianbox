@@ -19,6 +19,8 @@
 package br.com.redclaw.hylianbox.drive
 
 import android.content.Context
+import android.util.AtomicFile
+import br.com.redclaw.hylianbox.patcher.n64.ChecksumCalculator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -33,6 +35,9 @@ import java.io.File
  * cached token is invalidated and the whole run is retried exactly once.
  */
 object GoogleDriveBackup {
+
+    /** Result of restoring the current save set from Google Drive. */
+    data class RestoreSummary(val restored: Int, val skipped: Int, val errors: List<String>)
 
     /**
      * Build a [GoogleDriveBackupService] bound to [accountName], or null when no
@@ -88,5 +93,76 @@ object GoogleDriveBackup {
             // Retry the whole run once with a fresh token after invalidation.
             service.backup(items, keepPerCategory, onItemProgress)
         }
+    }
+
+    /**
+     * Restore all recognized Drive saves into destinations selected by [targetResolver].
+     * Downloads are verified when a CRC is available and replace local files atomically.
+     * Flat save files created by older HylianBox builds are accepted by the service listing.
+     */
+    suspend fun restoreSaves(
+        context: Context,
+        accountName: String,
+        targetResolver: (hackId: String, fileName: String) -> File?
+    ): RestoreSummary = withContext(Dispatchers.IO) {
+        val service = buildService(context, accountName)
+            ?: throw IllegalStateException("gdrive account missing")
+        val errors = mutableListOf<String>()
+        var restored = 0
+        var skipped = 0
+        val syncStore = SyncMetaStore(context)
+        val conflictStore = ConflictStore(context)
+        val saves = service.listRemoteSaves()
+            .sortedByDescending { it.file.modifiedTime }
+            .distinctBy { it.hackId to it.file.name }
+        for (remote in saves) {
+            val target = targetResolver(remote.hackId, remote.file.name)
+            if (target == null) {
+                skipped++
+                continue
+            }
+            val temp = File(target.parentFile, ".${target.name}.drive-download")
+            runCatching {
+                target.parentFile?.mkdirs()
+                service.downloadFile(remote.file.id, temp)
+                remote.file.appProperties["crc32"]?.takeIf { it.isNotBlank() }?.let { expected ->
+                    val actual = ChecksumCalculator.crc32(temp)
+                    check(actual.equals(expected, ignoreCase = true)) {
+                        "CRC32 mismatch for ${remote.file.name}"
+                    }
+                }
+                val atomicTarget = AtomicFile(target)
+                val output = atomicTarget.startWrite()
+                try {
+                    temp.inputStream().use { input -> input.copyTo(output) }
+                    atomicTarget.finishWrite(output)
+                } catch (error: Exception) {
+                    atomicTarget.failWrite(output)
+                    throw error
+                } finally {
+                    temp.delete()
+                }
+                val actualCrc = ChecksumCalculator.crc32(target)
+                syncStore.putMeta(
+                    SyncMeta(
+                        filePath = target.name,
+                        crc32 = actualCrc,
+                        lastModified = target.lastModified(),
+                        size = target.length(),
+                        driveFileId = remote.file.id,
+                        driveModifiedTime = remote.file.modifiedTime
+                    )
+                )
+                syncStore.clearDirty(target.name)
+                conflictStore.getAll()
+                    .filter { it.hackId == remote.hackId && it.fileName == target.name }
+                    .forEach { conflictStore.remove(it.id) }
+                restored++
+            }.onFailure { error ->
+                temp.delete()
+                errors += "${remote.file.name}: ${error.message ?: "restore failed"}"
+            }
+        }
+        RestoreSummary(restored, skipped, errors)
     }
 }

@@ -42,6 +42,7 @@ import br.com.redclaw.hylianbox.store.GitHubPatchResolver
 import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.BadgeBinder
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import coil.load
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,6 +95,7 @@ class HackDetailDialog : DialogFragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
+        AccentManager.applyThemeOverlay(inflater.context)
         _binding = DialogHackDetailBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -102,10 +104,6 @@ class HackDetailDialog : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         populate()
         observeQueue()
-        binding.detailClose.setOnClickListener {
-            sfx?.back()
-            dismiss()
-        }
         binding.detailDownload.setOnClickListener {
             Log.d(
                     "HackDetailDialog",
@@ -127,6 +125,7 @@ class HackDetailDialog : DialogFragment() {
         // bars don't reappear (the activity's immersive mode doesn't carry over
         // to a separate dialog window).
         dialog?.window?.let { SwitchImmersive.enterFullscreen(it) }
+        dialog?.let { SwitchBackButton.bindDialog(it, binding.detailClose.root) { dismiss() } }
         dialog?.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN) {
                 sfx?.back()
@@ -255,7 +254,7 @@ class HackDetailDialog : DialogFragment() {
                         text = url
                         textSize = 13f
                         setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.switch_accent)
+                                AccentManager.getAccentColor(requireContext())
                         )
                         setPadding(0, 4, 0, 4)
                         isClickable = true
@@ -276,7 +275,7 @@ class HackDetailDialog : DialogFragment() {
                         text = "${link.label}: ${link.url}"
                         textSize = 13f
                         setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.switch_accent)
+                                AccentManager.getAccentColor(requireContext())
                         )
                         setPadding(0, 4, 0, 4)
                         isClickable = true

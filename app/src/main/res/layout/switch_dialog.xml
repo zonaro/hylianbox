@@ -25,13 +25,20 @@
             android:orientation="horizontal"
             android:visibility="gone">
 
+            <include
+                android:id="@+id/dialog_close"
+                layout="@layout/switch_back_button"
+                android:layout_width="@dimen/icon_button_size"
+                android:layout_height="@dimen/icon_button_size" />
+
             <ImageView
                 android:id="@+id/dialog_icon"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
+                android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
                 android:contentDescription="@null"
-                android:tint="@color/switch_accent" />
+                android:tint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/dialog_title"

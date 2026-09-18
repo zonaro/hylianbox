@@ -18,15 +18,11 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageButton
+            <include
                 android:id="@+id/tracker_close"
+                layout="@layout/switch_back_button"
                 android:layout_width="@dimen/icon_button_size"
-                android:layout_height="@dimen/icon_button_size"
-                android:background="@drawable/bg_icon_button"
-                android:contentDescription="@string/detail_close_desc"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_close"
-                android:tint="@color/switch_text_primary" />
+                android:layout_height="@dimen/icon_button_size" />
 
             <ImageView
                 android:id="@+id/tracker_icon"
@@ -36,7 +32,7 @@
                 android:layout_marginEnd="10dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_tracker"
-                android:tint="@color/switch_accent" />
+                android:tint="?attr/colorPrimary" />
 
             <TextView
                 android:id="@+id/tracker_title"
@@ -58,7 +54,7 @@
                 android:contentDescription="@string/tracker_clear"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_uninstall"
-                android:tint="@color/switch_accent" />
+                android:tint="?attr/colorPrimary" />
 
             <ImageButton
                 android:id="@+id/tracker_export"
@@ -69,7 +65,7 @@
                 android:contentDescription="@string/tracker_export"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_export"
-                android:tint="@color/switch_accent" />
+                android:tint="?attr/colorPrimary" />
 
             <ImageButton
                 android:id="@+id/tracker_import"
@@ -79,7 +75,7 @@
                 android:contentDescription="@string/tracker_import"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_import"
-                android:tint="@color/switch_accent" />
+                android:tint="?attr/colorPrimary" />
 
         </LinearLayout>
 

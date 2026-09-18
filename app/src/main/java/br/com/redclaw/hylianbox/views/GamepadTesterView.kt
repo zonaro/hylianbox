@@ -57,7 +57,8 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     private val secondaryText = ContextCompat.getColor(context, R.color.switch_text_secondary)
     private val focusColor
         get() = AccentManager.getAccentColor(context)
-    private val amberColor = ContextCompat.getColor(context, R.color.switch_accent_amber)
+    private val amberColor
+        get() = AccentManager.getAccentColor(context)
     private val analogColor
         get() = AccentManager.getAccentColor(context)
 

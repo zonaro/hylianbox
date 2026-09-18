@@ -141,4 +141,25 @@ class SaveBackupManagerTest {
         assertEquals(1, summary.skipped)
         assertEquals(0, summary.files)
     }
+
+    @Test
+    fun restoreSingleAcceptsLegacyPerGameZip() {
+        val zipBytes = ByteArrayOutputStream().use { bos ->
+            ZipOutputStream(bos).use { zip ->
+                zip.putNextEntry(ZipEntry("sram.bin"))
+                zip.write(byteArrayOf(7, 6, 5))
+                zip.closeEntry()
+            }
+            bos.toByteArray()
+        }
+        val sram = tempFile(ByteArray(0))
+        val state = tempFile(ByteArray(0))
+
+        val summary = SaveBackupManager.restoreSingle(
+            zipBytes.inputStream(), "legacy_game", sram, state
+        )
+
+        assertEquals(1, summary.files)
+        assertTrue(byteArrayOf(7, 6, 5).contentEquals(sram.readBytes()))
+    }
 }

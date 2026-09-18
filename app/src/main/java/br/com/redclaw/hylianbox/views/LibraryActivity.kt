@@ -35,7 +35,6 @@ import br.com.redclaw.hylianbox.settings.ui.SettingsActivity
 import br.com.redclaw.hylianbox.shortcuts.GamePlayHistoryStore
 import br.com.redclaw.hylianbox.shortcuts.GameShortcutsManager
 import br.com.redclaw.hylianbox.store.ui.StoreActivity
-import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDock
 import br.com.redclaw.hylianbox.ui.switchui.SwitchGridActivity
 import br.com.redclaw.hylianbox.ui.switchui.SwitchHomeRow
@@ -147,32 +146,30 @@ class LibraryActivity : ScaledAppCompatActivity() {
 
     /** Build the dock destinations (Loja, Galeria, RetroAchievements, Controle, Configurações). */
     private fun setupDock() {
-        val galleryIconColor = AccentManager.getAccentColor(this)
         val dockItems =
                 listOf(
                         SwitchDock.DockItem(
                                 R.drawable.ic_store,
+                                R.color.switch_dock_store,
                                 R.string.dock_store,
-                                R.color.switch_dock_icon_store,
                                 { startActivity(Intent(this, StoreActivity::class.java)) }
                         ),
                         SwitchDock.DockItem(
                                 R.drawable.ic_gallery,
+                                R.color.switch_dock_gallery,
                                 R.string.dock_gallery,
-                                R.color.switch_accent_focus, // fallback
-                                { startActivity(Intent(this, GalleryActivity::class.java)) },
-                                galleryIconColor // dynamic accent color
+                                { startActivity(Intent(this, GalleryActivity::class.java)) }
                         ),
                         SwitchDock.DockItem(
                                 R.drawable.ic_trophy,
+                                R.color.switch_dock_achievements,
                                 R.string.dock_achievements,
-                                R.color.switch_accent_amber,
                                 { startActivity(Intent(this, AchievementsActivity::class.java)) }
                         ),
                         SwitchDock.DockItem(
                                 R.drawable.ic_gamepad,
+                                R.color.switch_dock_control,
                                 R.string.dock_control,
-                                R.color.switch_dock_icon_control,
                                 {
                                     if (GamepadTesterActivity.hasConnectedController()) {
                                         startActivity(
@@ -190,8 +187,8 @@ class LibraryActivity : ScaledAppCompatActivity() {
                         ),
                         SwitchDock.DockItem(
                                 R.drawable.ic_settings,
+                                R.color.switch_dock_settings,
                                 R.string.dock_settings,
-                                R.color.switch_text_primary,
                                 { startActivity(Intent(this, SettingsActivity::class.java)) }
                         )
                 )

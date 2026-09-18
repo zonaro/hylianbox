@@ -16,15 +16,11 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageButton
+        <include
             android:id="@+id/menu_close"
+            layout="@layout/switch_back_button"
             android:layout_width="@dimen/icon_button_size"
-            android:layout_height="@dimen/icon_button_size"
-            android:background="@drawable/bg_icon_button"
-            android:contentDescription="@string/detail_close_desc"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_close"
-            android:tint="@color/switch_text_primary" />
+            android:layout_height="@dimen/icon_button_size" />
 
         <TextView
             android:id="@+id/menu_title"

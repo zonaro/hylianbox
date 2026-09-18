@@ -20,7 +20,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/switch_panel"
-        app:navigationIconTint="@color/switch_text_primary"
+        app:navigationIconTint="?attr/colorPrimary"
         app:titleTextColor="@color/switch_text_primary">
 
         <include
@@ -29,6 +29,30 @@
             android:layout_width="@dimen/icon_button_size"
             android:layout_height="@dimen/icon_button_size"
             android:layout_gravity="start|center_vertical" />
+
+        <TextView
+            android:id="@+id/settings_toolbar_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="12dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/settings_title"
+            android:textColor="@color/switch_text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/settings_navigation_button"
+            android:layout_width="@dimen/icon_button_size"
+            android:layout_height="@dimen/icon_button_size"
+            android:layout_gravity="end|center_vertical"
+            android:background="@drawable/bg_icon_button"
+            android:contentDescription="@string/settings_open_navigation"
+            android:src="@drawable/ic_menu"
+            app:tint="?attr/colorPrimary"
+            android:visibility="gone" />
     </androidx.appcompat.widget.Toolbar>
 
         <LinearLayout
@@ -97,11 +121,6 @@
                     android:id="@+id/settings_nav_backup"
                     style="@style/SwitchSettingsNavigationRow"
                     android:text="@string/backup_title" />
-
-                <TextView
-                    android:id="@+id/settings_nav_cloudsync"
-                    style="@style/SwitchSettingsNavigationRow"
-                    android:text="@string/cloudsync_title" />
 
                 <TextView
                     android:id="@+id/settings_nav_language"
@@ -529,7 +548,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="@string/backup_description"
+                    android:text="@string/gdrive_description"
                     android:textColor="@color/switch_text_secondary"
                     android:textSize="13sp" />
 
@@ -685,6 +704,50 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:text="@string/cloudsync_wifi_only"
+                            android:textColor="@color/switch_text_primary"
+                            android:textSize="15sp" />
+
+                        <Switch
+                            android:id="@+id/settings_cloudsync_wifi"
+                            style="@style/SwitchSwitch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/cloudsync_notify"
+                            android:textColor="@color/switch_text_primary"
+                            android:textSize="15sp" />
+
+                        <Switch
+                            android:id="@+id/settings_cloudsync_notify"
+                            style="@style/SwitchSwitch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
                             android:text="@string/gdrive_frequency"
                             android:textColor="@color/switch_text_primary"
                             android:textSize="15sp" />
@@ -705,6 +768,22 @@
                         android:text="@string/gdrive_backup_now" />
 
                     <Button
+                        android:id="@+id/settings_gdrive_restore"
+                        style="@style/SwitchButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/gdrive_restore" />
+
+                    <Button
+                        android:id="@+id/settings_cloudsync_view_conflicts"
+                        style="@style/SwitchButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/cloudsync_view_conflicts" />
+
+                    <Button
                         android:id="@+id/settings_gdrive_view"
                         style="@style/SwitchButton"
                         android:layout_width="wrap_content"
@@ -720,6 +799,14 @@
                         android:textColor="@color/switch_text_secondary"
                         android:textSize="13sp" />
 
+                    <TextView
+                        android:id="@+id/settings_cloudsync_status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/switch_text_secondary"
+                        android:textSize="13sp" />
+
                     <ProgressBar
                         android:id="@+id/settings_gdrive_progress"
                         style="?android:attr/progressBarStyleHorizontal"
@@ -728,113 +815,6 @@
                         android:layout_marginTop="8dp"
                         android:visibility="gone" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Section: Cloud Sync (automatic, per-save) -->
-            <LinearLayout
-                android:id="@+id/settings_section_cloudsync"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="0dp"
-                android:background="@drawable/bg_settings_section"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    style="@style/SwitchSectionHeader"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/cloudsync_title" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/cloudsync_description"
-                    android:textColor="@color/switch_text_secondary"
-                    android:textSize="13sp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/cloudsync_enable"
-                        android:textColor="@color/switch_text_primary"
-                        android:textSize="15sp" />
-
-                    <Switch
-                        android:id="@+id/settings_cloudsync_enabled"
-                        style="@style/SwitchSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/cloudsync_wifi_only"
-                        android:textColor="@color/switch_text_primary"
-                        android:textSize="15sp" />
-
-                    <Switch
-                        android:id="@+id/settings_cloudsync_wifi"
-                        style="@style/SwitchSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/cloudsync_notify"
-                        android:textColor="@color/switch_text_primary"
-                        android:textSize="15sp" />
-
-                    <Switch
-                        android:id="@+id/settings_cloudsync_notify"
-                        style="@style/SwitchSwitch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/settings_cloudsync_status"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:textColor="@color/switch_text_secondary"
-                    android:textSize="13sp" />
-
-                <Button
-                    android:id="@+id/settings_cloudsync_view_conflicts"
-                    style="@style/SwitchButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/cloudsync_view_conflicts" />
             </LinearLayout>
 
             <!-- Section: Language -->

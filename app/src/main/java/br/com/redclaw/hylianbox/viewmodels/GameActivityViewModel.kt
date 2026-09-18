@@ -85,6 +85,7 @@ import br.com.redclaw.hylianbox.ui.switchui.BadgeBinder
 import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.utils.MenuActionItem
+import br.com.redclaw.hylianbox.utils.MenuBadgeEntry
 import br.com.redclaw.hylianbox.utils.MenuEnabledEntry
 import br.com.redclaw.hylianbox.utils.MenuGridBuilder
 import br.com.redclaw.hylianbox.utils.MenuSection
@@ -147,9 +148,12 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private var equippedItemsGame: TrackerGame? = null
     private var equippedItemsAssetCrc: String? = null
     private val equippedIconBitmaps = mutableMapOf<String, Bitmap>()
-    val equippedSnapshot: EquippedItemsSnapshot? get() = equippedItems
-    val equippedGame: TrackerGame? get() = equippedItemsGame
-    val equippedAssetCrc: String? get() = equippedItemsAssetCrc
+    val equippedSnapshot: EquippedItemsSnapshot?
+        get() = equippedItems
+    val equippedGame: TrackerGame?
+        get() = equippedItemsGame
+    val equippedAssetCrc: String?
+        get() = equippedItemsAssetCrc
     private var areaOverlayView: AreaOverlayView? = null
 
     /** True while Z is held from a double-tap on the analog stick (see [onStickDoubleTap]). */
@@ -189,6 +193,9 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
 
     /** Live references to badge TextViews, rebuilt every [prepareMenu]. */
     private val badgeViews = mutableListOf<TextView>()
+
+    /** Live references to dynamic badge entries, rebuilt every [prepareMenu]. */
+    private val badgeEntries = mutableListOf<MenuBadgeEntry>()
 
     /**
      * Live references to non-toggle item cells, rebuilt every [prepareMenu]; used to grey out /
@@ -256,11 +263,8 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
 
     /**
      * Set when a background-return recreate was deferred because the core was still loading;
-     * consumed once the first frame renders (see [handleBackgroundReturn] and the frame observer in
-     * [setupRetroView]).
+     * consumed once the first frame renders (see [setupRetroView]).
      */
-    private var pendingRecreate = false
-
     private val autoZPrefsKey = N64ControllerMapping.AUTO_Z_PREFERENCE
     private val n64StickSensitivityPrefsKey = "n64_stick_sensitivity"
     private val buttonStickSensitivityPrefsKey = "button_stick_sensitivity"
@@ -292,6 +296,13 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 AlertDialog.Builder(context, R.style.GameplayFullscreenDialogTheme)
                         .setView(view)
                         .create()
+        menuDialog?.let { dialog ->
+            br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton.bindDialog(
+                    dialog,
+                    view.findViewById(R.id.menu_close),
+                    onBack = { dialog.dismiss() }
+            )
+        }
     }
 
     /**
@@ -307,15 +318,12 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                     item.action()
                     menuDialog?.dismiss()
                 }
-        // Header: X circular antes do título — mesmo padrão das outras telas
-        built.view.findViewById<View>(R.id.menu_close)?.setOnClickListener {
-            runCatching { HylianBoxApp.sfxManager }.getOrNull()?.back()
-            menuDialog?.dismiss()
-        }
         toggleEntries.clear()
         toggleEntries.addAll(built.toggleEntries)
         badgeViews.clear()
         badgeViews.addAll(built.badgeViews)
+        badgeEntries.clear()
+        badgeEntries.addAll(built.badgeEntries)
         enabledEntries.clear()
         enabledEntries.addAll(built.enabledEntries)
         return built.view
@@ -389,7 +397,26 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                             retroView?.view?.frameSpeed == fastForwardSpeed
                                         },
                                         badgeRes = R.string.badge_r3
-                                ) { retroView?.let { retroViewUtils?.fastForward(it) } }
+                                ) { retroView?.let { retroViewUtils?.fastForward(it) } },
+                                MenuActionItem(
+                                        "aspect_ratio",
+                                        R.string.menu_aspect_ratio,
+                                        R.drawable.ic_tune,
+                                        badgeText = {
+                                            val hackId = currentHackId
+                                            if (hackId == null) null else {
+                                                val mode = CorePrefs.getAspectRatio(appContext, hackId)
+                                                when (mode) {
+                                                    CorePrefs.ASPECT_RATIO_4_3 -> appContext.getString(R.string.aspect_ratio_4_3)
+                                                    CorePrefs.ASPECT_RATIO_16_9 -> appContext.getString(R.string.aspect_ratio_16_9)
+                                                    CorePrefs.ASPECT_RATIO_FULLSCREEN -> appContext.getString(R.string.aspect_ratio_fullscreen)
+                                                    else -> appContext.getString(R.string.aspect_ratio_4_3)
+                                                }
+                                            }
+                                        }
+                                ) {
+                                    cycleAspectRatio()
+                                }
                         )
                 )
         val controls =
@@ -665,6 +692,15 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
             val enabled = entry.item.isEnabled()
             entry.cell.isEnabled = enabled
             entry.cell.alpha = if (enabled) 1f else 0.38f
+        }
+    }
+
+    /** Refreshes dynamic badge text (e.g. aspect ratio) to reflect current state. */
+    private fun updateDynamicBadges() {
+        val context = activityContext ?: return
+        for (entry in badgeEntries) {
+            val badgeText = entry.item.badgeText?.invoke()
+            badgeText?.let { entry.badge.setText(it) }
         }
     }
 
@@ -1253,6 +1289,24 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         sensitivityDialog?.setOnKeyListener(menuKeyListenerSensitivity)
     }
 
+    /** Cycles the aspect ratio (4:3 → 16:9 → Fullscreen → 4:3) for the current hack. */
+    private fun cycleAspectRatio() {
+        val hackId = currentHackId ?: return
+        val nextMode = CorePrefs.cycleAspectRatio(appContext, hackId)
+        val aspectRatio = aspectRatioFromMode(nextMode)
+        retroView?.view?.setAspectRatioOverride(aspectRatio)
+        updateToggleStates()
+        menuDialog?.dismiss()
+    }
+
+    /** Converts the aspect ratio mode string to a float value for the native layer. */
+    private fun aspectRatioFromMode(mode: String): Float = when (mode) {
+        CorePrefs.ASPECT_RATIO_4_3 -> 4f / 3f
+        CorePrefs.ASPECT_RATIO_16_9 -> 16f / 9f
+        CorePrefs.ASPECT_RATIO_FULLSCREEN -> 0f // 0 = stretch to fill screen
+        else -> 4f / 3f
+    }
+
     /**
      * Double-tapping the analog stick toggles Z held on/off (released independently of the stick
      * itself). Toggling the Auto-Z menu item off while it's held releases Z immediately.
@@ -1316,6 +1370,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
         updateToggleStates()
         updateItemEnabledStates()
+        updateDynamicBadges()
 
         val dialog =
                 menuDialog
@@ -1362,29 +1417,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         if (coreReady.value == true) retroView?.let { retroViewUtils?.preserveEmulatorState(it) }
     }
 
-    /**
-     * Handle the Activity returning to the foreground after its first launch (GameActivity.onStart,
-     * hasStarted == true).
-     *
-     * GL-context recovery path: a full Activity recreate rebuilds the RetroView from scratch -- the
-     * only supported way to recover a lost GL context for hardware-rendered cores
-     * (mupen64plus_next). This is ONLY safe once a frame has rendered (coreReady). If the core is
-     * still loading (!coreReady && !coreFailed) we defer the recreate via [pendingRecreate] and let
-     * it fire when the first frame arrives (see setupRetroView's frame observer) -- destroying a
-     * mid-load core via ON_DESTROY -> retro_deinit SIGSEGVs. If the core already failed
-     * (coreFailed) we never recreate: there is nothing to recover and LibretroDroid already skipped
-     * destroy internally.
-     */
-    fun handleBackgroundReturn(activity: ComponentActivity) {
-        if (coreReady.value == true) {
-            preserveState()
-            activity.recreate()
-        } else if (coreFailed.value != true) {
-            pendingRecreate = true
-        }
-    }
-
-    /** Hide the system bars */
+/** Hide the system bars */
     @Suppress("DEPRECATION")
     fun immersive(window: Window) {
         /* Check if the config permits it */
@@ -1885,7 +1918,6 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
         left over from a previous RetroView instance before wiring the new one. */
         _coreReady.value = false
         _coreFailed.value = false
-        pendingRecreate = false
 
         retroView?.let { retroView ->
             container.addView(retroView.view)
@@ -1901,16 +1933,13 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 _frameRenderedForDisplay.value = true
                 retroViewUtils?.restoreEmulatorState(retroView)
 
+                /* Apply saved aspect ratio override for this hack */
+                val savedMode = CorePrefs.getAspectRatio(appContext, hackId)
+                val aspectRatio = aspectRatioFromMode(savedMode)
+                retroView.view.setAspectRatioOverride(aspectRatio)
+
                 startRaSessionIfNeeded(hackId)
                 startFrameTracking(hackId)
-
-                /* A background-return recreate was deferred while the core was still
-                loading (see handleBackgroundReturn). Now that a frame has rendered
-                the GL context can be safely rebuilt via a full Activity recreate. */
-                if (pendingRecreate) {
-                    pendingRecreate = false
-                    activity.recreate()
-                }
             }
 
             /* Track fatal core errors so the exit/recreate guards know the core
@@ -2707,7 +2736,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                 // Restart the emulator so the core reloads SRAM from disk.
                 val activity = context as? ComponentActivity
                 if (activity != null) {
-                    // Use the same guard as handleBackgroundReturn: only recreate when safe.
+                    // Only recreate when the core has finished loading or already failed.
                     if (coreReady.value == true || coreFailed.value == true) {
                         activity.recreate()
                     }

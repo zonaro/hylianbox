@@ -9,8 +9,6 @@
     <color name="switch_panel_light">#FFFFFF</color>
     <color name="switch_dialog_bg_dark">#3A3A3C</color>
     <color name="switch_dialog_bg_light">#FFFFFF</color>
-    <color name="switch_accent">#00BCD4</color>
-    <color name="switch_accent_amber">#FFA000</color>
     <color name="switch_text_primary_dark">#FFFFFF</color>
     <color name="switch_text_primary_light">#333333</color>
     <color name="switch_text_secondary_dark">#9E9E9E</color>
@@ -46,10 +44,6 @@
     <color name="switch_scrim">#99000000</color>
     <color name="switch_dock_circle">#555555</color>
     <color name="switch_dock_icon">#FFFFFF</color>
-    <!-- Per-dock glyph colors (constant across night mode, like switch_accent_*).
-         Store = red, Control = green; others reuse switch_accent_* / text tokens. -->
-    <color name="switch_dock_icon_store">#E53935</color>
-    <color name="switch_dock_icon_control">#43A047</color>
     <!-- Charcoal fill for the circular "Todos os Jogos" card (NS Launcher style). -->
     <color name="switch_all_games_bg">#424242</color>
 
@@ -66,7 +60,7 @@
     <color name="color_on_primary_container">#FFFFFF</color>
     <color name="color_on_surface">#FFFFFF</color>
     <color name="color_on_surface_variant">#9E9E9E</color>
-    <color name="color_secondary">#FFA000</color>
+    <color name="color_secondary">#00BCD4</color>
     <color name="color_on_secondary">#FFFFFF</color>
     <color name="color_error">#F2B8B5</color>
     <color name="color_on_error">#601410</color>

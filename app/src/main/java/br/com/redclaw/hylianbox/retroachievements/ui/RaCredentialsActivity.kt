@@ -13,6 +13,7 @@ import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyFetchResult
 import br.com.redclaw.hylianbox.retroachievements.auth.RaApiKeyLoginHelper
 import br.com.redclaw.hylianbox.retroachievements.auth.RaCredentialStore
 import br.com.redclaw.hylianbox.ui.switchui.SwitchImmersive
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import kotlinx.coroutines.launch
 
 /**
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 class RaCredentialsActivity : ScaledAppCompatActivity() {
 
     private lateinit var binding: ActivityRaCredentialsBinding
+    private val closeHelper = SwitchBackButton()
 
     /** Last typed credentials, kept in memory only to feed the key capture. */
     private var lastUsername: String = ""
@@ -52,10 +54,7 @@ class RaCredentialsActivity : ScaledAppCompatActivity() {
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.raCredentialsToolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.settings_ra_credentials_title)
-        binding.raCredentialsToolbar.setNavigationOnClickListener { finish() }
+        closeHelper.attach(this, binding.raCredentialsClose.root, onBack = { finish() })
 
         setupCredentialsUi()
     }

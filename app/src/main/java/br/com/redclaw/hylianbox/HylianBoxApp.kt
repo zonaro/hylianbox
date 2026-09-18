@@ -122,16 +122,23 @@ class HylianBoxApp : Application() {
      * weekly); "manual" disables scheduling. The work is unique (UPDATE policy) so changing the
      * frequency replaces the existing request instead of stacking duplicates.
      */
-    private fun scheduleDriveBackup() {
+    internal fun scheduleDriveBackup() {
         val enabled = CorePrefs.getGdriveEnabled(this)
         val auto = CorePrefs.getGdriveAutoBackup(this)
         val account = CorePrefs.getGdriveAccountName(this)
-        if (!enabled || !auto || account == null) return
+        val workManager = WorkManager.getInstance(this)
+        if (!enabled || !auto || account == null) {
+            workManager.cancelUniqueWork(GoogleDriveBackupWorker.WORK_NAME)
+            return
+        }
 
         // "Manual" frequency means the user triggers backups themselves; no
         // periodic work is enqueued.
         val frequency = CorePrefs.getGdriveBackupFrequency(this)
-        if (frequency == CorePrefs.GDRIVE_FREQ_MANUAL) return
+        if (frequency == CorePrefs.GDRIVE_FREQ_MANUAL) {
+            workManager.cancelUniqueWork(GoogleDriveBackupWorker.WORK_NAME)
+            return
+        }
 
         val (interval, unit) =
                 when (frequency) {
@@ -142,11 +149,17 @@ class HylianBoxApp : Application() {
                 PeriodicWorkRequestBuilder<GoogleDriveBackupWorker>(interval, unit)
                         .setConstraints(
                                 Constraints.Builder()
-                                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                                        .setRequiredNetworkType(
+                                                if (CorePrefs.getCloudSyncWifiOnly(this)) {
+                                                    NetworkType.UNMETERED
+                                                } else {
+                                                    NetworkType.CONNECTED
+                                                }
+                                        )
                                         .build()
                         )
                         .build()
-        WorkManager.getInstance(this)
+        workManager
                 .enqueueUniquePeriodicWork(
                         GoogleDriveBackupWorker.WORK_NAME,
                         ExistingPeriodicWorkPolicy.UPDATE,

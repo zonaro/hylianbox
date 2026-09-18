@@ -24,7 +24,7 @@
         android:layout_height="48dp"
         android:layout_gravity="center"
         android:src="@drawable/ic_all_games"
-        android:tint="@color/switch_accent"
+        android:tint="?attr/colorPrimary"
         android:contentDescription="@string/all_games" />
 
     <View

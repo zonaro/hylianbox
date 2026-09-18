@@ -19,17 +19,22 @@
 package br.com.redclaw.hylianbox.tracker.ui.tabs
 
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
+import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
+import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
 import br.com.redclaw.hylianbox.tracker.equipment.SaveContextWriter
 import br.com.redclaw.hylianbox.tracker.equipment.TrackerCButton
 import br.com.redclaw.hylianbox.tracker.equipment.TrackerEquipAction
@@ -41,11 +46,6 @@ import br.com.redclaw.hylianbox.tracker.ui.TrackerViewModel
 import br.com.redclaw.hylianbox.tracker.ui.components.ItemIconView
 import br.com.redclaw.hylianbox.tracker.ui.components.TrackerCButtonView
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
-import br.com.redclaw.hylianbox.tracker.assets.mapping.EquippedItemIconMap
-import br.com.redclaw.hylianbox.tracker.autotracker.model.EquippedItemsSnapshot
-import android.graphics.BitmapFactory
-import android.view.Gravity
-import android.widget.TextView
 import java.io.File
 import kotlinx.coroutines.launch
 
@@ -165,19 +165,36 @@ class ItemsTab : Fragment() {
         val game = host?.getEquippedGame() ?: viewModel.game
         val crc = host?.getEquippedAssetCrc() ?: viewModel.assetCrc.value
 
-        val targets = listOf(
-            TrackerCButton.RIGHT to Triple(R.string.tracker_c_right, "C▶", snapshot?.cRight to snapshot?.cRightAmmo),
-            TrackerCButton.DOWN to Triple(R.string.tracker_c_down, "C▼", snapshot?.cDown to snapshot?.cDownAmmo),
-            TrackerCButton.LEFT to Triple(R.string.tracker_c_left, "C◀", snapshot?.cLeft to snapshot?.cLeftAmmo)
-        )
+        val targets =
+                listOf(
+                        TrackerCButton.RIGHT to
+                                Triple(
+                                        R.string.tracker_c_right,
+                                        "C▶",
+                                        snapshot?.cRight to snapshot?.cRightAmmo
+                                ),
+                        TrackerCButton.DOWN to
+                                Triple(
+                                        R.string.tracker_c_down,
+                                        "C▼",
+                                        snapshot?.cDown to snapshot?.cDownAmmo
+                                ),
+                        TrackerCButton.LEFT to
+                                Triple(
+                                        R.string.tracker_c_left,
+                                        "C◀",
+                                        snapshot?.cLeft to snapshot?.cLeftAmmo
+                                )
+                )
 
         val density = resources.displayMetrics.density
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            val pad = (12 * density).toInt()
-            setPadding(pad, pad, pad, pad)
-        }
+        val row =
+                LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    val pad = (12 * density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                }
         val gap = (12 * density).toInt()
         // We need dialog reference inside click listeners, so create holder
         var dialogRef: SwitchDialog? = null
@@ -185,45 +202,62 @@ class ItemsTab : Fragment() {
             val (labelRes, fallbackLabel, equipped) = triple
             val equippedId = equipped?.first ?: EquippedItemsSnapshot.NONE
             val ammo = equipped?.second
-            val btnView = TrackerCButtonView(requireContext(), fallbackLabel).apply {
-                if (equippedId != EquippedItemsSnapshot.NONE && crc != null && EquippedItemIconMap.supports(game, equippedId)) {
-                    val file = File(requireContext().filesDir, "tracker_assets/$crc/${EquippedItemIconMap.assetKey(equippedId)}.png")
-                    if (file.isFile) {
-                        icon = BitmapFactory.decodeFile(file.absolutePath)
+            val btnView =
+                    TrackerCButtonView(requireContext(), fallbackLabel).apply {
+                        if (equippedId != EquippedItemsSnapshot.NONE &&
+                                        crc != null &&
+                                        EquippedItemIconMap.supports(game, equippedId)
+                        ) {
+                            val file =
+                                    File(
+                                            requireContext().filesDir,
+                                            "tracker_assets/$crc/${EquippedItemIconMap.assetKey(equippedId)}.png"
+                                    )
+                            if (file.isFile) {
+                                icon = BitmapFactory.decodeFile(file.absolutePath)
+                            }
+                        }
+                        badgeCount = ammo
+                        contentDescription = getString(labelRes)
+                        setOnClickListener {
+                            dialogRef?.dismiss()
+                            sfx?.select()
+                            enqueueEquip(item, button)
+                        }
                     }
-                }
-                badgeCount = ammo
-                contentDescription = getString(labelRes)
-                setOnClickListener {
-                    dialogRef?.dismiss()
-                    sfx?.select()
-                    enqueueEquip(item, button)
-                }
-            }
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                if (index > 0) marginStart = gap
-            }
-            val col = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-            }
-            col.addView(btnView, LinearLayout.LayoutParams((88 * density).toInt(), (88 * density).toInt()).apply { gravity = Gravity.CENTER })
-            col.addView(TextView(requireContext()).apply {
-                text = getString(labelRes)
-                gravity = Gravity.CENTER
-                setTextColor(requireContext().getColor(R.color.switch_text_primary))
-                textSize = 12f
-                val top = (6 * density).toInt()
-                setPadding(0, top, 0, 0)
-            })
+            val lp =
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        if (index > 0) marginStart = gap
+                    }
+            val col =
+                    LinearLayout(requireContext()).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                    }
+            col.addView(
+                    btnView,
+                    LinearLayout.LayoutParams((88 * density).toInt(), (88 * density).toInt())
+                            .apply { gravity = Gravity.CENTER }
+            )
+            col.addView(
+                    TextView(requireContext()).apply {
+                        text = getString(labelRes)
+                        gravity = Gravity.CENTER
+                        setTextColor(requireContext().getColor(R.color.switch_text_primary))
+                        textSize = 12f
+                        val top = (6 * density).toInt()
+                        setPadding(0, top, 0, 0)
+                    }
+            )
             row.addView(col, lp)
         }
 
-        val dialog = SwitchDialog(requireContext())
-            .title(getString(R.string.tracker_equip_title, getString(item.nameRes)))
-            .icon(R.drawable.ic_tracker)
-            .customView(row)
-            .negativeButton(getString(android.R.string.cancel))
+        val dialog =
+                SwitchDialog(requireContext())
+                        .title(getString(R.string.tracker_equip_title, getString(item.nameRes)))
+                        .icon(R.drawable.ic_tracker)
+                        .customView(row)
+                        .negativeButton(getString(android.R.string.cancel))
         dialogRef = dialog
         dialog.show()
         // Focus first C button for D-pad
@@ -231,9 +265,10 @@ class ItemsTab : Fragment() {
     }
 
     private fun enqueueEquip(item: TrackerItem, button: TrackerCButton?) {
-        val accepted = (activity as? TrackerEquipmentHost)?.enqueueTrackerEquip(
-                TrackerEquipCommand(viewModel.game, item.id, button)
-        ) == true
+        val accepted =
+                (activity as? TrackerEquipmentHost)?.enqueueTrackerEquip(
+                        TrackerEquipCommand(viewModel.game, item.id, button)
+                ) == true
         if (!accepted) {
             sfx?.back()
             Toast.makeText(requireContext(), R.string.tracker_equip_unavailable, Toast.LENGTH_SHORT)

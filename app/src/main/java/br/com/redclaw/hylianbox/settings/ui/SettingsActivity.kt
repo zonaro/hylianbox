@@ -15,14 +15,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.dashboard.server.DashboardManager
-import br.com.redclaw.hylianbox.data.local.InstalledHacksRepository
 import br.com.redclaw.hylianbox.data.local.SaveBackupManager
 import br.com.redclaw.hylianbox.data.model.BaseRom
 import br.com.redclaw.hylianbox.databinding.ActivitySettingsBinding
@@ -107,6 +105,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
                 if (name != null) {
                     CorePrefs.setGdriveAccountName(this, name)
                     updateGdriveAccountUi()
+                    rescheduleDriveBackup()
                 }
             }
 
@@ -130,18 +129,12 @@ class SettingsActivity : ScaledAppCompatActivity() {
                 updateRaStatus(HylianBoxApp.raCredentialStore)
             }
 
-    private val installedRepository by lazy {
-        InstalledHacksRepository(File(filesDir, "installed_hacks.json"))
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         SwitchImmersive.enterFullscreen(this)
 
-        setSupportActionBar(binding.settingsToolbar)
-        supportActionBar?.setTitle(R.string.settings_title)
         backHelper.attach(this, binding.settingsBack.root, onBack = { finish() })
         setupSwitchNavigation()
         applyDynamicAccentToSwitches()
@@ -154,7 +147,6 @@ class SettingsActivity : ScaledAppCompatActivity() {
         setupRetroAchievementsSection()
         setupBackupSection()
         setupGdriveSection()
-        setupCloudSyncSection()
         setupLanguageSection()
         setupAboutSection()
         setupCaptureSection()
@@ -196,7 +188,6 @@ class SettingsActivity : ScaledAppCompatActivity() {
                         binding.settingsNavCatalog to binding.settingsSectionCatalog,
                         binding.settingsNavRa to binding.settingsSectionRa,
                         binding.settingsNavBackup to binding.settingsSectionBackup,
-                        binding.settingsNavCloudsync to binding.settingsSectionCloudsync,
                         binding.settingsNavLanguage to binding.settingsSectionLanguage,
                         binding.settingsNavAbout to binding.settingsSectionAbout,
                         binding.settingsNavCapture to binding.settingsSectionCapture,
@@ -222,16 +213,9 @@ class SettingsActivity : ScaledAppCompatActivity() {
         }
         selectSettingsSection(binding.settingsNavImport)
 
-        if (isPortraitSettings()) {
-            installPortraitNavigationDrawer()
-        } else {
-            // A non-interactive settings glyph makes the toolbar match the
-            // System Settings header without presenting a misleading back action.
-            binding.settingsToolbar.navigationIcon =
-                    AppCompatResources.getDrawable(this, R.drawable.ic_settings)
-            binding.settingsToolbar.navigationContentDescription = null
-            binding.settingsToolbar.setNavigationOnClickListener(null)
-        }
+        binding.settingsNavigationButton.visibility =
+                if (isPortraitSettings()) View.VISIBLE else View.GONE
+        if (isPortraitSettings()) installPortraitNavigationDrawer()
     }
 
     private fun isPortraitSettings(): Boolean =
@@ -245,7 +229,6 @@ class SettingsActivity : ScaledAppCompatActivity() {
                         binding.settingsNavCatalog,
                         binding.settingsNavRa,
                         binding.settingsNavBackup,
-                        binding.settingsNavCloudsync,
                         binding.settingsNavLanguage,
                         binding.settingsNavAbout,
                         binding.settingsNavCapture,
@@ -303,7 +286,6 @@ class SettingsActivity : ScaledAppCompatActivity() {
                         binding.settingsGdriveImages,
                         binding.settingsGdriveVideos,
                         binding.settingsGdriveAuto,
-                        binding.settingsCloudsyncEnabled,
                         binding.settingsCloudsyncWifi,
                         binding.settingsCloudsyncNotify,
                         binding.settingsCaptureIncludeMicrophone,
@@ -357,11 +339,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
                         Gravity.START
                 )
         )
-        binding.settingsToolbar.navigationIcon =
-                AppCompatResources.getDrawable(this, R.drawable.ic_menu)
-        binding.settingsToolbar.navigationContentDescription =
-                getString(R.string.settings_open_navigation)
-        binding.settingsToolbar.setNavigationOnClickListener { openSettingsDrawer() }
+        binding.settingsNavigationButton.setOnClickListener { openSettingsDrawer() }
     }
 
     private fun openSettingsDrawer() {
@@ -433,6 +411,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
                         binding.settingsRaLogout,
                         binding.settingsGdriveConnect,
                         binding.settingsGdriveBackupNow,
+                        binding.settingsGdriveRestore,
                         binding.settingsGdriveView,
                         binding.settingsGdriveFrequency,
                         binding.settingsLanguageButton,
@@ -461,7 +440,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
     }
 
     private fun runExportBackup(uri: Uri) {
-        val installed = installedRepository.load().keys.toList()
+        val installed = InstalledLibrary.entries(this).map { it.romId }.distinct()
         if (installed.isEmpty()) {
             showBackupResult(getString(R.string.backup_export_empty))
             return
@@ -558,6 +537,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
         binding.settingsGdriveEnabled.setOnCheckedChangeListener { _, checked ->
             CorePrefs.setGdriveEnabled(this, checked)
             updateGdriveEnabledUi()
+            rescheduleDriveBackup()
         }
         binding.settingsGdriveSaves.isChecked = CorePrefs.getGdriveBackupSaves(this)
         binding.settingsGdriveSaves.setOnCheckedChangeListener { _, c ->
@@ -574,6 +554,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
         binding.settingsGdriveAuto.isChecked = CorePrefs.getGdriveAutoBackup(this)
         binding.settingsGdriveAuto.setOnCheckedChangeListener { _, c ->
             CorePrefs.setGdriveAutoBackup(this, c)
+            rescheduleDriveBackup()
         }
 
         binding.settingsGdriveConnect.setOnClickListener {
@@ -586,10 +567,25 @@ class SettingsActivity : ScaledAppCompatActivity() {
             }
         }
         binding.settingsGdriveBackupNow.setOnClickListener { startManualDriveBackup() }
+        binding.settingsGdriveRestore.setOnClickListener { confirmDriveRestore() }
         binding.settingsGdriveView.setOnClickListener { viewDriveBackups() }
         binding.settingsGdriveFrequency.setOnClickListener {
             sfx?.select()
             showFrequencyDialog()
+        }
+
+        binding.settingsCloudsyncWifi.isChecked = CorePrefs.getCloudSyncWifiOnly(this)
+        binding.settingsCloudsyncWifi.setOnCheckedChangeListener { _, checked ->
+            CorePrefs.setCloudSyncWifiOnly(this, checked)
+            rescheduleDriveBackup()
+        }
+        binding.settingsCloudsyncNotify.isChecked = CorePrefs.getCloudSyncNotifications(this)
+        binding.settingsCloudsyncNotify.setOnCheckedChangeListener { _, checked ->
+            CorePrefs.setCloudSyncNotifications(this, checked)
+        }
+        binding.settingsCloudsyncViewConflicts.setOnClickListener {
+            sfx?.select()
+            startActivity(Intent(this, ConflictResolveActivity::class.java))
         }
 
         updateGdriveAccountUi()
@@ -605,6 +601,10 @@ class SettingsActivity : ScaledAppCompatActivity() {
         for (i in 0 until binding.settingsGdriveGroup.childCount) {
             binding.settingsGdriveGroup.getChildAt(i).isEnabled = enabled
         }
+    }
+
+    private fun rescheduleDriveBackup() {
+        (application as? HylianBoxApp)?.scheduleDriveBackup()
     }
 
     /** Reflect the connected account name (or the "none" hint) in the status. */
@@ -705,16 +705,104 @@ class SettingsActivity : ScaledAppCompatActivity() {
                 binding.settingsGdriveBackupNow.isEnabled = true
                 binding.settingsGdriveView.isEnabled = true
                 if (summary != null) {
-                    CorePrefs.setGdriveLastBackup(this@SettingsActivity, System.currentTimeMillis())
-                    updateGdriveStatus()
+                    // Do not advance the incremental cutoff after a partial failure: failed files
+                    // must remain eligible for the next retry.
+                    if (summary.errors.isEmpty()) {
+                        CorePrefs.setGdriveLastBackup(
+                                this@SettingsActivity,
+                                System.currentTimeMillis()
+                        )
+                        updateGdriveStatus()
+                        updateCloudSyncStatus()
+                    }
                     val msg =
-                            if (summary.uploaded == 0 && summary.deleted == 0) {
+                            if (summary.errors.isNotEmpty()) {
+                                getString(
+                                        R.string.gdrive_backup_failed,
+                                        summary.errors.first()
+                                )
+                            } else if (summary.uploaded == 0 && summary.deleted == 0) {
                                 getString(R.string.gdrive_backup_none)
                             } else {
                                 getString(R.string.gdrive_backup_summary, summary.uploaded)
                             }
                     showGdriveDialog(msg)
                 }
+            }
+        }
+    }
+
+    private fun confirmDriveRestore() {
+        sfx?.select()
+        if (!CorePrefs.getGdriveEnabled(this)) {
+            showGdriveDialog(getString(R.string.gdrive_need_enable))
+            return
+        }
+        if (CorePrefs.getGdriveAccountName(this) == null) {
+            showGdriveDialog(getString(R.string.gdrive_need_account))
+            return
+        }
+        SwitchDialog(this)
+                .title(getString(R.string.gdrive_restore))
+                .message(getString(R.string.gdrive_restore_confirm))
+                .positiveButton(getString(R.string.gdrive_restore_confirm_action)) {
+                    startDriveRestore()
+                }
+                .negativeButton(getString(android.R.string.cancel))
+                .show()
+    }
+
+    private fun startDriveRestore() {
+        val accountName = CorePrefs.getGdriveAccountName(this) ?: return
+        val storage = Storage.getInstance(this)
+        val installedHackIds = InstalledLibrary.entries(this).map { it.romId }.toSet()
+        binding.settingsGdriveProgress.visibility = View.VISIBLE
+        binding.settingsGdriveProgress.isIndeterminate = true
+        binding.settingsGdriveBackupNow.isEnabled = false
+        binding.settingsGdriveRestore.isEnabled = false
+        lifecycleScope.launch(Dispatchers.IO) {
+            val summary: Result<GoogleDriveBackup.RestoreSummary>? =
+                    try {
+                        Result.success(
+                                GoogleDriveBackup.restoreSaves(
+                                        this@SettingsActivity,
+                                        accountName
+                                ) { hackId, name ->
+                                    if (hackId !in installedHackIds) {
+                                        null
+                                    } else {
+                                        when (name) {
+                                            "sram_$hackId" -> storage.sram(hackId)
+                                            "state_$hackId" -> storage.state(hackId)
+                                            else -> null
+                                        }
+                                    }
+                                }
+                        )
+                    } catch (error: UserRecoverableAuthException) {
+                        runOnUiThread { driveConsentLauncher.launch(error.intent) }
+                        null
+                    } catch (error: Exception) {
+                        Result.failure(error)
+                    }
+            withContext(Dispatchers.Main) {
+                binding.settingsGdriveProgress.visibility = View.GONE
+                binding.settingsGdriveBackupNow.isEnabled = true
+                binding.settingsGdriveRestore.isEnabled = true
+                summary?.fold(
+                        onSuccess = {
+                            updateCloudSyncStatus()
+                            val message = if (it.errors.isEmpty()) {
+                                getString(R.string.gdrive_restore_summary, it.restored, it.skipped)
+                            } else {
+                                getString(R.string.gdrive_restore_summary_errors, it.restored, it.skipped, it.errors.size)
+                            }
+                            showGdriveDialog(message)
+                        },
+                        onFailure = {
+                            showGdriveDialog(getString(R.string.gdrive_restore_failed, it.message ?: "error"))
+                        }
+                )
             }
         }
     }
@@ -784,6 +872,7 @@ class SettingsActivity : ScaledAppCompatActivity() {
                 .singleChoice(labels, current) { which ->
                     CorePrefs.setGdriveBackupFrequency(this, values[which])
                     updateGdriveFrequencyUi()
+                    rescheduleDriveBackup()
                 }
                 .negativeButton(getString(android.R.string.cancel))
                 .show()
@@ -797,37 +886,12 @@ class SettingsActivity : ScaledAppCompatActivity() {
                 .show()
     }
 
-    // ---- Cloud Sync (automatic, per-save) section ----
-
-    private fun setupCloudSyncSection() {
-        binding.settingsCloudsyncEnabled.isChecked = CorePrefs.getCloudSyncEnabled(this)
-        binding.settingsCloudsyncEnabled.setOnCheckedChangeListener { _, checked ->
-            CorePrefs.setCloudSyncEnabled(this, checked)
-            updateCloudSyncStatus()
-        }
-        binding.settingsCloudsyncWifi.isChecked = CorePrefs.getCloudSyncWifiOnly(this)
-        binding.settingsCloudsyncWifi.setOnCheckedChangeListener { _, checked ->
-            CorePrefs.setCloudSyncWifiOnly(this, checked)
-        }
-        binding.settingsCloudsyncNotify.isChecked = CorePrefs.getCloudSyncNotifications(this)
-        binding.settingsCloudsyncNotify.setOnCheckedChangeListener { _, checked ->
-            CorePrefs.setCloudSyncNotifications(this, checked)
-        }
-
-        binding.settingsCloudsyncViewConflicts.setOnClickListener {
-            sfx?.select()
-            startActivity(Intent(this, ConflictResolveActivity::class.java))
-        }
-
-        updateCloudSyncStatus()
-    }
-
     /**
      * Reflect sync state: master switch, connected account, last sync time and pending conflict
      * count. Also toggles the "view conflicts" button.
      */
     private fun updateCloudSyncStatus() {
-        val enabled = CorePrefs.getCloudSyncEnabled(this)
+        val enabled = CorePrefs.getGdriveEnabled(this)
         val account = CorePrefs.getGdriveAccountName(this)
         val conflicts = ConflictStore(this).count()
 
@@ -839,7 +903,10 @@ class SettingsActivity : ScaledAppCompatActivity() {
                     account == null -> getString(R.string.cloudsync_status_no_account)
                     conflicts > 0 -> getString(R.string.cloudsync_conflicts_count, conflicts)
                     else -> {
-                        val last = CorePrefs.getCloudSyncLastSync(this)
+                        val last = maxOf(
+                                CorePrefs.getCloudSyncLastSync(this),
+                                CorePrefs.getGdriveLastBackup(this)
+                        )
                         if (last > 0) {
                             getString(R.string.cloudsync_status_last, formatBackupDate(last))
                         } else {

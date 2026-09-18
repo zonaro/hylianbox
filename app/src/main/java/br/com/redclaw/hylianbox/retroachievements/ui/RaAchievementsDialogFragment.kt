@@ -38,7 +38,9 @@ import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.retroachievements.data.RaGameData
 import br.com.redclaw.hylianbox.retroachievements.data.liveUnlocks
+import br.com.redclaw.hylianbox.ui.switchui.AccentManager
 import br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog
+import br.com.redclaw.hylianbox.ui.switchui.SwitchBackButton
 import br.com.redclaw.hylianbox.ui.switchui.SwitchDialog
 import br.com.redclaw.hylianbox.utils.CorePrefs
 import br.com.redclaw.hylianbox.views.InstalledLibrary
@@ -86,6 +88,7 @@ class RaAchievementsDialogFragment : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = AppCompatDialog(requireContext(), R.style.GameplayFullscreenDialogTheme)
+        AccentManager.applyThemeOverlay(dialog.context)
         val view = LayoutInflater.from(dialog.context).inflate(R.layout.dialog_achievements, null)
         dialog.setContentView(view)
         dialog.setCanceledOnTouchOutside(false)
@@ -144,10 +147,11 @@ class RaAchievementsDialogFragment : DialogFragment() {
                 else RaViewMode.LIST
         applyViewMode()
 
-        view.findViewById<ImageButton>(R.id.dialog_achievements_close).setOnClickListener {
-            sfx?.back()
-            dismiss()
-        }
+        SwitchBackButton.bindDialog(
+                dialog,
+                view.findViewById(R.id.dialog_achievements_close),
+                onBack = { dismiss() }
+        )
 
         // Kick off load after dialog is shown (view is attached).
         view.post { if (hackId.isNullOrBlank()) loadAllGames() else loadSingle(hackId) }

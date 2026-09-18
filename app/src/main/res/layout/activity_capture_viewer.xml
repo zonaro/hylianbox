@@ -26,7 +26,7 @@
             android:layout_height="24dp"
             android:layout_marginStart="12dp"
             android:src="@drawable/ic_gallery"
-            android:tint="@color/switch_accent_focus"
+            android:tint="?attr/colorPrimary"
             android:contentDescription="@string/dock_gallery" />
 
         <TextView
@@ -98,7 +98,7 @@
             android:focusableInTouchMode="false"
             android:padding="14dp"
             android:src="@drawable/ic_play"
-            android:tint="@color/switch_text_primary"
+            android:tint="?attr/colorPrimary"
             android:visibility="gone" />
     </FrameLayout>
 </LinearLayout>

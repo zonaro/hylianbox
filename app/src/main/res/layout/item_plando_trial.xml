@@ -27,5 +27,6 @@
         android:layout_gravity="center_vertical"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/plandomizer_remove_row"
-        android:src="@drawable/ic_close" />
+        android:src="@drawable/ic_close"
+        android:tint="?attr/colorPrimary" />
 </LinearLayout>

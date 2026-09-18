@@ -20,9 +20,11 @@ package br.com.redclaw.hylianbox.ui.switchui
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.utils.CorePrefs
 
@@ -79,10 +81,44 @@ object AccentManager {
         return ContextCompat.getColor(context, option.colorRes)
     }
 
+    /** High-contrast foreground for text/glyphs drawn on the selected accent. */
+    fun getOnAccentColor(context: Context): Int {
+        val accent = getAccentColor(context)
+        return if (ColorUtils.calculateLuminance(accent) > 0.179) Color.BLACK else Color.WHITE
+    }
+
     /** Returns the resolved color int for a specific accent key. */
     fun getAccentColorForKey(context: Context, accentKey: String): Int {
         val option = options.find { it.key == accentKey } ?: options.first()
         return ContextCompat.getColor(context, option.colorRes)
+    }
+
+    /**
+     * Theme overlay matching the persisted accent. Applying this before view inflation makes
+     * framework/AppCompat/Material controls (SeekBar, progress, text fields and switches) consume
+     * the same color as the hand-drawn Switch components.
+     */
+    fun getThemeOverlay(context: Context): Int = getThemeOverlayForKey(getCurrentAccentKey(context))
+
+    internal fun getThemeOverlayForKey(accentKey: String): Int =
+            when (accentKey) {
+                "green_light" -> R.style.ThemeOverlay_HylianBox_Accent_GreenLight
+                "green_dark" -> R.style.ThemeOverlay_HylianBox_Accent_GreenDark
+                "blue" -> R.style.ThemeOverlay_HylianBox_Accent_Blue
+                "yellow" -> R.style.ThemeOverlay_HylianBox_Accent_Yellow
+                "pink" -> R.style.ThemeOverlay_HylianBox_Accent_Pink
+                "red" -> R.style.ThemeOverlay_HylianBox_Accent_Red
+                "violet" -> R.style.ThemeOverlay_HylianBox_Accent_Violet
+                "teal" -> R.style.ThemeOverlay_HylianBox_Accent_Teal
+                "orange" -> R.style.ThemeOverlay_HylianBox_Accent_Orange
+                "purple" -> R.style.ThemeOverlay_HylianBox_Accent_Purple
+                "indigo" -> R.style.ThemeOverlay_HylianBox_Accent_Indigo
+                else -> R.style.ThemeOverlay_HylianBox_Accent_Cyan
+            }
+
+    /** Re-applies the selected overlay to themed dialog contexts created after the Activity. */
+    fun applyThemeOverlay(context: Context) {
+        context.theme.applyStyle(getThemeOverlay(context), true)
     }
 
     /** Returns the display label for the current accent. */

@@ -27,14 +27,16 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.ColorRes
+import androidx.core.content.ContextCompat
 import br.com.redclaw.hylianbox.HylianBoxApp
 import br.com.redclaw.hylianbox.R
 
 /**
  * Bottom dock of the Switch home screen: a centered row of circular buttons (Loja, Galeria,
- * RetroAchievements, Controle, Configurações). Each button shows a colored glyph on a dock-circle
- * background and gains a round green focus border when focused; the glyph brightens slightly on
- * focus. Click plays the select sound then runs the button's [DockItem.action].
+ * RetroAchievements, Controle, Configurações). Each button shows its destination color on a
+ * dock-circle background and gains a round accent-colored focus border when focused; the glyph
+ * brightens slightly on focus. Click plays the select sound then runs the button's
+ * [DockItem.action].
  *
  * Buttons are described by [DockItem] data objects (icon + label + action) so the dock stays
  * reusable and the parent only supplies the destination callbacks.
@@ -49,11 +51,9 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     /** A single dock destination. */
     data class DockItem(
             val iconRes: Int,
-            val labelRes: Int,
             @ColorRes val iconColorRes: Int,
-            val action: () -> Unit,
-            /** Optional dynamic color int (overrides iconColorRes when non-zero). */
-            val iconColorInt: Int = 0
+            val labelRes: Int,
+            val action: () -> Unit
     )
 
     init {
@@ -99,13 +99,9 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 
         fun bind(item: DockItem) {
             icon.setImageResource(item.iconRes)
-            val color =
-                    if (item.iconColorInt != 0) {
-                        item.iconColorInt
-                    } else {
-                        context.getColor(item.iconColorRes)
-                    }
-            icon.setColorFilter(color)
+            // The five Home destinations are the sole fixed-color exception. The focus ring and
+            // every other interactive element continue to inherit the configured accent color.
+            icon.setColorFilter(ContextCompat.getColor(context, item.iconColorRes))
             icon.contentDescription = context.getString(item.labelRes)
             tag = item
             setOnClickListener {

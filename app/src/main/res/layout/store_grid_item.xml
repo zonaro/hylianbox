@@ -33,7 +33,7 @@
             android:paddingTop="2dp"
             android:paddingEnd="8dp"
             android:paddingBottom="2dp"
-            android:textColor="@color/switch_accent"
+            android:textColor="?attr/colorPrimary"
             android:textSize="12sp"
             android:textStyle="bold" />
 

@@ -29,7 +29,7 @@ import br.com.redclaw.hylianbox.R
 import br.com.redclaw.hylianbox.data.local.AppRepositories
 import br.com.redclaw.hylianbox.data.local.InstalledHacksRepository
 import br.com.redclaw.hylianbox.repositories.GameRomResolver
-import br.com.redclaw.hylianbox.repositories.SaveBackupManager
+import br.com.redclaw.hylianbox.data.local.SaveBackupManager
 import br.com.redclaw.hylianbox.repositories.Storage
 import br.com.redclaw.hylianbox.repositories.uninstallHackFiles
 import br.com.redclaw.hylianbox.retroachievements.ui.AchievementsActivity
@@ -78,10 +78,13 @@ class LibraryMenuHostDelegate(
                 val storage = Storage.getInstance(activity)
                 try {
                     activity.contentResolver.openOutputStream(uri)?.use { out ->
-                        SaveBackupManager.exportToStream(
+                        val version = runCatching {
+                            activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
+                        }.getOrNull() ?: "?"
+                        SaveBackupManager.export(
                                 out,
-                                storage.sram(entry.romId),
-                                storage.state(entry.romId)
+                                mapOf(entry.romId to storage.saveFiles(entry.romId)),
+                                version
                         )
                     }
                     showToast(R.string.menu_export_success)
@@ -100,12 +103,13 @@ class LibraryMenuHostDelegate(
                 try {
                     activity.contentResolver.openInputStream(uri)?.use { input ->
                         val summary =
-                                SaveBackupManager.importFromStream(
+                                SaveBackupManager.restoreSingle(
                                         input,
+                                        entry.romId,
                                         storage.sram(entry.romId),
                                         storage.state(entry.romId)
                                 )
-                        if (summary.ok) showToast(R.string.menu_import_success)
+                        if (summary.files > 0 && summary.errors.isEmpty()) showToast(R.string.menu_import_success)
                         else showToast(R.string.menu_import_failure)
                     }
                             ?: showToast(R.string.menu_import_failure)
@@ -204,7 +208,7 @@ class LibraryMenuHostDelegate(
     }
 
     override fun confirmUninstall(entry: HackLibraryEntry) {
-        AlertDialog.Builder(activity)
+        val dialog = AlertDialog.Builder(activity)
                 .setTitle(activity.getString(R.string.menu_uninstall_title, entry.title))
                 .setMessage(R.string.menu_uninstall_message)
                 .setPositiveButton(R.string.menu_uninstall_button) { _, _ ->
@@ -212,6 +216,7 @@ class LibraryMenuHostDelegate(
                 }
                 .setNegativeButton(R.string.dialog_cancel, null)
                 .show()
+        br.com.redclaw.hylianbox.ui.switchui.GameplayFullscreenDialog.bindAlertTitleClose(dialog)
     }
 
     /**

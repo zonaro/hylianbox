@@ -17,6 +17,7 @@ import android.content.ContextWrapper
 import android.graphics.drawable.ColorDrawable
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.LayoutInflater
 import androidx.core.content.ContextCompat
 import br.com.redclaw.hylianbox.R
 
@@ -54,6 +55,7 @@ object GameplayFullscreenDialog {
     /** Applies fullscreen sizing and immersive bars to an already-created/shown [dialog]. */
     fun apply(dialog: Dialog) {
         if (!isGameplayContext(dialog.context)) return
+        bindAlertTitleClose(dialog)
         dialog.setCanceledOnTouchOutside(false)
         val window = dialog.window ?: return
         window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
@@ -63,6 +65,22 @@ object GameplayFullscreenDialog {
         window.decorView.setPadding(0, 0, 0, 0)
         window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         SwitchImmersive.enterFullscreen(window)
+    }
+
+    /** Adds the shared touch-only close affordance before a platform AlertDialog title. */
+    fun bindAlertTitleClose(dialog: Dialog) {
+        val window = dialog.window ?: return
+        val title =
+                window.decorView.findViewById<android.view.View>(androidx.appcompat.R.id.alertTitle)
+                        ?: window.decorView.findViewById(android.R.id.title)
+                        ?: return
+        val parent = title.parent as? ViewGroup ?: return
+        if (parent.findViewWithTag<android.view.View>(ALERT_CLOSE_TAG) != null) return
+        val close = LayoutInflater.from(dialog.context)
+                .inflate(R.layout.switch_back_button, parent, false)
+                .apply { tag = ALERT_CLOSE_TAG }
+        parent.addView(close, 0)
+        SwitchBackButton.bindDialog(dialog, close, onBack = { dialog.dismiss() })
     }
 
     /** Finds the Activity below AppCompat's themed context wrappers. */
@@ -75,4 +93,6 @@ object GameplayFullscreenDialog {
         }
         return null
     }
+
+    private const val ALERT_CLOSE_TAG = "hylianbox_alert_close"
 }

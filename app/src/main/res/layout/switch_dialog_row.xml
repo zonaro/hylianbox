@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A single selectable row inside a SwitchDialog single-choice list. Shows a
-     full-width cyan focus border while focused, and a check mark on the row that
+     full-width accent focus border while focused, and a check mark on the row that
      is currently selected (the active option). -->
 <merge xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -14,10 +14,13 @@
     <TextView
         android:id="@+id/dialog_row_text"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/switch_side_panel_row_height"
         android:gravity="center_vertical"
-        android:paddingStart="16dp"
+        android:paddingStart="18dp"
         android:paddingEnd="48dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
         android:textColor="@color/switch_text_primary"
         android:textSize="@dimen/switch_row_text" />
 
@@ -28,7 +31,7 @@
         android:layout_gravity="center_vertical|end"
         android:layout_marginEnd="14dp"
         android:src="@drawable/ic_check"
-        android:tint="@color/switch_accent"
+        android:tint="?attr/colorPrimary"
         android:contentDescription="@null"
         android:visibility="gone" />
 </merge>

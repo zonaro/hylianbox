@@ -205,6 +205,43 @@ object SaveBackupManager {
         return BackupSummary(restoredHacks, restoredFiles, skipped, errors)
     }
 
+    /**
+     * Restore one game's saves from either the canonical manifest ZIP or the legacy
+     * `sram.bin`/`state.bin` per-game ZIP used by older HylianBox versions.
+     */
+    fun restoreSingle(
+        input: InputStream,
+        hackId: String,
+        sramTarget: File,
+        stateTarget: File
+    ): BackupSummary {
+        val archive = input.readBytes()
+        val canonical = restore(archive.inputStream()) { archiveHackId, fileName ->
+            if (archiveHackId != hackId) null else when (fileName) {
+                sramTarget.name -> sramTarget
+                stateTarget.name -> stateTarget
+                else -> null
+            }
+        }
+        if (canonical.errors.none { it.startsWith("Manifest missing") }) return canonical
+
+        var files = 0
+        var skipped = 0
+        ZipInputStream(archive.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                when (entry.name) {
+                    "sram.bin" -> { sramTarget.outputStream().use { zip.copyTo(it) }; files++ }
+                    "state.bin" -> { stateTarget.outputStream().use { zip.copyTo(it) }; files++ }
+                    else -> skipped++
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        return BackupSummary(if (files > 0) 1 else 0, files, skipped, emptyList())
+    }
+
     /** Split an entry name "<hackId>/<fileName>" into its parts. */
     private fun parseEntryName(entryName: String): Pair<String, String> {
         val idx = entryName.indexOf('/')

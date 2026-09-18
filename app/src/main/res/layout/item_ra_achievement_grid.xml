@@ -26,6 +26,6 @@
         android:importantForAccessibility="no"
         android:padding="3dp"
         android:src="@drawable/ic_check"
-        android:tint="@color/color_primary"
+        android:tint="?attr/colorPrimary"
         android:visibility="gone" />
 </br.com.redclaw.hylianbox.retroachievements.ui.SquareFrameLayout>

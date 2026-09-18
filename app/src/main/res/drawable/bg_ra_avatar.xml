@@ -5,7 +5,7 @@
             <solid android:color="@color/switch_dock_circle" />
             <stroke
                 android:width="@dimen/switch_focus_border_width"
-                android:color="@color/switch_accent_focus" />
+                android:color="?attr/colorPrimary" />
         </shape>
     </item>
     <item>
