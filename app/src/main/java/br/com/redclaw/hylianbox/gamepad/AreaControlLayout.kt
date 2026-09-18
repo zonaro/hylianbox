@@ -99,7 +99,7 @@ object AreaControlLayout {
             AreaZone(
                     AreaControl.C_UP,
                     NormalizedRect(LEFT_PANEL_RIGHT, TOP_ROW_BOTTOM, START_RIGHT, C_UP_BOTTOM),
-                    ZoneType.TOUCH,
+                    ZoneType.BUTTON_STICK,
                     KeyEvent.KEYCODE_BUTTON_Y
             ),
             AreaZone(

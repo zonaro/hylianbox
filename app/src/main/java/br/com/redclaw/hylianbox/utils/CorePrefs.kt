@@ -762,5 +762,6 @@ object CorePrefs {
 
         const val ASPECT_RATIO_4_3 = "4:3"
         const val ASPECT_RATIO_16_9 = "16:9"
+        /** Fullscreen = stretch to fill entire screen (ignores game aspect ratio). */
         const val ASPECT_RATIO_FULLSCREEN = "fullscreen"
 }

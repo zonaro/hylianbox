@@ -46,6 +46,11 @@ void VideoLayout::updateForegroundVertices() {
         rotation
     );
 
+    // Guard against uninitialized screen dimensions (0x0) which would cause division by zero.
+    if (screenWidth == 0 || screenHeight == 0) {
+        return;
+    }
+
     float screenW = screenWidth * viewportRect.getWidth();
     float screenH = screenHeight * viewportRect.getHeight();
     float screenAspect = screenW / screenH;

@@ -1303,7 +1303,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
     private fun aspectRatioFromMode(mode: String): Float = when (mode) {
         CorePrefs.ASPECT_RATIO_4_3 -> 4f / 3f
         CorePrefs.ASPECT_RATIO_16_9 -> 16f / 9f
-        CorePrefs.ASPECT_RATIO_FULLSCREEN -> 0f // 0 = stretch to fill screen
+        CorePrefs.ASPECT_RATIO_FULLSCREEN -> -1f // -1 = stretch to fill screen (ignore aspect ratio)
         else -> 4f / 3f
     }
 
@@ -2097,6 +2097,7 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                         KeyEvent.KEYCODE_BUTTON_R1, // C-Right
                         KeyEvent.KEYCODE_BUTTON_L1, // C-Left
                         KeyEvent.KEYCODE_BUTTON_X, // C-Down
+                        KeyEvent.KEYCODE_BUTTON_Y, // C-Up
                         KeyEvent.KEYCODE_BUTTON_A, // A
                         KeyEvent.KEYCODE_BUTTON_B, // B
                         KeyEvent.KEYCODE_BUTTON_R2 // R
@@ -2123,24 +2124,26 @@ class GameActivityViewModel(application: Application) : AndroidViewModel(applica
                                     .center
                                     ?.id
                                     ?: return@mapNotNull null
-                    val label =
+val label =
                             when (centerId) {
                                 KeyEvent.KEYCODE_BUTTON_R1 -> "C▶"
                                 KeyEvent.KEYCODE_BUTTON_L1 -> "C◀"
                                 KeyEvent.KEYCODE_BUTTON_X -> "C▼"
+                                KeyEvent.KEYCODE_BUTTON_Y -> "C▲"
                                 KeyEvent.KEYCODE_BUTTON_A -> "A"
                                 KeyEvent.KEYCODE_BUTTON_B -> "B"
                                 KeyEvent.KEYCODE_BUTTON_R2 -> "R"
                                 else -> "?"
                             }
-                    val theme =
+                        val theme =
                             when (centerId) {
                                 KeyEvent.KEYCODE_BUTTON_A -> StickButton.BLUE_THEME
                                 KeyEvent.KEYCODE_BUTTON_B -> StickButton.GREEN_THEME
                                 KeyEvent.KEYCODE_BUTTON_R2 -> StickButton.NEUTRAL_THEME
                                 else -> StickButton.YELLOW_THEME
                             }
-                    val sizePx = (placement.sizeFraction * overlay.height).toInt()
+                        val sizeMultiplier = if (centerId == KeyEvent.KEYCODE_BUTTON_Y) 1.15f else 1f
+                        val sizePx = (placement.sizeFraction * overlay.height * sizeMultiplier).toInt()
                     val sx = placement.gravityX
                     val sy = placement.gravityY
                     val radiusX = sizePx / 2f / overlay.width
